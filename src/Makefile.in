@@ -46,8 +46,9 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_isaac_OBJECTS = isaac-main.$(OBJEXT) isaac-manager.$(OBJEXT) \
-	isaac-session.$(OBJEXT) isaac-server.$(OBJEXT) \
-	isaac-app.$(OBJEXT) isaac-module.$(OBJEXT) isaac-log.$(OBJEXT) \
+	isaac-filter.$(OBJEXT) isaac-session.$(OBJEXT) \
+	isaac-server.$(OBJEXT) isaac-app.$(OBJEXT) \
+	isaac-module.$(OBJEXT) isaac-log.$(OBJEXT) \
 	isaac-pidfile.$(OBJEXT)
 isaac_OBJECTS = $(am_isaac_OBJECTS)
 isaac_LDADD = $(LDADD)
@@ -176,7 +177,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-isaac_SOURCES = main.c manager.c session.c server.c app.c module.c log.c pidfile.c 
+isaac_SOURCES = main.c manager.c filter.c session.c server.c app.c module.c log.c pidfile.c 
 isaac_CPPFLAGS = -Wall -Werror -g -DMODDIR=\"$(isaaclibdir)\" 
 isaac_LDFLAGS = -lpthread -ldl  -rdynamic
 all: all-am
@@ -261,6 +262,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isaac-app.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isaac-filter.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isaac-log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isaac-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isaac-manager.Po@am__quote@
@@ -316,6 +318,22 @@ isaac-manager.obj: manager.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='manager.c' object='isaac-manager.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-manager.obj `if test -f 'manager.c'; then $(CYGPATH_W) 'manager.c'; else $(CYGPATH_W) '$(srcdir)/manager.c'; fi`
+
+isaac-filter.o: filter.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-filter.o -MD -MP -MF $(DEPDIR)/isaac-filter.Tpo -c -o isaac-filter.o `test -f 'filter.c' || echo '$(srcdir)/'`filter.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-filter.Tpo $(DEPDIR)/isaac-filter.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='filter.c' object='isaac-filter.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-filter.o `test -f 'filter.c' || echo '$(srcdir)/'`filter.c
+
+isaac-filter.obj: filter.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-filter.obj -MD -MP -MF $(DEPDIR)/isaac-filter.Tpo -c -o isaac-filter.obj `if test -f 'filter.c'; then $(CYGPATH_W) 'filter.c'; else $(CYGPATH_W) '$(srcdir)/filter.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-filter.Tpo $(DEPDIR)/isaac-filter.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='filter.c' object='isaac-filter.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-filter.obj `if test -f 'filter.c'; then $(CYGPATH_W) 'filter.c'; else $(CYGPATH_W) '$(srcdir)/filter.c'; fi`
 
 isaac-session.o: session.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-session.o -MD -MP -MF $(DEPDIR)/isaac-session.Tpo -c -o isaac-session.o `test -f 'session.c' || echo '$(srcdir)/'`session.c

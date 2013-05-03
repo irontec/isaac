@@ -34,6 +34,10 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 app_login_PROGRAMS = app_login.so$(EXEEXT)
 app_ping_PROGRAMS = app_ping.so$(EXEEXT)
+app_queuestatus_PROGRAMS = app_queuestatus.so$(EXEEXT)
+app_help_PROGRAMS = app_help.so$(EXEEXT)
+app_call_PROGRAMS = app_call.so$(EXEEXT)
+app_debug_PROGRAMS = app_debug.so$(EXEEXT)
 subdir = apps
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -44,9 +48,28 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__installdirs = "$(DESTDIR)$(app_logindir)" \
-	"$(DESTDIR)$(app_pingdir)"
-PROGRAMS = $(app_login_PROGRAMS) $(app_ping_PROGRAMS)
+am__installdirs = "$(DESTDIR)$(app_calldir)" \
+	"$(DESTDIR)$(app_debugdir)" "$(DESTDIR)$(app_helpdir)" \
+	"$(DESTDIR)$(app_logindir)" "$(DESTDIR)$(app_pingdir)" \
+	"$(DESTDIR)$(app_queuestatusdir)"
+PROGRAMS = $(app_call_PROGRAMS) $(app_debug_PROGRAMS) \
+	$(app_help_PROGRAMS) $(app_login_PROGRAMS) \
+	$(app_ping_PROGRAMS) $(app_queuestatus_PROGRAMS)
+am_app_call_so_OBJECTS = app_call_so-app_call.$(OBJEXT)
+app_call_so_OBJECTS = $(am_app_call_so_OBJECTS)
+app_call_so_LDADD = $(LDADD)
+app_call_so_LINK = $(CCLD) $(app_call_so_CFLAGS) $(CFLAGS) \
+	$(app_call_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_debug_so_OBJECTS = app_debug_so-app_debug.$(OBJEXT)
+app_debug_so_OBJECTS = $(am_app_debug_so_OBJECTS)
+app_debug_so_LDADD = $(LDADD)
+app_debug_so_LINK = $(CCLD) $(app_debug_so_CFLAGS) $(CFLAGS) \
+	$(app_debug_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_help_so_OBJECTS = app_help_so-app_help.$(OBJEXT)
+app_help_so_OBJECTS = $(am_app_help_so_OBJECTS)
+app_help_so_LDADD = $(LDADD)
+app_help_so_LINK = $(CCLD) $(app_help_so_CFLAGS) $(CFLAGS) \
+	$(app_help_so_LDFLAGS) $(LDFLAGS) -o $@
 am_app_login_so_OBJECTS = app_login_so-app_login.$(OBJEXT)
 app_login_so_OBJECTS = $(am_app_login_so_OBJECTS)
 app_login_so_LDADD = $(LDADD)
@@ -57,6 +80,12 @@ app_ping_so_OBJECTS = $(am_app_ping_so_OBJECTS)
 app_ping_so_LDADD = $(LDADD)
 app_ping_so_LINK = $(CCLD) $(app_ping_so_CFLAGS) $(CFLAGS) \
 	$(app_ping_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_queuestatus_so_OBJECTS =  \
+	app_queuestatus_so-app_queuestatus.$(OBJEXT)
+app_queuestatus_so_OBJECTS = $(am_app_queuestatus_so_OBJECTS)
+app_queuestatus_so_LDADD = $(LDADD)
+app_queuestatus_so_LINK = $(CCLD) $(app_queuestatus_so_CFLAGS) \
+	$(CFLAGS) $(app_queuestatus_so_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -80,8 +109,12 @@ am__v_CCLD_0 = @echo "  CCLD  " $@;
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
-SOURCES = $(app_login_so_SOURCES) $(app_ping_so_SOURCES)
-DIST_SOURCES = $(app_login_so_SOURCES) $(app_ping_so_SOURCES)
+SOURCES = $(app_call_so_SOURCES) $(app_debug_so_SOURCES) \
+	$(app_help_so_SOURCES) $(app_login_so_SOURCES) \
+	$(app_ping_so_SOURCES) $(app_queuestatus_so_SOURCES)
+DIST_SOURCES = $(app_call_so_SOURCES) $(app_debug_so_SOURCES) \
+	$(app_help_so_SOURCES) $(app_login_so_SOURCES) \
+	$(app_ping_so_SOURCES) $(app_queuestatus_so_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -180,14 +213,33 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+appsdir = @isaaclibdir@
+appsCFLAGS = -I@top_srcdir@/src -fPIC
+appsLDFLAGS = -shared -Wl
 app_login_so_SOURCES = app_login.c
-app_login_so_CFLAGS = -I@top_srcdir@/src -fPIC
-app_login_so_LDFLAGS = -shared -Wl -lodbc
-app_logindir = @isaaclibdir@
+app_login_so_CFLAGS = $(appsCFLAGS)
+app_login_so_LDFLAGS = $(appsLDFLAGS) -lodbc
+app_logindir = $(appsdir)
 app_ping_so_SOURCES = app_ping.c
-app_ping_so_CFLAGS = -I@top_srcdir@/src -fPIC
-app_ping_so_LDFLAGS = -shared -Wl
-app_pingdir = @isaaclibdir@
+app_ping_so_CFLAGS = $(appsCFLAGS)
+app_ping_so_LDFLAGS = $(appsLDFLAGS)
+app_pingdir = $(appsdir)
+app_queuestatus_so_SOURCES = app_queuestatus.c
+app_queuestatus_so_CFLAGS = $(appsCFLAGS)
+app_queuestatus_so_LDFLAGS = $(appsLDFLAGS)
+app_queuestatusdir = $(appsdir)
+app_help_so_SOURCES = app_help.c
+app_help_so_CFLAGS = $(appsCFLAGS)
+app_help_so_LDFLAGS = $(appsLDFLAGS)
+app_helpdir = $(appsdir)
+app_call_so_SOURCES = app_call.c
+app_call_so_CFLAGS = $(appsCFLAGS)
+app_call_so_LDFLAGS = $(appsLDFLAGS)
+app_calldir = $(appsdir)
+app_debug_so_SOURCES = app_debug.c
+app_debug_so_CFLAGS = $(appsCFLAGS)
+app_debug_so_LDFLAGS = $(appsLDFLAGS)
+app_debugdir = $(appsdir)
 all: all-am
 
 .SUFFIXES:
@@ -222,6 +274,117 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
+install-app_callPROGRAMS: $(app_call_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_calldir)" || $(MKDIR_P) "$(DESTDIR)$(app_calldir)"
+	@list='$(app_call_PROGRAMS)'; test -n "$(app_calldir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_calldir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_calldir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_callPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_call_PROGRAMS)'; test -n "$(app_calldir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_calldir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_calldir)" && rm -f $$files
+
+clean-app_callPROGRAMS:
+	-test -z "$(app_call_PROGRAMS)" || rm -f $(app_call_PROGRAMS)
+install-app_debugPROGRAMS: $(app_debug_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_debugdir)" || $(MKDIR_P) "$(DESTDIR)$(app_debugdir)"
+	@list='$(app_debug_PROGRAMS)'; test -n "$(app_debugdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_debugdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_debugdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_debugPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_debug_PROGRAMS)'; test -n "$(app_debugdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_debugdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_debugdir)" && rm -f $$files
+
+clean-app_debugPROGRAMS:
+	-test -z "$(app_debug_PROGRAMS)" || rm -f $(app_debug_PROGRAMS)
+install-app_helpPROGRAMS: $(app_help_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_helpdir)" || $(MKDIR_P) "$(DESTDIR)$(app_helpdir)"
+	@list='$(app_help_PROGRAMS)'; test -n "$(app_helpdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_helpdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_helpdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_helpPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_help_PROGRAMS)'; test -n "$(app_helpdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_helpdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_helpdir)" && rm -f $$files
+
+clean-app_helpPROGRAMS:
+	-test -z "$(app_help_PROGRAMS)" || rm -f $(app_help_PROGRAMS)
 install-app_loginPROGRAMS: $(app_login_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(app_logindir)" || $(MKDIR_P) "$(DESTDIR)$(app_logindir)"
@@ -296,12 +459,61 @@ uninstall-app_pingPROGRAMS:
 
 clean-app_pingPROGRAMS:
 	-test -z "$(app_ping_PROGRAMS)" || rm -f $(app_ping_PROGRAMS)
+install-app_queuestatusPROGRAMS: $(app_queuestatus_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_queuestatusdir)" || $(MKDIR_P) "$(DESTDIR)$(app_queuestatusdir)"
+	@list='$(app_queuestatus_PROGRAMS)'; test -n "$(app_queuestatusdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_queuestatusdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_queuestatusdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_queuestatusPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_queuestatus_PROGRAMS)'; test -n "$(app_queuestatusdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_queuestatusdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_queuestatusdir)" && rm -f $$files
+
+clean-app_queuestatusPROGRAMS:
+	-test -z "$(app_queuestatus_PROGRAMS)" || rm -f $(app_queuestatus_PROGRAMS)
+app_call.so$(EXEEXT): $(app_call_so_OBJECTS) $(app_call_so_DEPENDENCIES) 
+	@rm -f app_call.so$(EXEEXT)
+	$(AM_V_CCLD)$(app_call_so_LINK) $(app_call_so_OBJECTS) $(app_call_so_LDADD) $(LIBS)
+app_debug.so$(EXEEXT): $(app_debug_so_OBJECTS) $(app_debug_so_DEPENDENCIES) 
+	@rm -f app_debug.so$(EXEEXT)
+	$(AM_V_CCLD)$(app_debug_so_LINK) $(app_debug_so_OBJECTS) $(app_debug_so_LDADD) $(LIBS)
+app_help.so$(EXEEXT): $(app_help_so_OBJECTS) $(app_help_so_DEPENDENCIES) 
+	@rm -f app_help.so$(EXEEXT)
+	$(AM_V_CCLD)$(app_help_so_LINK) $(app_help_so_OBJECTS) $(app_help_so_LDADD) $(LIBS)
 app_login.so$(EXEEXT): $(app_login_so_OBJECTS) $(app_login_so_DEPENDENCIES) 
 	@rm -f app_login.so$(EXEEXT)
 	$(AM_V_CCLD)$(app_login_so_LINK) $(app_login_so_OBJECTS) $(app_login_so_LDADD) $(LIBS)
 app_ping.so$(EXEEXT): $(app_ping_so_OBJECTS) $(app_ping_so_DEPENDENCIES) 
 	@rm -f app_ping.so$(EXEEXT)
 	$(AM_V_CCLD)$(app_ping_so_LINK) $(app_ping_so_OBJECTS) $(app_ping_so_LDADD) $(LIBS)
+app_queuestatus.so$(EXEEXT): $(app_queuestatus_so_OBJECTS) $(app_queuestatus_so_DEPENDENCIES) 
+	@rm -f app_queuestatus.so$(EXEEXT)
+	$(AM_V_CCLD)$(app_queuestatus_so_LINK) $(app_queuestatus_so_OBJECTS) $(app_queuestatus_so_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -309,8 +521,12 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_call_so-app_call.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_debug_so-app_debug.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_help_so-app_help.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_login_so-app_login.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_ping_so-app_ping.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_queuestatus_so-app_queuestatus.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -327,6 +543,54 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
+
+app_call_so-app_call.o: app_call.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.o -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.o `test -f 'app_call.c' || echo '$(srcdir)/'`app_call.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_call.c' object='app_call_so-app_call.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -c -o app_call_so-app_call.o `test -f 'app_call.c' || echo '$(srcdir)/'`app_call.c
+
+app_call_so-app_call.obj: app_call.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.obj -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.obj `if test -f 'app_call.c'; then $(CYGPATH_W) 'app_call.c'; else $(CYGPATH_W) '$(srcdir)/app_call.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_call.c' object='app_call_so-app_call.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -c -o app_call_so-app_call.obj `if test -f 'app_call.c'; then $(CYGPATH_W) 'app_call.c'; else $(CYGPATH_W) '$(srcdir)/app_call.c'; fi`
+
+app_debug_so-app_debug.o: app_debug.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_debug_so_CFLAGS) $(CFLAGS) -MT app_debug_so-app_debug.o -MD -MP -MF $(DEPDIR)/app_debug_so-app_debug.Tpo -c -o app_debug_so-app_debug.o `test -f 'app_debug.c' || echo '$(srcdir)/'`app_debug.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_debug_so-app_debug.Tpo $(DEPDIR)/app_debug_so-app_debug.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_debug.c' object='app_debug_so-app_debug.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_debug_so_CFLAGS) $(CFLAGS) -c -o app_debug_so-app_debug.o `test -f 'app_debug.c' || echo '$(srcdir)/'`app_debug.c
+
+app_debug_so-app_debug.obj: app_debug.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_debug_so_CFLAGS) $(CFLAGS) -MT app_debug_so-app_debug.obj -MD -MP -MF $(DEPDIR)/app_debug_so-app_debug.Tpo -c -o app_debug_so-app_debug.obj `if test -f 'app_debug.c'; then $(CYGPATH_W) 'app_debug.c'; else $(CYGPATH_W) '$(srcdir)/app_debug.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_debug_so-app_debug.Tpo $(DEPDIR)/app_debug_so-app_debug.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_debug.c' object='app_debug_so-app_debug.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_debug_so_CFLAGS) $(CFLAGS) -c -o app_debug_so-app_debug.obj `if test -f 'app_debug.c'; then $(CYGPATH_W) 'app_debug.c'; else $(CYGPATH_W) '$(srcdir)/app_debug.c'; fi`
+
+app_help_so-app_help.o: app_help.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -MT app_help_so-app_help.o -MD -MP -MF $(DEPDIR)/app_help_so-app_help.Tpo -c -o app_help_so-app_help.o `test -f 'app_help.c' || echo '$(srcdir)/'`app_help.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_help_so-app_help.Tpo $(DEPDIR)/app_help_so-app_help.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_help.c' object='app_help_so-app_help.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -c -o app_help_so-app_help.o `test -f 'app_help.c' || echo '$(srcdir)/'`app_help.c
+
+app_help_so-app_help.obj: app_help.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -MT app_help_so-app_help.obj -MD -MP -MF $(DEPDIR)/app_help_so-app_help.Tpo -c -o app_help_so-app_help.obj `if test -f 'app_help.c'; then $(CYGPATH_W) 'app_help.c'; else $(CYGPATH_W) '$(srcdir)/app_help.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_help_so-app_help.Tpo $(DEPDIR)/app_help_so-app_help.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_help.c' object='app_help_so-app_help.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -c -o app_help_so-app_help.obj `if test -f 'app_help.c'; then $(CYGPATH_W) 'app_help.c'; else $(CYGPATH_W) '$(srcdir)/app_help.c'; fi`
 
 app_login_so-app_login.o: app_login.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -MT app_login_so-app_login.o -MD -MP -MF $(DEPDIR)/app_login_so-app_login.Tpo -c -o app_login_so-app_login.o `test -f 'app_login.c' || echo '$(srcdir)/'`app_login.c
@@ -359,6 +623,22 @@ app_ping_so-app_ping.obj: app_ping.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_ping.c' object='app_ping_so-app_ping.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -c -o app_ping_so-app_ping.obj `if test -f 'app_ping.c'; then $(CYGPATH_W) 'app_ping.c'; else $(CYGPATH_W) '$(srcdir)/app_ping.c'; fi`
+
+app_queuestatus_so-app_queuestatus.o: app_queuestatus.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queuestatus_so_CFLAGS) $(CFLAGS) -MT app_queuestatus_so-app_queuestatus.o -MD -MP -MF $(DEPDIR)/app_queuestatus_so-app_queuestatus.Tpo -c -o app_queuestatus_so-app_queuestatus.o `test -f 'app_queuestatus.c' || echo '$(srcdir)/'`app_queuestatus.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_queuestatus_so-app_queuestatus.Tpo $(DEPDIR)/app_queuestatus_so-app_queuestatus.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_queuestatus.c' object='app_queuestatus_so-app_queuestatus.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queuestatus_so_CFLAGS) $(CFLAGS) -c -o app_queuestatus_so-app_queuestatus.o `test -f 'app_queuestatus.c' || echo '$(srcdir)/'`app_queuestatus.c
+
+app_queuestatus_so-app_queuestatus.obj: app_queuestatus.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queuestatus_so_CFLAGS) $(CFLAGS) -MT app_queuestatus_so-app_queuestatus.obj -MD -MP -MF $(DEPDIR)/app_queuestatus_so-app_queuestatus.Tpo -c -o app_queuestatus_so-app_queuestatus.obj `if test -f 'app_queuestatus.c'; then $(CYGPATH_W) 'app_queuestatus.c'; else $(CYGPATH_W) '$(srcdir)/app_queuestatus.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_queuestatus_so-app_queuestatus.Tpo $(DEPDIR)/app_queuestatus_so-app_queuestatus.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_queuestatus.c' object='app_queuestatus_so-app_queuestatus.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queuestatus_so_CFLAGS) $(CFLAGS) -c -o app_queuestatus_so-app_queuestatus.obj `if test -f 'app_queuestatus.c'; then $(CYGPATH_W) 'app_queuestatus.c'; else $(CYGPATH_W) '$(srcdir)/app_queuestatus.c'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -446,7 +726,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(PROGRAMS)
 installdirs:
-	for dir in "$(DESTDIR)$(app_logindir)" "$(DESTDIR)$(app_pingdir)"; do \
+	for dir in "$(DESTDIR)$(app_calldir)" "$(DESTDIR)$(app_debugdir)" "$(DESTDIR)$(app_helpdir)" "$(DESTDIR)$(app_logindir)" "$(DESTDIR)$(app_pingdir)" "$(DESTDIR)$(app_queuestatusdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -476,8 +756,10 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-app_loginPROGRAMS clean-app_pingPROGRAMS clean-generic \
-	mostlyclean-am
+clean-am: clean-app_callPROGRAMS clean-app_debugPROGRAMS \
+	clean-app_helpPROGRAMS clean-app_loginPROGRAMS \
+	clean-app_pingPROGRAMS clean-app_queuestatusPROGRAMS \
+	clean-generic mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -497,7 +779,9 @@ info: info-am
 
 info-am:
 
-install-data-am: install-app_loginPROGRAMS install-app_pingPROGRAMS
+install-data-am: install-app_callPROGRAMS install-app_debugPROGRAMS \
+	install-app_helpPROGRAMS install-app_loginPROGRAMS \
+	install-app_pingPROGRAMS install-app_queuestatusPROGRAMS
 
 install-dvi: install-dvi-am
 
@@ -542,24 +826,33 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-app_loginPROGRAMS uninstall-app_pingPROGRAMS
+uninstall-am: uninstall-app_callPROGRAMS uninstall-app_debugPROGRAMS \
+	uninstall-app_helpPROGRAMS uninstall-app_loginPROGRAMS \
+	uninstall-app_pingPROGRAMS uninstall-app_queuestatusPROGRAMS
 
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean \
-	clean-app_loginPROGRAMS clean-app_pingPROGRAMS clean-generic \
-	ctags distclean distclean-compile distclean-generic \
-	distclean-tags distdir dvi dvi-am html html-am info info-am \
-	install install-am install-app_loginPROGRAMS \
-	install-app_pingPROGRAMS install-data install-data-am \
-	install-dvi install-dvi-am install-exec install-exec-am \
-	install-html install-html-am install-info install-info-am \
-	install-man install-pdf install-pdf-am install-ps \
-	install-ps-am install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic pdf pdf-am \
-	ps ps-am tags uninstall uninstall-am \
-	uninstall-app_loginPROGRAMS uninstall-app_pingPROGRAMS
+	clean-app_callPROGRAMS clean-app_debugPROGRAMS \
+	clean-app_helpPROGRAMS clean-app_loginPROGRAMS \
+	clean-app_pingPROGRAMS clean-app_queuestatusPROGRAMS \
+	clean-generic ctags distclean distclean-compile \
+	distclean-generic distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am \
+	install-app_callPROGRAMS install-app_debugPROGRAMS \
+	install-app_helpPROGRAMS install-app_loginPROGRAMS \
+	install-app_pingPROGRAMS install-app_queuestatusPROGRAMS \
+	install-data install-data-am install-dvi install-dvi-am \
+	install-exec install-exec-am install-html install-html-am \
+	install-info install-info-am install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
+	uninstall-am uninstall-app_callPROGRAMS \
+	uninstall-app_debugPROGRAMS uninstall-app_helpPROGRAMS \
+	uninstall-app_loginPROGRAMS uninstall-app_pingPROGRAMS \
+	uninstall-app_queuestatusPROGRAMS
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

@@ -39,6 +39,8 @@
 #include "session.h"
 #include "log.h"
 
+unsigned int last_sess_id = 0;
+
 session_t *session_create(const int fd, const struct sockaddr_in addr)
 {
 
@@ -47,9 +49,10 @@ session_t *session_create(const int fd, const struct sockaddr_in addr)
     if (!(sess = (session_t *) malloc(sizeof(session_t)))) {
         return NULL;
     }
-
+    sess->id = last_sess_id++;
     sess->fd = fd;
     sess->addr = addr;
+    sess->varcount = 0;
     session_clear_flag(sess, SESS_FLAG_AUTHENTICATED);
     session_clear_flag(sess, SESS_FLAG_DEBUG);
 
@@ -130,3 +133,21 @@ void session_clear_flag(session_t *sess, int flag)
     sess->flags &= ~flag;
 }
 
+// TODO Implement linked lists
+void session_set_variable(session_t *sess, char *varname, char *varvalue)
+{
+    strcpy(sess->vars[sess->varcount].varname, varname);
+    strcpy(sess->vars[sess->varcount].varvalue, varvalue);
+    sess->varcount++;
+}
+// TODO Implement linked lists
+const char *session_get_variable(session_t *sess, char *varname)
+{
+    int i;
+    for (i = 0; i < sess->varcount; i++) {
+        if (!strcasecmp(sess->vars[i].varname, varname)) {
+            return sess->vars[i].varvalue;
+        }
+    }
+    return NULL;
+}

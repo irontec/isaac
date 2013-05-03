@@ -60,7 +60,7 @@ int login_exec(session_t *sess, const char *args)
     SQLLEN indicator;
     int row = 0;
     int login_num;
-    char pass[100];
+    char agent[100], pass[100];
 
     /* If session is already authenticated, show an error */
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -103,7 +103,11 @@ int login_exec(session_t *sess, const char *args)
     if (SQL_SUCCEEDED(ret = SQLFetch(stmt))) {
         /* Login successful!! Mark this session as authenticated */
         session_set_flag(sess, SESS_FLAG_AUTHENTICATED);
-        session_write(sess, "LOGINOK Welcome back %d\n", login_num);
+        /* Store the login agent for later use */
+        sprintf(agent, "%d", login_num);
+        session_set_variable(sess, "AGENT", agent);
+        // Send a success message
+        session_write(sess, "LOGINOK Welcome back %s\n", agent);
         return 0;
     } else {
         /* Login failed. This mark should not be required because we're closing the connection */

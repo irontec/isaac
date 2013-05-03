@@ -32,10 +32,10 @@
  */
 enum apperr
 {
-    NOT_AUTHENTICATED = -400,
-    UNKOWN_ACTION = -401,
-    INVALID_ARGUMENTS = -402,
-    INVALID_FORMAT = -403,
+    NOT_AUTHENTICATED = 101,
+    UNKOWN_ACTION = 102,
+    INVALID_ARGUMENTS = 103,
+    INVALID_FORMAT = 104,
 };
 
 /* Application structure */

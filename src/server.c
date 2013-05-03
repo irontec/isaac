@@ -138,8 +138,8 @@ void *manage_session(void *session)
     app_t *app;
     int ret;
 
-    isaac_log(LOG_VERBOSE, "Received connection from %s:%d\n", inet_ntoa(sess->addr.sin_addr),
-            ntohs(sess->addr.sin_port));
+    isaac_log(LOG_VERBOSE, "[Session %d] Received connection from %s:%d\n", sess->id, inet_ntoa(
+            sess->addr.sin_addr), ntohs(sess->addr.sin_port));
 
     // Write the welcome banner
     if (session_write(sess, "%s v%s\n", PACKAGE_LNAME, VERSION) == -1) {
@@ -153,9 +153,9 @@ void *manage_session(void *session)
         if (sscanf(msg, "%[^ \n] %[^\n]", action, args)) {
             if ((app = application_find(action))) {
                 // Run the application
-                if ((ret = application_run(app, session, args) < 0)) {
-                    // If a generic error has occurred tell the client
-                    session_write(sess, "%s\n", apperr2str(ret));
+                if ((ret = application_run(app, session, args)) != 0) {
+                    // If a generic error has occurred write it to the client
+                    if (ret > 100) session_write(sess, "ERROR %s\n", apperr2str(ret));
                 }
             } else {
                 // What? Me no understand
@@ -168,8 +168,8 @@ void *manage_session(void *session)
     }
 
     // Connection closed, Thanks all for the fish
-    isaac_log(LOG_VERBOSE, "Closed connection from %s:%d\n", inet_ntoa(sess->addr.sin_addr), ntohs(
-            sess->addr.sin_port));
+    isaac_log(LOG_VERBOSE, "[Session %d] Closed connection from %s:%d\n", sess->id, inet_ntoa(
+            sess->addr.sin_addr), ntohs(sess->addr.sin_port));
     session_destroy(sess);
 
     return NULL;

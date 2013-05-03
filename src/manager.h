@@ -75,14 +75,15 @@ struct ami_message
 };
 typedef struct ami_message ami_message_t;
 
-
-int manager_read_header(struct isaac_manager *s, char *output);
-int manager_read_message(struct isaac_manager *s, struct ami_message *m);
-int manager_write_header(struct isaac_manager *s, char *header, int hdrlen);
-int manager_write_message(struct isaac_manager *s, struct ami_message *m);
-int message_add_header(struct ami_message *m, const char *fmt, ...);
-char *message_get_header(struct ami_message *m, const char *var);
-int manager_connect(struct isaac_manager *s);
+char *message_to_text(ami_message_t *m);
+isaac_manager_t *get_manager();
+int manager_read_header(isaac_manager_t *s, char *output);
+int manager_read_message(isaac_manager_t *s, struct ami_message *m);
+int manager_write_header(isaac_manager_t *s, char *header, int hdrlen);
+int manager_write_message(isaac_manager_t *s, ami_message_t *m);
+int message_add_header(ami_message_t *m, const char *fmt, ...);
+char *message_get_header(ami_message_t *m, const char *var);
+int manager_connect(isaac_manager_t *s);
 void *manager_do(void *man);
 int start_manager(const char* addrstr, const int port, const char* username, const char *secret);
 

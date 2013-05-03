@@ -37,16 +37,37 @@
 #include <pthread.h>
 
 /**
+ * \brief Session variable
+ *
+ * Structure to store session variables. Very useful for sharing
+ * data between different applications.
+ */
+struct session_var {
+    char varname[80];
+    char varvalue[80];
+};
+
+
+/**
  * \brief Session related information. 
  * Contains all data from an incoming client connection
  */
 struct session
 {
-    unsigned int id;            ///< Session ID.
-    unsigned int flags;         ///< Session flags. @see session_flag
-    int fd;                     ///< Session client file descriptor
-    struct sockaddr_in addr;    ///< Socket address info
-    pthread_mutex_t lock;       ///< Session lock
+    //! Session ID.
+    unsigned int id;
+    //! Session flags. @see session_flag
+    unsigned int flags;
+    //! Session variables, TODO Make this a linked list
+    struct session_var vars[10];
+    int varcount;
+
+    //! Session client file descriptor
+    int fd;
+    //! Socket address info
+    struct sockaddr_in addr;
+    //! Session lock
+    pthread_mutex_t lock;
 };
 
 typedef struct session session_t; ///< For shorter declarations
@@ -81,7 +102,7 @@ session_t *session_create(const int fd, const struct sockaddr_in addr);
  * 
  * Free session memory and delete it from sessions list.
  * This function will also close any pending applications and manager
- * hooks. 
+ * filters. 
  *
  * \note Dont use this function from apps. Use session_finish instead.
  * \param sess Session structure to be freed	
@@ -144,8 +165,18 @@ int session_test_flag(session_t *sess, int flag);
 void session_set_flag(session_t *sess, int flag);
 
 /**
- * \brief DIsables a flag in the session
+ * \brief Disables a flag in the session
  */
 void session_clear_flag(session_t *sess, int flag);
+
+/**
+ * \brief Set a value in the given variable
+ */
+void session_set_variable(session_t *sess, char *varname, char *varvalue);
+
+/**
+ * \brief Get a value of the given variable
+ */
+const char *session_get_variable(session_t *sess, char *varname);
 
 #endif

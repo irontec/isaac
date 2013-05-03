@@ -29,10 +29,30 @@
 #include <jansson.h>
 #include <string.h>
 #include "manager.h"
+#include "filter.h"
 #include "log.h"
 
 /* Manager information structure */
 isaac_manager_t *manager;
+
+// XXX XXX XXX XXX
+char *message_to_text(ami_message_t *m)
+{
+    char *msg = (char*) malloc(1024);
+    int i;
+    for (i = 0; i < m->hdrcount; i++) {
+        if (i == 0)
+            sprintf(msg, "%s", m->headers[i]);
+        else
+            sprintf(msg, "%s - %s", msg, m->headers[i]);
+    }
+    return msg;
+}
+
+isaac_manager_t *get_manager()
+{
+    return manager;
+}
 
 /**
  * \brief Read a \r\n\r\n terminated input line from AMI
@@ -308,10 +328,8 @@ void *manager_do(void *man)
 
         // Read the next message from AMI
         if ((res = manager_read_message(manager, &msg)) > 0) {
-            // TODO Pass the readed msg to the H&C logic
-            // TODO Is someone interested in this one?
-            isaac_log(LOG_NOTICE, "Message with %s readed from AMI\n", message_get_header(&msg,
-                    "Event"));
+            // Pass the readed msg to the H&C logic
+            check_message_filters(&msg);
         } else if (res < 0) {
             // Something bad has happened with our socket :(
             isaac_log(LOG_WARNING, "Manager read error %s [%d]\n", strerror(errno), errno);
