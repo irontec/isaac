@@ -29,29 +29,38 @@
  */
 #ifndef __ISAAC_H_
 #define __ISAAC_H_
+#include "log.h"
 
 //! Sorter declaration of isaac_cfg struct
 typedef struct isaac_cfg isaac_cfg_t;
 
 struct isaac_cfg
 {
-    char *manaddr;
+    char manaddr[18];
     int manport;
-    char *manuser;
-    char *manpass;
-    char *listenaddr;
-    char *listenport;
-    char *logtype;
-    char *logfile;
-    char *logtag;
+    char manuser[20];
+    char manpass[20];
+    char listenaddr[18];
+    int listenport;
+    int logtype;
     int loglevel;
+    char logfile[256];
+    char logtag[20];
 };
+
+extern isaac_cfg_t config;
+
 
 extern void
 version();
 
 extern void
+usage(const char* progname);
+
+extern void
 quit(int exitcode);
 
+extern int
+read_config(const char *cfile);
 
 #endif /* __ISAAC_H_ */

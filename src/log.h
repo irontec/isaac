@@ -60,14 +60,21 @@
 #include <sys/syscall.h>
 
 /**
+ * \todo comment this
+ */
+enum log_type
+{
+    LOG_TYPE_SYSLOG = (1 << 1),
+    LOG_TYPE_FILE,
+};
+
+/**
  * \brief Some defines for LOG_LEVEL numbers.
  *
  * We we'll use the numbers defined by syslog and create some new ones
  * because we're used to use them (ex. LOG_ERROR, LOG_VERBOSE,...)
  */
 #define DATEFORMAT	"%b %e %T"
-#define LOG_TYPE_SYSLOG	"syslog"
-#define LOG_TYPE_FILE	"file"
 #define LOG_VERBOSE_1 	109
 #define LOG_VERBOSE_2 	110
 #define LOG_VERBOSE_3 	111
@@ -132,20 +139,20 @@ isaac_log_location(int log_type, const char *file, int line, const char *functio
  *
  * This function open requested file for appending or syslog connection.
  *
- * \param	logfile      Full path to log file
- * \return	0            On Success opening the file
- * \return	1            On Opening Failure
+ * \todo params start_logging
+ * \return      0            On Success opening the file
+ * \return      -1           On Opening Failure
  */
 extern int
-open_log(const char *logfile);
+start_logging(enum log_type type, const char *tag, const char *file, int level);
 
 /**
  * \brief Closes log medium.
  *
  * This function close last opened log file or syslog connection
  */
-extern void
-close_log();
+extern int
+stop_logging();
 
 /**
  * \brief Writes a message to log medium.
@@ -155,5 +162,8 @@ close_log();
  */
 extern void
 write_log(int log_type, const char *message);
+
+extern void
+clean_text(char *text);
 
 #endif /* __ISAAC_LOG_H_ */

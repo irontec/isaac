@@ -39,7 +39,7 @@
 int debug; ///< Debug level. The more -d, the more debug
 int opt_execute = 0; ///< Determines CLI behaviour
 struct timeval isaac_startuptime; ///< Starting time, used to count the uptime time
-isaac_cfg_t *config;
+isaac_cfg_t config;
 
 /**
  * \brief Prints program version and exits
@@ -105,7 +105,9 @@ int
 read_config(const char *cfile)
 {
     config_t cfg;
-    int childs, i;
+    config_setting_t *cat, *sett;
+    int i, j;
+    const char *catname = "", *settname = "";
     // Initialize configuration
     config_init(&cfg);
 
@@ -116,14 +118,67 @@ read_config(const char *cfile)
         config_destroy(&cfg);
         return -1;
     }
-    config_setting_t *setting = config_root_setting(&cfg);
-    while ((config_setting_length(setting)) {
-        for (i < );
-    }
-}
 
-isaac_log(LOG_NOTICE, "%s\n",config_setting_get_string(config_lookup(&isaac_cfg, "manager.address")));
-return 0;
+    // Parse the configuration file to get the known settings
+    config_setting_t *root = config_root_setting(&cfg);
+    for (i = 0; i < config_setting_length(root); i++) {
+        cat = config_setting_get_elem(root, i);
+        catname = config_setting_name(cat);
+
+        if (!strcasecmp(catname, "manager")) {
+            // Get manager connection settings
+            for (j = 0; j < config_setting_length(cat); j++) {
+                sett = config_setting_get_elem(cat, j);
+                settname = config_setting_name(sett);
+                if (!strcasecmp(settname, "address")) {
+                    strcpy(config.manaddr, config_setting_get_string(sett));
+                } else if (!strcasecmp(settname, "port")) {
+                    config.manport = config_setting_get_int(sett);
+                } else if (!strcasecmp(settname, "username")) {
+                    strcpy(config.manuser, config_setting_get_string(sett));
+                } else if (!strcasecmp(settname, "secret")) {
+                    strcpy(config.manpass, config_setting_get_string(sett));
+                }
+            }
+        } else if (!strcasecmp(catname, "server")) {
+            // Get session server settings
+            for (j = 0; j < config_setting_length(cat); j++) {
+                sett = config_setting_get_elem(cat, j);
+                settname = config_setting_name(sett);
+                if (!strcasecmp(settname, "address")) {
+                    strcpy(config.listenaddr, config_setting_get_string(sett));
+                } else if (!strcasecmp(settname, "port")) {
+                    config.listenport = config_setting_get_int(sett);
+                }
+            }
+        } else if (!strcasecmp(catname, "log")) {
+            // Get logging settings
+            for (j = 0; j < config_setting_length(cat); j++) {
+                sett = config_setting_get_elem(cat, j);
+                settname = config_setting_name(sett);
+                if (!strcasecmp(settname, "type")) {
+                    const char *logtype = config_setting_get_string(sett);
+                    if (!strcasecmp("syslog", logtype)) {
+                        config.logtype = LOG_TYPE_SYSLOG;
+                    } else if (!strcasecmp("file", logtype)) {
+                        config.logtype = LOG_TYPE_FILE;
+                    } else {
+                        isaac_log(LOG_WARNING, "Unknown logtype %s\n", logtype);
+                    }
+                } else if (!strcasecmp(settname, "level")) {
+                    config.loglevel = config_setting_get_int(sett);
+                } else if (!strcasecmp(settname, "file")) {
+                    strcpy(config.logfile, config_setting_get_string(sett));
+                } else if (!strcasecmp(settname, "tag")) {
+                    strcpy(config.logtag, config_setting_get_string(sett));
+                }
+            }
+        } else {
+            isaac_log(LOG_WARNING, "Unkown category %s\n", settname);
+        }
+    }
+
+    return 0;
 }
 
 /**
@@ -208,7 +263,10 @@ main(int argc, char *argv[])
     }
 
     // Initialize logging
-    //start_logging()
+    if (start_logging(config.logtype, config.logfile, config.logtag, config.loglevel) != 0) {
+        fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
+        quit(EXIT_FAILURE);
+    }
 
     // scheduler_start
 
@@ -218,14 +276,14 @@ main(int argc, char *argv[])
     }
 
     // Start manager thread
-    if (start_manager("10.10.9.40", 5038, "ironadmin", "adminsecret") != 0) {
+    if (start_manager(config.manaddr, config.manport, config.manuser, config.manpass) != 0) {
         quit(EXIT_FAILURE);
     }
 
     // Start cli service
 
     // Start server thread
-    if (start_server("0.0.0.0", 5138) == -1) {
+    if (start_server(config.listenaddr, config.listenport) == -1) {
         quit(EXIT_FAILURE);
     }
 

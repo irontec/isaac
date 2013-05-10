@@ -25,12 +25,12 @@
  * \brief Source code for functions defined in log.h
  */
 
+#include "isaac.h"
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <time.h>
 #include <pthread.h>
-//#include "config.h"
 #include "log.h"
 //#include "cli.h"
 
@@ -38,8 +38,6 @@
 FILE *logfile;
 //! Log lock. Avoid printing more than messages at a time
 pthread_mutex_t loglock;
-//! Extern debug flag defined in main.c
-//extern int debug;
 
 /******************************************************************************
  *****************************************************************************/
@@ -61,11 +59,11 @@ log_type_to_text(int log_type, int colour)
     case LOG_VERBOSE_1:
         return "  == ";
     case LOG_VERBOSE_2:
-        return "\t-- ";
+        return "    -- ";
     case LOG_VERBOSE_3:
-        return "\t\t> ";
+        return "      > ";
     case LOG_VERBOSE_4:
-        return "\t\t\to ";
+        return "        o ";
     }
 
     /* Something went wrong */
@@ -73,25 +71,20 @@ log_type_to_text(int log_type, int colour)
 }
 
 /*****************************************************************************/
-void isaac_log_location(int log_type, const char *file, int line, const char *function,
-        const char *fmt, ...)
+void
+isaac_log_location(int log_type, const char *file, int line, const char *function, const char *fmt,
+        ...)
 {
 #define NOCOLOUR 	0
 #define COLOUR		1
-    char climsg[MAX_MSG_SIZE];
     char logmsg[MAX_MSG_SIZE];
     char msgva[MAX_MSG_SIZE];
-    long int tid = (long int) syscall(SYS_gettid);
     va_list ap;
     time_t t;
     struct tm tm;
     char date[80];
-    //struct isaac_cli *cur;
-    //const struct isaac_config isaac_cfg = get_config();
-    //struct isaac_cli *clilist = (struct isaac_cli *) get_cli_list();
 
-    //if (log_type < LOG_VERBOSE_1 && log_type >= isaac_cfg.loglevel)
-    //    return;
+    if (log_type < LOG_VERBOSE_1 && log_type >= config.loglevel) return;
 
     time(&t);
     localtime_r(&t, &tm);
@@ -103,79 +96,93 @@ void isaac_log_location(int log_type, const char *file, int line, const char *fu
     va_end(ap);
 
     if (log_type < LOG_VERBOSE_1) {
-        sprintf(climsg, "\33[2K\r[%s] %s: [%ld]\e[1;37m: %s:%d %s:\e[0m %s", date,
-                log_type_to_text(log_type, COLOUR), tid, file, line, function, msgva);
-        sprintf(logmsg, "[%s]: [%ld] %s:%d %s: %s", log_type_to_text(log_type, NOCOLOUR), tid,
-                file, line, function, msgva);
+        sprintf(logmsg, "\33[2K\r[%s] %s: [%ld]\e[1;37m: %s:%d %s:\e[0m %s", date,
+                log_type_to_text(log_type, COLOUR), TID, file, line, function, msgva);
     } else {
-        sprintf(climsg, "\33[2K\r%s%s", log_type_to_text(log_type, COLOUR), msgva);
-        sprintf(logmsg, "%s %s", log_type_to_text(log_type, NOCOLOUR), msgva);
+        sprintf(logmsg, "\33[2K\r%s%s", log_type_to_text(log_type, COLOUR), msgva);
     }
 
     /* If running in debug mode **/
-    printf("%s", climsg);
-
-    /* Write to log **/
-    //write_log(log_type, logmsg);
+    printf("%s", logmsg);
 
     /* Write to clients **/
-    //for (cur = clilist; cur; cur = cur->next) {
-    //    pthread_mutex_lock(&cur->lock);
-    //    cli_write(cur->fd, climsg);
-    //	usleep(100);
-    //    pthread_mutex_unlock(&cur->lock);
-    //}
+    //write_clis(logmsg);
+
+    /* Write to log medium**/
+    clean_text(logmsg);
+    write_log(log_type, logmsg);
 
     pthread_mutex_unlock(&loglock);
 }
 
-///*****************************************************************************/
-//int
-//open_log(const char *filename)
-//{
-//    const struct isaac_config isaac_cfg = get_config();
-//
-//    if (!strcmp(isaac_cfg.logtype, LOG_TYPE_SYSLOG)) {
-//        openlog("ironsc", LOG_PID | LOG_CONS, LOG_USER);
-//    } else if (!strcmp(isaac_cfg.logtype, LOG_TYPE_FILE)) {
-//        // Open requested Log File
-//        if (!(logfile = fopen(isaac_cfg.logfile, "a"))) {
-//            isaac_log(LOG_ERROR, "Unable to open logfile: %s!\n", isaac_cfg.logfile);
-//            return 1;
-//        }
-//    } else {
-//        isaac_log(LOG_ERROR, "Unknown Log file format %s\n", isaac_cfg.logtype);
-//        return 1;
-//    }
-//    // We have succeded opening medium
-//    return 0;
-//}
-//
-///*****************************************************************************/
-//void
-//close_log()
-//{
-//    const struct isaac_config isaac_cfg = get_config();
-//    if (!strcmp(isaac_cfg.logtype, LOG_TYPE_SYSLOG)) {
-//        //closelog();
-//    } else if (!strcmp(isaac_cfg.logtype, LOG_TYPE_FILE)) {
-//        // Close
-//        if (logfile) {
-//            fflush(logfile);
-//            fclose(logfile);
-//        }
-//    }
-//}
-//
-///*****************************************************************************/
-//void
-//write_log(int log_type, const char *message)
-//{
-//    const struct isaac_config isaac_cfg = get_config();
-//    if (log_type <= isaac_cfg.loglevel) {
-//        if (!strcmp(isaac_cfg.logtype, LOG_TYPE_SYSLOG)) {
-//            syslog(log_type, "%s", message);
-//        } else if (!strcmp(isaac_cfg.logtype, LOG_TYPE_FILE)) {
-//        }
-//    }
-//}
+int
+start_logging(enum log_type type, const char *tag, const char *file, int level)
+{
+    if (config.logtype == LOG_TYPE_SYSLOG) {
+        openlog(config.logtag, LOG_PID | LOG_CONS, LOG_USER);
+    } else if (config.logtype == LOG_TYPE_FILE) {
+        // Open requested Log File
+        if (!(logfile = fopen(config.logfile, "a"))) {
+            isaac_log(LOG_ERROR, "Unable to open logfile: %s!\n", config.logfile);
+            return -1;
+        }
+    }
+    // We have succeded opening medium
+    return 0;
+}
+
+/*****************************************************************************/
+int
+stop_logging()
+{
+    if (config.logtype == LOG_TYPE_SYSLOG) {
+        closelog();
+    } else if (config.logtype == LOG_TYPE_FILE) {
+        // Close the log file
+        if (logfile) {
+            fflush(logfile);
+            fclose(logfile);
+        }
+    }
+    return 0;
+}
+
+//*****************************************************************************/
+void
+write_log(int log_type, const char *message)
+{
+    if (log_type <= config.loglevel) {
+        if (config.logtype == LOG_TYPE_SYSLOG) {
+            syslog(log_type, "%s", message);
+        } else if (config.logtype == LOG_TYPE_FILE) {
+            //\todo write log to file
+        }
+    }
+}
+
+//*****************************************************************************/
+void
+clean_text(char *text)
+{
+    int i, j = 0;
+    char clean[MAX_MSG_SIZE];
+
+    for (i = 0; i <= strlen(text); i++) {
+        if (text[i] == 27) {
+            switch (text[i + 2]) {
+            case 48:
+                i += 3;
+                break;
+            case 49:
+                i += 6;
+                break;
+            case 50:
+                i += 4;
+                break;
+            }
+            continue;
+        }
+        clean[j++] = text[i];
+    }
+    strcpy(text, clean);
+}
