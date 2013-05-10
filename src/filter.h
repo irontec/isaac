@@ -19,20 +19,29 @@
  **
  *****************************************************************************/
 /**
- * \file manager.h
+ * \file filter.h
  * \brief Functions to manage connection with Asterisk Manager Interface
  *
- *
+ * \warning This incldue requires manager.h to be previously declared
  *
  */
 
-#ifndef __ISAAC_HOOK_H_
-#define __ISAAC_HOOK_H_
+#ifndef __ISAAC_FILTER_H_
+#define __ISAAC_FILTER_H_
 
-#include "manager.h"
+/**
+ * This filre requires manager.h declarations to work, it must be included
+ * before or it wont compile :)
+ */
+#ifndef __ISAAC_MANAGER_H_
+#error Include manager.h before using filter.h
+#endif
 #include "session.h"
 
+
+
 #define MAX_CONDS       10
+#define MAX_CONDLEN     512
 
 enum condtype
 {
@@ -45,16 +54,16 @@ enum condtype
 
 struct condition
 {
-    char hdr[MAX_LEN];
-    char val[MAX_LEN];
+    char hdr[MAX_CONDLEN];
+    char val[MAX_CONDLEN];
     enum condtype type;
 };
 typedef struct condition cond_t;
 
 enum callbacktype
 {
-    HOOK_ASYNC_CALLBACK = 0,
-    HOOK_SYNC_CALLBACK,
+    FILTER_ASYNC_CALLBACK = 0,
+    FILTER_SYNC_CALLBACK,
 };
 
 struct filter
@@ -78,6 +87,7 @@ int filter_unregister(filter_t *filter);
 int filter_exec_callback(filter_t *filter, ami_message_t *msg);
 void filter_set_userdata(filter_t *filter, void *userdata);
 void *filter_get_userdata(filter_t *filter);
+filter_t *get_session_filter(session_t *sess);
 int check_message_filters(ami_message_t *msg);
 
-#endif /* __ISAAC_HOOK_H_ */
+#endif /* __ISAAC_FILTER_H_ */

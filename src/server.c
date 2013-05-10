@@ -22,9 +22,10 @@
  * \file server.c
  * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Implementation of functions for managing incoming connections from clients.
+ * \brief Source code for funtions defined in server.h
  * 
  */
+#include "config.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -33,21 +34,27 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <errno.h>
-#include "config.h"
 #include "log.h"
 #include "server.h"
 #include "session.h"
 #include "app.h"
 
-/* Server socket */
+//! Server socket
 int isaac_sockfd = 0;
+//! Server accept connections thread
+pthread_t accept_thread;
+//! Session list
+session_t *sessions;
+//! Session List (and ID) lock
+pthread_mutex_t sessionlock;
 
-int start_server(const char *addrstr, const int port)
+/*****************************************************************************/
+int
+start_server(const char *addrstr, const int port)
 {
     struct in_addr addr;
     struct sockaddr_in srvaddr;
     int reuse = 1;
-    pthread_t accept_thread;
 
     // Create a socket for a new TCP IPv4 connection
     if ((isaac_sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -94,22 +101,39 @@ int start_server(const char *addrstr, const int port)
     return 0;
 }
 
-void *accept_connections(void *sock)
+/*****************************************************************************/
+int
+stop_server()
+{
+
+    // \todo close session socket and wait for their threads
+
+    // This is a bit hardcore
+    shutdown(isaac_sockfd, SHUT_RD);
+    // Wait for the accept thread to finish
+    pthread_join(accept_thread, NULL);
+    return 0;
+}
+
+/*****************************************************************************/
+void *
+accept_connections(void *sock)
 {
 
     int clifd;
     struct sockaddr_in cliaddr;
     socklen_t clilen;
-    pthread_t cli_thread;
     session_t *sess;
 
     // Begin accepting connections
-    for (;;) {
+    for(;;) {
         // Accept the next connections
         clilen = sizeof(cliaddr);
         if ((clifd = accept(isaac_sockfd, (struct sockaddr *) &cliaddr, &clilen)) == -1) {
-            isaac_log(LOG_WARNING, "Error accepting new connection: %s\n", strerror(errno));
-            exit(1); // TODO Manage this errors
+            if (errno != EINVAL) {
+                isaac_log(LOG_WARNING, "Error accepting new connection: %s\n", strerror(errno));
+            }
+            break;
         }
 
         // Create a new session for this connection
@@ -119,21 +143,32 @@ void *accept_connections(void *sock)
         }
 
         // Create a new thread for this client and manage its connection
-        if (pthread_create(&cli_thread, NULL, manage_session, (void*) sess) != 0) {
+        if (pthread_create(&sess->thread, NULL, manage_session, (void*) sess) != 0) {
             isaac_log(LOG_WARNING, "Error creating session thread: %s\n", strerror(errno));
             session_destroy(sess);
             continue;
         }
-    }
 
+        // Add it to the begining of session list
+        pthread_mutex_lock(&sessionlock);
+        sess->next = sessions;
+        sessions = sess;
+        pthread_mutex_unlock(&sessionlock);
+
+    }
+    // Some goodbye logging
+    isaac_log(LOG_VERBOSE, "Shutting down server thread.\n");
     // Server ended quite well
     return 0;
 }
 
-void *manage_session(void *session)
+/*****************************************************************************/
+void *
+manage_session(void *session)
 {
     char msg[512];
     char action[20], args[256];
+    session_t *cur, *prev = NULL;
     session_t *sess = (session_t *) session;
     app_t *app;
     int ret;
@@ -170,6 +205,22 @@ void *manage_session(void *session)
     // Connection closed, Thanks all for the fish
     isaac_log(LOG_VERBOSE, "[Session %d] Closed connection from %s:%d\n", sess->id, inet_ntoa(
             sess->addr.sin_addr), ntohs(sess->addr.sin_port));
+
+    // Remove this session from the list
+    pthread_mutex_lock(&sessionlock);
+    cur = sessions;
+    while(cur){
+        if (cur == sess){
+            if (prev)
+                prev->next = cur->next;
+            else
+                sessions = cur->next;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&sessionlock);
+
+    // Deallocate session memory
     session_destroy(sess);
 
     return NULL;

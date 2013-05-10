@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "app.h"
-#include "manager.h"
 #include "session.h"
+#include "manager.h"
 #include "filter.h"
 
 struct app_call_info
@@ -28,8 +28,6 @@ int call_state(filter_t *filter, ami_message_t *msg)
 
     // Send CallStatus message depending on received event
     if (!strcasecmp(event, "Hangup")) {
-        session_write(filter->sess, "%s\n", message_to_text(msg));
-
         // Print status message dpending on Hangup Cause
         const char *cause = message_get_header(msg, "Cause");
         if (!strcasecmp(cause, "0") || !strcasecmp(cause, "21")) {
@@ -56,8 +54,8 @@ int call_state(filter_t *filter, ami_message_t *msg)
         // Get the UniqueId from the agent channel
         strcpy(info->duid, message_get_header(msg, "DestUniqueID"));
 
-        // Register a Hook for the agent status
-        filter_t *remotefilter = filter_create(filter->sess, HOOK_SYNC_CALLBACK, call_state);
+        // Register a Filter for the agent status
+        filter_t *remotefilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
         remotefilter->app_info = info;
         filter_add_condition2(remotefilter, MATCH_EXACT, "UniqueID", info->duid);
         filter_register(remotefilter);
@@ -74,8 +72,8 @@ int call_response(filter_t *filter, ami_message_t *msg)
     // Get the UniqueId from the agent channel
     strcpy(info->ouid, message_get_header(msg, "UniqueID"));
 
-    // Register a Hook for the agent status
-    filter_t *agentfilter = filter_create(filter->sess, HOOK_SYNC_CALLBACK, call_state);
+    // Register a Filter for the agent status
+    filter_t *agentfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
     filter_add_condition2(agentfilter, MATCH_EXACT, "UniqueID", info->ouid);
     filter_set_userdata(agentfilter, (void*) info);
     filter_register(agentfilter);
@@ -107,8 +105,8 @@ int call_exec(session_t *sess, const char *args)
     memset(info->duid, 0, sizeof(info->ouid));
     strcpy(info->actionid, actionid);
 
-    // Register a Hook to get Generated Channel
-    filter_t *channelfilter = filter_create(sess, HOOK_SYNC_CALLBACK, call_response);
+    // Register a Filter to get Generated Channel
+    filter_t *channelfilter = filter_create(sess, FILTER_SYNC_CALLBACK, call_response);
     filter_add_condition2(channelfilter, MATCH_EXACT, "Event", "VarSet");
     filter_add_condition2(channelfilter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_add_condition2(channelfilter, MATCH_EXACT, "Value", actionid);
@@ -145,5 +143,5 @@ int load_module()
 
 int unload_module()
 {
-    // return application_unregister("PING");
+    return application_unregister("Call");
 }

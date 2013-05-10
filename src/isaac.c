@@ -21,11 +21,15 @@
 /**
  * \file main.c
  * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ *
+ * \brief Main Initialization and shutdown functions
  */
+#include "config.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-#include "config.h"
+#include <libconfig.h>
+#include "isaac.h"
 #include "pidfile.h"
 #include "module.h"
 #include "manager.h"
@@ -35,11 +39,13 @@
 int debug; ///< Debug level. The more -d, the more debug
 int opt_execute = 0; ///< Determines CLI behaviour
 struct timeval isaac_startuptime; ///< Starting time, used to count the uptime time
+isaac_cfg_t *config;
 
 /**
  * \brief Prints program version and exits
  */
-void version()
+void
+version()
 {
     printf("%s: Version %s, (C) 2013 Irontec S.L. \n", PACKAGE_NAME, VERSION);
     printf("Created by Ivan Alonso [aka Kaian] <kaian@irontec.com>\n");
@@ -51,7 +57,8 @@ void version()
  *
  * \param progname binary file name
  */
-void usage(const char* progname)
+void
+usage(const char* progname)
 {
     printf("%s: Version %s, (C) 2013 Irontec S.L. \n", PACKAGE_NAME, VERSION);
     printf("Created by Ivan Alonso [aka Kaian] <kaian@irontec.com>\n\n");
@@ -70,21 +77,53 @@ void usage(const char* progname)
  * the program. Use this instead of exit() if launchers, satelites,
  * cli or scheduler are still running.
  *
- * \param sig Received signal code
+ * \param exitcode Received/Forced signal code
  * \todo Implement Service cleanup
  */
-void quit(int sig)
+void
+quit(int exitcode)
 {
-    printf("Signal %d received\n", sig);
+    printf("Signal %d received\n", exitcode);
     /** Notify clients before closing CLI server thread */
     //if (sig == SIGHUP) sat_log(LOG_VERBOSE, "\e[1;37m%s will restart now.\e[0m\n", APP_NAME);
-    /** Remove Pidfile. */
+    // Stop server thread
+    stop_server();
+    // Remove all loaded modules. They should unregister their apps
+    unload_modules();
+    // Remove pidfile
     remove_pid(PIDFILE);
-
     // if requested to restart
     //if (sig == SIGHUP) execvp(_argv[0], _argv);
     // Exit the program!
-    exit(EXIT_SUCCESS);
+    exit(exitcode);
+}
+
+/**
+ * \brief Read configuration file
+ */
+int
+read_config(const char *cfile)
+{
+    config_t cfg;
+    int childs, i;
+    // Initialize configuration
+    config_init(&cfg);
+
+    // Read configuraiton file
+    if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
+        isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
+                config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return -1;
+    }
+    config_setting_t *setting = config_root_setting(&cfg);
+    while ((config_setting_length(setting)) {
+        for (i < );
+    }
+}
+
+isaac_log(LOG_NOTICE, "%s\n",config_setting_get_string(config_lookup(&isaac_cfg, "manager.address")));
+return 0;
 }
 
 /**
@@ -97,7 +136,8 @@ void quit(int sig)
  * \param argc Argument counter
  * \param argv Array of string arguments passed to the program
  */
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
     pid_t pid;
     int opt_remote = 0;
@@ -149,8 +189,7 @@ int main(int argc, char *argv[])
 
     /* If we are not in debug mode, then fork to background */
     if (!debug) {
-        if ((pid = fork()) < 0)
-            exit(1);
+        if ((pid = fork()) < 0) exit(1);
         else if (pid > 0) exit(0);
     }
 
@@ -163,7 +202,10 @@ int main(int argc, char *argv[])
     write_pid(PIDFILE);
 
     // Read configuration files
-    //read_config();
+    if (read_config(CFILE) != 0) {
+        fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
+        quit(EXIT_FAILURE);
+    }
 
     // Initialize logging
     //start_logging()
@@ -172,20 +214,23 @@ int main(int argc, char *argv[])
 
     // Load Modules. The contain the server Applications
     if (load_modules() != 0) {
-        exit(EXIT_FAILURE);
+        quit(EXIT_FAILURE);
     }
 
     // Start manager thread
-    if (start_manager("10.10.9.40",5038,"ironadmin","adminsecret") != 0) {
-        exit(EXIT_FAILURE);
+    if (start_manager("10.10.9.40", 5038, "ironadmin", "adminsecret") != 0) {
+        quit(EXIT_FAILURE);
     }
 
     // Start cli service
 
     // Start server thread
     if (start_server("0.0.0.0", 5138) == -1) {
-        exit(EXIT_FAILURE);
+        quit(EXIT_FAILURE);
     }
+
+    // XXX
+    usleep(500000);
 
     // All subsystems Up!
     isaac_log(LOG_NONE, "\e[1;37m%s Ready.\e[0m\n", PACKAGE_NAME);

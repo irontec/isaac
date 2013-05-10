@@ -22,7 +22,7 @@
  * \file app_login.c
  * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Module for Login and Logout functions of Irontec ivoz-ng
+ * \brief Module for Login and Logout applications of Irontec ivoz-ng
  *
  * This file contains the functions that manage the Isaac authentication methods
  * for ivoz-ng suite.
@@ -154,9 +154,9 @@ int load_module()
 int unload_module()
 {
     int res = 0;
-    // res |= application_unregister("LOGIN");
-    // res |= application_unregister("LOGOUT");
-    // res |= application_unregister("QUIT");
-    // res |= application_unregister("EXIT");
+     res |= application_unregister("LOGIN");
+     res |= application_unregister("LOGOUT");
+     res |= application_unregister("QUIT");
+     res |= application_unregister("EXIT");
     return res;
 }

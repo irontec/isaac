@@ -1,25 +1,31 @@
+/*****************************************************************************
+ ** Isaac -- Ivozng simplified Asterisk AMI Connector
+ **
+ ** Copyright (C) 2013 Irontec S.L.
+ ** Copyright (C) 2013 Ivan Alonso (aka Kaian)
+ **
+ ** This program is free software: you can redistribute it and/or modify
+ ** it under the terms of the GNU General Public License as published by
+ ** the Free Software Foundation, either version 3 of the License, or
+ ** (at your option) any later version.
+ **
+ ** This program is distributed in the hope that it will be useful,
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ ** GNU General Public License for more details.
+ **
+ ** You should have received a copy of the GNU General Public License
+ ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ **
+ *****************************************************************************/
 /**
- * Isaac -- Ivozng simplified Asterisk AMI Connector
+ * \file app.h
+ * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
- * Copyright (C) 2013 Irontec S.L.
- * Copyright (C) 2013 Ivan Alonso (aka Kaian)
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * \brief Functions for managing loadable applications from modules.
  */
-
-#ifndef __ISAAC_APP_H
-#define __ISAAC_APP_H
+#ifndef _ISAAC_APP_H
+#define _ISAAC_APP_H
 #include "session.h"
 
 /** 
@@ -73,4 +79,9 @@ int application_run(app_t *app, session_t *sess, const char *args);
  **/
 const char *apperr2str(int apperr);
 
-#endif
+/**
+ *
+ */
+int application_count();
+
+#endif /* _ISAAC_APP_H */

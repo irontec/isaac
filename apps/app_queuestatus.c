@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "app.h"
 #include "session.h"
+#include "manager.h"
 #include "filter.h"
 #include "log.h"
 
@@ -49,21 +50,21 @@ int queuestatus_exec(session_t *sess, const char *args)
     struct QueueAppInfo *info = malloc(sizeof(struct QueueAppInfo));
 
     // Create a new filter for QueueParams
-    info->paramfilter = filter_create(sess, HOOK_SYNC_CALLBACK, print_queue_status);
+    info->paramfilter = filter_create(sess, FILTER_SYNC_CALLBACK, print_queue_status);
     filter_add_condition2(info->paramfilter, MATCH_EXACT, "Event", "QueueParams");
     filter_add_condition2(info->paramfilter, MATCH_EXACT, "ActionID", actionid);
     filter_set_userdata(info->paramfilter, (void*)info);
     filter_register(info->paramfilter);
 
     // Create a new filter for QueueMember
-    info->memberfilter = filter_create(sess, HOOK_SYNC_CALLBACK, print_queue_member);
+    info->memberfilter = filter_create(sess, FILTER_SYNC_CALLBACK, print_queue_member);
     filter_add_condition2(info->memberfilter, MATCH_EXACT, "Event", "QueueMember");
     filter_add_condition2(info->memberfilter, MATCH_EXACT, "ActionID", actionid);
     filter_set_userdata(info->memberfilter, (void*)info);
     filter_register(info->memberfilter);
 
     // Create a new filter for QueueStatusComplete
-    info->endfilter = filter_create(sess, HOOK_SYNC_CALLBACK, print_queue_end);
+    info->endfilter = filter_create(sess, FILTER_SYNC_CALLBACK, print_queue_end);
     filter_add_condition2(info->endfilter, MATCH_EXACT, "Event", "QueueStatusComplete");
     filter_add_condition2(info->endfilter, MATCH_EXACT, "ActionID", actionid);
     filter_set_userdata(info->endfilter, (void*)info);
@@ -84,5 +85,5 @@ int load_module()
 
 int unload_module()
 {
-    // return application_unregister("QueueStatus");
+    return application_unregister("QueueStatus");
 }

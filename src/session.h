@@ -36,6 +36,15 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
+//! Maximun number of vars in a session
+//TODO Make vars a linked list to remove this limitation
+#define MAX_VARS        10
+
+//! Sorter declaration of session_var struct
+typedef struct session_var session_var_t;
+//! Sorter declaration of session struct
+typedef struct session session_t;
+
 /**
  * \brief Session variable
  *
@@ -47,10 +56,11 @@ struct session_var {
     char varvalue[80];
 };
 
-
 /**
  * \brief Session related information. 
+ *
  * Contains all data from an incoming client connection
+ * \todo Make the Session variable list a linked list
  */
 struct session
 {
@@ -59,27 +69,29 @@ struct session
     //! Session flags. @see session_flag
     unsigned int flags;
     //! Session variables, TODO Make this a linked list
-    struct session_var vars[10];
+    struct session_var vars[MAX_VARS];
+    //! Session variable counter
     int varcount;
-
     //! Session client file descriptor
     int fd;
     //! Socket address info
     struct sockaddr_in addr;
+    //! Session running thread
+    pthread_t thread;
     //! Session lock
     pthread_mutex_t lock;
+    //! Sessions linked list
+    session_t *next;
 };
-
-typedef struct session session_t; ///< For shorter declarations
 
 /**
  * \brief Session generic flags.
  */
 enum session_flag
 {
-    ///< Session autenticated
+    //! Session is authenticated
     SESS_FLAG_AUTHENTICATED = (1 << 1),
-    ///< Print session debug in CLI
+    //! Session messages will be written to CLI
     SESS_FLAG_DEBUG = (1 << 2),
 };
 
@@ -88,8 +100,8 @@ enum session_flag
  *
  * Create a new session structure from the incoming connection
  * and add it to the session list.
- * Allocated memory must be free using session_destroy and usually
- * done by session_manage thread.
+ * Allocated memory must be free using session_destroy (what is usually
+ * done by session_manage thread).
  *
  * \param fd 	Incoming connection socket descriptor
  * \param addr 	Address information of incoming connection
@@ -104,7 +116,7 @@ session_t *session_create(const int fd, const struct sockaddr_in addr);
  * This function will also close any pending applications and manager
  * filters. 
  *
- * \note Dont use this function from apps. Use session_finish instead.
+ * \warning Dont use this function from apps. Use session_finish instead.
  * \param sess Session structure to be freed	
  */
 void session_destroy(session_t *sess);
@@ -150,7 +162,7 @@ int session_write(session_t *sess, const char *fmt, ...);
  * \note This is a blocking function.
  * \param sess	Session structure
  * \param msg	Variable to store readed message
- * \return readed bytes
+ * \return readed bytes or -1 in case of error
  */
 int session_read(session_t *sess, char *msg);
 

@@ -1,23 +1,23 @@
 /*
-    pidfile.c - interact with pidfiles
-    Copyright (c) 1995  Martin Schulze <Martin.Schulze@Linux.DE>
+     pidfile.c - interact with pidfiles
+     Copyright (c) 1995  Martin Schulze <Martin.Schulze@Linux.DE>
 
-    This file is part of the sysklogd package, a kernel and system log daemon.
+     This file is part of the sysklogd package, a kernel and system log daemon.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+     This program is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+     You should have received a copy of the GNU General Public License along
+     with this program; if not, write to the Free Software Foundation, Inc.,
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
 /*****************************************************************************
  ** Isaac -- Ivozng simplified Asterisk AMI Connector
  **
@@ -30,10 +30,12 @@
  *****************************************************************************/
 /**
  * \file pidfile.c
- * \brief Source code for functions defined in pidfile.h
  * \author Martin Schulze <Martin.Schulze@Linux.DE>
+ *
+ * \brief Source code for functions defined in pidfile.h
+ *
  */
-
+#include "config.h"
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -42,7 +44,8 @@
 #include <errno.h>
 #include "log.h"
 
-int read_pid(char *pidfile)
+int
+read_pid(char *pidfile)
 {
     FILE *f;
     int pid;
@@ -56,7 +59,8 @@ int read_pid(char *pidfile)
     return pid;
 }
 
-int check_pid(char *pidfile)
+int
+check_pid(char *pidfile)
 {
     int pid = read_pid(pidfile);
 
@@ -74,7 +78,8 @@ int check_pid(char *pidfile)
     return pid;
 }
 
-int write_pid(char *pidfile)
+int
+write_pid(char *pidfile)
 {
     FILE *f;
     int fd;
@@ -109,11 +114,13 @@ int write_pid(char *pidfile)
         return 0;
     }
     close(fd);
+    isaac_log(LOG_VERBOSE, "Pidfile written at %s.\n", pidfile);
 
     return pid;
 }
 
-int remove_pid(char *pidfile)
+int
+remove_pid(char *pidfile)
 {
     return unlink(pidfile);
 }

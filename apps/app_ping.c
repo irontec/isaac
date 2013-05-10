@@ -14,5 +14,5 @@ int load_module(){
 }
 
 int unload_module(){
-	// return application_unregister("PING");
+	return application_unregister("PING");
 }

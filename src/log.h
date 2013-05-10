@@ -52,12 +52,12 @@
 
 #ifndef __ISAAC_LOG_H_
 #define __ISAAC_LOG_H_
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <syslog.h>
 #include <string.h>
+#include <sys/syscall.h>
 
 /**
  * \brief Some defines for LOG_LEVEL numbers.

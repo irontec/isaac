@@ -18,14 +18,24 @@
  ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
  **
  *****************************************************************************/
+/**
+ * \file filter.c
+ * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ *
+ * \brief Source code for funtions defined in filter.h
+ *
+ *
+ */
+#include "config.h"
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#include "manager.h"
 #include "filter.h"
 #include "log.h"
 
 filter_t *filters = NULL;
-pthread_mutex_t filters_mutex;
+pthread_mutex_t filters_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 filter_t *filter_create(session_t *sess, enum callbacktype cbtype, int(*callback)(filter_t *filter,
         ami_message_t *msg))
@@ -64,16 +74,19 @@ int filter_add_condition2(filter_t *filter, enum condtype type, char *hdr, char 
 
 int filter_register(filter_t *filter)
 {
-    isaac_log(LOG_NOTICE, "[Session %d] Registering filter [%p] with %d conditions\n",
+    isaac_log(LOG_DEBUG, "[Session %d] Registering filter [%p] with %d conditions\n",
             filter->sess->id, filter, filter->condcount);
+    pthread_mutex_lock(&filters_mutex);
     filter->next = filters;
     filters = filter;
+    pthread_mutex_unlock(&filters_mutex);
     return 0;
 }
 
 int filter_unregister(filter_t *filter)
 {
-    isaac_log(LOG_NOTICE, "[Session %d] Unregistering filter [%p]\n", filter->sess->id, filter);
+    isaac_log(LOG_DEBUG, "[Session %d] Unregistering filter [%p]\n", filter->sess->id, filter);
+    pthread_mutex_lock(&filters_mutex);
     filter_t *cur = filters, *prev = NULL;
     while (cur) {
         if (cur == filter) {
@@ -86,6 +99,7 @@ int filter_unregister(filter_t *filter)
         prev = cur;
         cur = cur->next;
     }
+    pthread_mutex_unlock(&filters_mutex);
     return 0;
 }
 
@@ -93,10 +107,10 @@ int filter_exec_callback(filter_t *filter, ami_message_t *msg)
 {
 
     switch (filter->cbtype) {
-    case HOOK_SYNC_CALLBACK:
+    case FILTER_SYNC_CALLBACK:
         return filter->callback(filter, msg);
     default:
-        /* HOOK_ASYNC_CALLBACK */
+        /* FILTER_ASYNC_CALLBACK */
         break;
     }
     return 1;
@@ -111,12 +125,28 @@ void *filter_get_userdata(filter_t *filter)
     return filter->app_info;
 }
 
+filter_t *get_session_filter(session_t *sess)
+{
+    filter_t *cur = NULL;
+    pthread_mutex_lock(&filters_mutex);
+    cur = filters;
+    while (cur) {
+        if (cur->sess == sess) {
+            break;
+        }
+        cur = cur->next;
+    }
+    pthread_mutex_unlock(&filters_mutex);
+    return cur;
+}
+
 int check_message_filters(ami_message_t *msg)
 {
-    filter_t *cur = filters;
+    filter_t *cur;
     int i, matches;
 
     pthread_mutex_lock(&filters_mutex);
+    cur = filters;
     while (cur) {
         matches = 0;
         for (i = 0; i < cur->condcount; i++) {

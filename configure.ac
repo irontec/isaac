@@ -1,7 +1,7 @@
 AC_PREREQ([2.6])
 AC_INIT([Isaac], [0.1], [kaian@irontec.com])
 AM_INIT_AUTOMAKE([-Werror foreign])
-AM_SILENT_RULES([yes])
+#AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS([config.h])
 
 AC_COPYRIGHT("Irontec")
@@ -11,6 +11,9 @@ AC_REVISION("$Revision: 188")
 AC_SUBST([isaacconfdir],['$(sysconfdir)/isaac/'])
 AC_SUBST([isaacinitdir],['$(sysconfdir)/init.d/'])
 AC_SUBST([isaaclibdir], ['$(libdir)/isaac'])
+
+# Define _GNU_SOURCE etc.
+AC_USE_SYSTEM_EXTENSIONS
 
 # Checks for programs.
 AC_PROG_CC
@@ -22,11 +25,20 @@ AC_LANG(C)
  
 #######################################################################
 # Check for other REQUIRED libraries
-AC_CHECK_LIB([edit], [main])
-#AC_CHECK_LIB([iniparser], [main])
+#AC_CHECK_LIB([edit], [main])
+
+AC_CHECK_LIB([dl], [dlopen], [], [
+    AC_MSG_ERROR(No libdl library found.)
+])
+
 AC_CHECK_LIB([pthread], [pthread_create], [], [
     AC_MSG_ERROR(No libpthread library found.)
 ])
+
+AC_CHECK_LIB([config], [config_init], [], [
+    AC_MSG_ERROR(libconfig library is required to comile Isaac.)
+])
+
 
 #######################################################################
 # Check for REQUIRED header files

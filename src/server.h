@@ -45,7 +45,19 @@
  * \param port Listening port 
  * \returns -1 if server setup fails, 0 on success
  */
-int start_server(const char *addr, const int port);
+int
+start_server(const char *addr, const int port);
+
+/**
+ * \brief Closes the TCP server socket, releasing all connections
+ *
+ * Closing this socket will cause all sessions to be destroyed (which means
+ * disconnected and deallocated).
+ *
+ * \returns 0 in all cases;
+ */
+int
+stop_server();
 
 /**
  * \brief Accept new connections and dispatch them
@@ -55,7 +67,8 @@ int start_server(const char *addr, const int port);
  *
  * \param sockfd Server socket descriptor
  */
-void *accept_connections(void *sockfd);
+void *
+accept_connections(void *sockfd);
 
 /** 
  * \brief Manages a new incoming connection
@@ -66,6 +79,7 @@ void *accept_connections(void *sockfd);
  * \param session session_t structure pointer with the new connection
  *                information.
  */
-void *manage_session(void *session);
+void *
+manage_session(void *session);
 
 #endif

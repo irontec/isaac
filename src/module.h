@@ -21,14 +21,19 @@
 /**
  * \file module.h
  * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
- * \brief Manages loadable modules of isaac
+ * \brief Manages loadable modules of Isaac
  * 
  * Actually loadable modules can only register applications. But hey, it's an
  * open door.
  *
  */
-#ifndef __ISAAC_MODULE_H
-#define __ISAAC_MODULE_H
+#ifndef __ISAAC_MODULE_H_
+#define __ISAAC_MODULE_H_
+#include <dirent.h>
+#include <dlfcn.h>
+
+//! Sorter declaration of struct isaac_module
+typedef struct isaac_module isaac_module_t;
 
 /**
  * \brief This structure contains of related information to one Isaac module
@@ -40,9 +45,7 @@
 struct isaac_module
 {
     //! Filename of the module
-    char file[256];
-    //! Module name
-    char name[256];
+    char *fname;
     //! Module load entry point
     int
     (*load)();
@@ -53,7 +56,7 @@ struct isaac_module
     void *dlhandle;
 
     //! Next module in the list
-    struct isaac_module *next;
+    isaac_module_t *next;
 };
 
 /**
@@ -63,10 +66,22 @@ struct isaac_module
  * files.
  *
  * \retval 0 If any module has been loaded
- * \retval 1 If no module has been loaded
+ * \retval -1 If no module has been loaded
  */
 extern int
 load_modules();
+
+/**
+ * \brief Unload all previously loaded files
+ *
+ * Destroy all loaded modules (which in fact will invoke the unload function of each one)
+ * using \ref module_destroy.
+ * This is done on Isaac shutdown.
+ *
+ * \retval 0 In all cases
+ */
+extern int
+unload_modules();
 
 /**
  * \brief Create basic structure info of a module and add to modules lists.
@@ -76,7 +91,7 @@ load_modules();
  *
  * \return A new allocated module structure
  */
-extern struct isaac_module*
+extern isaac_module_t*
 module_create(const char* file);
 
 /**
@@ -86,20 +101,10 @@ module_create(const char* file);
  * custom data it has used)
  * - Free the Dynamic function handler
  * - Free module memory
- * - \todo It should unlink the module from the list of modules
  *
  */
 extern void
-module_destroy(struct isaac_module* module);
+module_destroy(isaac_module_t* module);
 
-/**
- * \brief This function returns a module from a name
- *
- * Loops through modules list to find one with the given name
- *
- * \returns module or NULL if not found
- */
-extern struct isaac_module*
-module_by_name(const char* name);
 
-#endif         /* __ISAAC_MODULE_H */
+#endif         /* __ISAAC_MODULE_H_ */

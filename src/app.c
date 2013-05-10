@@ -1,3 +1,30 @@
+/*****************************************************************************
+ ** Isaac -- Ivozng simplified Asterisk AMI Connector
+ **
+ ** Copyright (C) 2013 Irontec S.L.
+ ** Copyright (C) 2013 Ivan Alonso (aka Kaian)
+ **
+ ** This program is free software: you can redistribute it and/or modify
+ ** it under the terms of the GNU General Public License as published by
+ ** the Free Software Foundation, either version 3 of the License, or
+ ** (at your option) any later version.
+ **
+ ** This program is distributed in the hope that it will be useful,
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ ** GNU General Public License for more details.
+ **
+ ** You should have received a copy of the GNU General Public License
+ ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ **
+ *****************************************************************************/
+/**
+ * \file app.c
+ * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ *
+ * \brief Source code for funtions defined in app.h
+ */
+#include "config.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -31,6 +58,27 @@ int application_register(const char *name, int(*execute)(session_t *sess, const 
 
     isaac_log(LOG_VERBOSE_3, "Registered application '\e[1;36m%s\e[0m'\n", name);
 
+    return 0;
+}
+
+int application_unregister(const char *name){
+    app_t *cur, *prev;
+    pthread_mutex_lock(&apps_lock);
+    cur = apps;
+    prev = NULL;
+    while(cur){
+        if (!strcasecmp(name, cur->name)){
+            isaac_log(LOG_VERBOSE_3, "Unegistered application '\e[1;36m%s\e[0m'\n", cur->name);
+            if (prev)
+                prev->next = cur->next;
+            else
+                apps = cur->next;
+            // \todo Free application memory
+        }
+        prev = cur;
+        cur = cur->next;
+    }
+    pthread_mutex_unlock(&apps_lock);
     return 0;
 }
 
@@ -70,4 +118,18 @@ const char *apperr2str(int apperr)
     default:
         return NULL;
     }
+}
+
+int application_count()
+{
+    int appcnt = 0;
+    pthread_mutex_lock(&apps_lock);
+    app_t *app = apps;
+    while (app) {
+        appcnt++;
+        app = app->next;
+    }
+    pthread_mutex_unlock(&apps_lock);
+
+    return appcnt;
 }

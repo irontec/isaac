@@ -21,20 +21,23 @@
 /**
  * \file module.c
  * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ *
  * \brief Source code for funtions defined in module.h
  *
  */
-
-#include <dirent.h>
-#include <dlfcn.h>
+#include "config.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "log.h"
+#include "app.h"
 #include "module.h"
 
-//! modules list
-struct isaac_module *modules = NULL;
+//! Loaded modules list
+// We wont mutexlock this list because is only accessed on startup or
+// shutdown. This will only be a problem if \ref quit is called from
+// other thread.
+isaac_module_t *modules = NULL;
 
 /*****************************************************************************/
 int
@@ -42,96 +45,116 @@ load_modules()
 {
     DIR *moddir;
     struct dirent *l;
-    char *ext; /* File extension (incling dot) */
+    char *ext; // File extension (incling dot)
     char lfullfile[256];
-    struct isaac_module *module;
-	int modcnt = 0;
+    isaac_module_t *module;
+    int modcnt = 0;
 
+    // Some feedback
     isaac_log(LOG_VERBOSE, "Loading modules ...\n");
 
-    /* Open modules directory */
-    if (!(moddir = opendir(MODDIR))){
-		isaac_log(LOG_ERROR, "Unable to open modules dir: %s\n", MODDIR);
+    // Open modules directory
+    if (!(moddir = opendir(MODDIR))) {
+        isaac_log(LOG_ERROR, "Unable to open modules dir: %s\n", MODDIR);
         return 1;
-	}
+    }
 
+    // Read al directory entries
     while ((l = readdir(moddir))) {
-        /* Ignore directories */
-        if (l->d_type == DT_DIR)
-            continue;
+        // Ignore directories
+        if (l->d_type == DT_DIR) continue;
 
-        /* Get file extension */
-        if (!(ext = strchr(l->d_name, '.')))
-            continue;
+        // Get file extension
+        if (!(ext = strchr(l->d_name, '.'))) continue;
 
-        /* Must end in .so to load it.  */
-        if (strcasecmp(ext, ".so"))
-            continue;
+        // Must end in .so to load it.
+        if (strcasecmp(ext, ".so")) continue;
 
-        /* Create full module file path */
+        // Create full module file path
         sprintf(lfullfile, "%s/%s", MODDIR, l->d_name);
 
-        /* Create a new module */
-        if (!(module = module_create(lfullfile))) {
+        // Create a new module
+        if (!(module = module_create(l->d_name))) {
             isaac_log(LOG_ERROR, "Failed to create module from %s\n", l->d_name);
-            module_destroy(module);
             continue;
         }
-        /* Open module module */
-        if (!(module->dlhandle = dlopen(lfullfile,  RTLD_NOW | RTLD_LOCAL))) {
+
+        // Open module module
+        if (!(module->dlhandle = dlopen(lfullfile, RTLD_NOW | RTLD_LOCAL))) {
             isaac_log(LOG_ERROR, "Error opening %s\n", dlerror());
             module_destroy(module);
             continue;
         }
 
-		/* Some logging */
-		isaac_log(LOG_VERBOSE_2, "Loading module %s\n", l->d_name);
+        // Some logging
+        isaac_log(LOG_VERBOSE_2, "Loading module %s\n", module->fname);
 
-        /* Load basic module functions */
+        // Load basic module functions
         module->load = dlsym(module->dlhandle, "load_module");
         module->unload = dlsym(module->dlhandle, "unload_module");
 
-        /* Check module has basic capabilitys */
+        // Check module has basic capabilitys
         if (module->load && module->unload) {
-            /* Load the module! */
-            if (module->load() == 0 ){
-				// Increase module loaded count
-				modcnt++;
-			} else {
-				// Wah! Failed to load :S
-				isaac_log(LOG_WARNING, "Failed to fully load %s\n", l->d_name);
- 			}
+            // Load the module!
+            if (module->load() == 0) {
+                // Increase module loaded count
+                modcnt++;
+            } else {
+                // Wah! Failed to load :S
+                isaac_log(LOG_WARNING, "Failed to fully load %s\n", l->d_name);
+            }
         } else {
-            /* Give some bad output */
-        	isaac_log(LOG_ERROR, "Module %s has no moding capabilities!\n", l->d_name);
-            /* And remove this module */
+            // Give some bad output
+            isaac_log(LOG_ERROR, "Module %s has no moding capabilities!\n", l->d_name);
+            // And remove this module
             module_destroy(module);
         }
     }
 
-    /* Close module directory */
+    // Close module directory
     closedir(moddir);
 
     if (!modules) {
         isaac_log(LOG_ERROR, "Unable to load *ANY* module from %s!\n", MODDIR);
-        return 1;
+        return -1;
     }
-    isaac_log(LOG_VERBOSE, "%d modules loaded.\n", modcnt);
+    isaac_log(LOG_VERBOSE, "%d applications in %d modules loaded.\n", application_count(), modcnt);
     return 0;
 }
 
 /*****************************************************************************/
-struct isaac_module*
+int
+unload_modules()
+{
+    isaac_module_t *module;
+    while (modules) {
+        // Move the header pointer to the next module
+        module = modules;
+        modules = modules->next;
+        // Some logging
+        isaac_log(LOG_VERBOSE_2, "Unloading module %s\n", module->fname);
+        // Unload the module an free its memory
+        module_destroy(module);
+    }
+
+    return 0;
+}
+
+/*****************************************************************************/
+isaac_module_t*
 module_create(const char* file)
 {
     struct isaac_module *module;
 
-    /* Allocate memory for this module */
+    // Allocate memory for this module
     module = malloc(sizeof(struct isaac_module));
     memset(module, 0, sizeof(struct isaac_module));
-    strcpy(module->file, file);
 
-    /* Add to the modules list */
+    // Store filename (only for feedback)
+    module->fname = malloc(strlen(file) + 1);
+    strcpy(module->fname, file);
+
+    // Add to the modules list
     module->next = modules;
     modules = module;
 
@@ -140,40 +163,26 @@ module_create(const char* file)
 
 /*****************************************************************************/
 void
-module_destroy(struct isaac_module *module)
+module_destroy(isaac_module_t *module)
 {
-    /* At least we have a module */
-    if (!module)
-        return;
+    // Sanity check
+    if (!module) return;
 
-    /* TODO Remove from the module list */
-
-    /* Unload the module if it's able  */
-    if (module->unload)
+    // Unload the module if it's implemented
+    if (module->unload) {
         module->unload();
+    }
 
-    /* If we have an open handler, close it */
+    // If we have an open handler, close it
     if (module->dlhandle) {
         dlclose(module->dlhandle);
     }
 
-    /* Finaly free module structure */
+    // Free module filename
+    free(module->fname);
+
+    // Finaly free module structure
     free(module);
-
-}
-
-/*****************************************************************************/
-struct isaac_module*
-module_by_name(const char* name)
-{
-    struct isaac_module *module = modules;
-
-    while (module) {
-        if (!strcasecmp(module->name, name))
-            return module;
-        module = module->next;
-    }
-    return NULL;
 
 }
 
