@@ -1,0 +1,17 @@
+Source: isaac
+Section: comm
+Priority: optional
+Maintainer: Ivan Alonso <kaian@irontec.com>
+
+Package: isaac
+Architecture: amd64
+Section: comm
+Depends: libedit2, libconfig8
+Priority: optional
+Homepage: http://www.irontec.com
+Description: Ivozng simplified Asterisk AMI Connector
+ Isaac is simplified interface to manage Asterisk Manager Interface
+ output.
+ It is capable to run loadable applications to extend or implement
+ new protocols.
+ .
