@@ -1,0 +1,59 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          isaac
+# Required-Start:    $syslog $network $local_fs $time $all
+# Required-Stop:     $syslog $network $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Isaac
+# Description:       Ivozng Simplified Asterisk AMI Connector
+### END INIT INFO
+
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=isaac
+DESC="Ivozng Simplified Asterisk AMI Connector"
+DAEMON=/usr/bin/isaac
+TRUE=/bin/true
+
+if ! [ -x $DAEMON ] ; then
+        echo "ERROR: $DAEMON not found"
+        exit 0
+fi
+
+# Use the LSB standard functions for services management
+. /lib/lsb/init-functions
+
+# Use enviroment variables (for $ASID)
+. /etc/environment
+
+case "$1" in
+  start)
+	log_begin_msg "Starting $DESC: $NAME"
+	start-stop-daemon --start --oknodo --quiet --name $NAME --exec $DAEMON
+	log_end_msg $?
+	;;
+
+  stop)
+	log_begin_msg "Stopping $DESC: $NAME"
+	rm -f /var/run/isaac.pid
+	start-stop-daemon --stop --oknodo --exec "$DAEMON"
+	log_end_msg 0
+	;;
+
+  restart)
+	$0 stop
+	sleep 2  # It needs some time to really be stopped.
+	$0 start
+	;;
+
+  status)
+	status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
+	;;
+
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac
