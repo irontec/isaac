@@ -25,7 +25,7 @@
  * \brief Source code for funtions defined in server.h
  * 
  */
-#include "config.h"
+#include "isaac.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,15 +38,12 @@
 #include "server.h"
 #include "session.h"
 #include "app.h"
+#include "util.h"
 
 //! Server socket
 int isaac_sockfd = 0;
 //! Server accept connections thread
 pthread_t accept_thread;
-//! Session list
-session_t *sessions;
-//! Session List (and ID) lock
-pthread_mutex_t sessionlock;
 
 /*****************************************************************************/
 int
@@ -148,13 +145,6 @@ accept_connections(void *sock)
             session_destroy(sess);
             continue;
         }
-
-        // Add it to the begining of session list
-        pthread_mutex_lock(&sessionlock);
-        sess->next = sessions;
-        sessions = sess;
-        pthread_mutex_unlock(&sessionlock);
-
     }
     // Some goodbye logging
     isaac_log(LOG_VERBOSE, "Shutting down server thread.\n");
@@ -168,14 +158,14 @@ manage_session(void *session)
 {
     char msg[512];
     char action[20], args[256];
-    session_t *cur, *prev = NULL;
     session_t *sess = (session_t *) session;
     app_t *app;
     int ret;
 
-    isaac_log(LOG_VERBOSE, "[Session %d] Received connection from %s:%d\n", sess->id, inet_ntoa(
-            sess->addr.sin_addr), ntohs(sess->addr.sin_port));
+    // Store the connection time
+    sess->last_cmd_time = isaac_tvnow();
 
+    isaac_log(LOG_VERBOSE, "[Session %s] Received connection from %s\n", sess->id, sess->addrstr);
     // Write the welcome banner
     if (session_write(sess, "%s v%s\n", PACKAGE_LNAME, VERSION) == -1) {
         isaac_log(LOG_ERROR, "Error sending welcome banner.");
@@ -184,6 +174,8 @@ manage_session(void *session)
 
     // While connection is up
     while (session_read(sess, msg) > 0) {
+        // Store the last action time
+        sess->last_cmd_time = isaac_tvnow();
         // Get message action
         if (sscanf(msg, "%[^ \n] %[^\n]", action, args)) {
             if ((app = application_find(action))) {
@@ -203,22 +195,7 @@ manage_session(void *session)
     }
 
     // Connection closed, Thanks all for the fish
-    isaac_log(LOG_VERBOSE, "[Session %d] Closed connection from %s:%d\n", sess->id, inet_ntoa(
-            sess->addr.sin_addr), ntohs(sess->addr.sin_port));
-
-    // Remove this session from the list
-    pthread_mutex_lock(&sessionlock);
-    cur = sessions;
-    while(cur){
-        if (cur == sess){
-            if (prev)
-                prev->next = cur->next;
-            else
-                sessions = cur->next;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&sessionlock);
+    isaac_log(LOG_VERBOSE, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
 
     // Deallocate session memory
     session_destroy(sess);

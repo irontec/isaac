@@ -49,6 +49,11 @@ int call_state(filter_t *filter, ami_message_t *msg)
         } else if (!strcasecmp(state, "6")) {
             session_write(filter->sess, "CALLSTATUS %s %s ANSWERED\n", info->actionid, from);
         }
+    } else if (!strcasecmp(event, "VarSet")) {
+        const char *value = message_get_header(msg, "Value");
+        if (!strcasecmp(value, "SIP 183 Session Progress")){
+            session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\n", info->actionid, from);
+        }
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
             "Begin")) {
         // Get the UniqueId from the agent channel
@@ -128,7 +133,7 @@ int call_exec(session_t *sess, const char *args)
     message_add_header(&msg, "Exten: %s", exten);
     message_add_header(&msg, "Async: 1");
     message_add_header(&msg, "Variable: ACTIONID=%s", actionid);
-    message_add_header(&msg, "Variable: ROL=%s", "AGENTE");
+    message_add_header(&msg, "Variable: ROL=%s", "USUARIO");
     message_add_header(&msg, "Variable: CALLERID=%s", agent);
     message_add_header(&msg, "Variable: AUTOANSWER=%s", "1");
     manager_write_message(get_manager(), &msg);

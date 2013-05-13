@@ -1,7 +1,7 @@
 AC_PREREQ([2.6])
 AC_INIT([Isaac], [0.1], [kaian@irontec.com])
 AM_INIT_AUTOMAKE([-Werror foreign])
-#AM_SILENT_RULES([yes])
+AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS([config.h])
 
 AC_COPYRIGHT("Irontec")
@@ -39,6 +39,9 @@ AC_CHECK_LIB([config], [config_init], [], [
     AC_MSG_ERROR(libconfig library is required to comile Isaac.)
 ])
 
+AC_CHECK_LIB([edit], [history], [], [
+    AC_MSG_ERROR(libedit library is required to comile Isaac.)
+])
 
 #######################################################################
 # Check for REQUIRED header files

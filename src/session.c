@@ -42,6 +42,10 @@
 #include "session.h"
 #include "log.h"
 
+//! Session list
+session_t *sessions;
+//! Session List (and ID) lock
+pthread_mutex_t sessionlock;
 //! Last created session id
 unsigned int last_sess_id = 0;
 
@@ -57,13 +61,20 @@ session_t *session_create(const int fd, const struct sockaddr_in addr)
     }
 
     // Initialize session fields
-    sess->id = last_sess_id++;
+    sprintf(sess->id, "%d",last_sess_id++);
     sess->fd = fd;
     sess->addr = addr;
     sess->flags = 0x00;
     sess->varcount = 0;
     memset(sess->vars, 0, sizeof(session_var_t)*MAX_VARS);
+    sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
     pthread_mutex_init(&sess->lock, NULL);
+
+    // Add it to the begining of session list
+    pthread_mutex_lock(&sessionlock);
+    sess->next = sessions;
+    sessions = sess;
+    pthread_mutex_unlock(&sessionlock);
 
     // Return created session;
     return sess;
@@ -73,6 +84,22 @@ session_t *session_create(const int fd, const struct sockaddr_in addr)
 void session_destroy(session_t *sess)
 {
     filter_t *filter;
+    session_t *cur, *prev = NULL;
+
+    // Remove this session from the list
+    pthread_mutex_lock(&sessionlock);
+    cur = sessions;
+    while(cur){
+        if (cur == sess){
+            if (prev)
+                prev->next = cur->next;
+            else
+                sessions = cur->next;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&sessionlock);
+
     // Unregister all this connection filters
     while((filter = get_session_filter(sess))){
         filter_unregister(filter);
@@ -89,6 +116,7 @@ int session_finish(session_t *sess)
     int res;
     // Close the session socket thread-safe way
     pthread_mutex_lock(&sess->lock);
+    shutdown(sess->fd, SHUT_RD);
     res = close(sess->fd);
     pthread_mutex_unlock(&sess->lock);
     return res;
@@ -116,12 +144,12 @@ int session_write(session_t *sess, const char *fmt, ...)
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_NONE, "\e[1;31m>> %s\e[0m", msgva);
+        isaac_log(LOG_VERBOSE_3, "\e[1;31mSession %s >> \e[0m%s", sess->id, msgva);
     }
 
     // Write the built message into the socket
     if ((wbytes = send(sess->fd, msgva, strlen(msgva) + 1, 0) == -1)) {
-        isaac_log(LOG_WARNING, "Unable to write on session %d: %s\n", sess->id, strerror(errno));
+        isaac_log(LOG_WARNING, "Unable to write on session %s: %s\n", sess->id, strerror(errno));
     }
     pthread_mutex_unlock(&sess->lock);
     // Return written bytes
@@ -168,7 +196,7 @@ int session_read(session_t *sess, char *msg)
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_NONE, "\e[1;32m<< %s\e[0m", buffer);
+        isaac_log(LOG_VERBOSE_3, "\e[1;32mSession %s << \e[0m%s", sess->id, buffer);
     }
 
     return rbytes;
@@ -212,4 +240,47 @@ const char *session_get_variable(session_t *sess, char *varname)
         }
     }
     return NULL;
+}
+
+/*****************************************************************************/
+session_iter_t *session_iterator_new(){
+    session_iter_t *iter;
+
+    /* Reserve memory for iterator */
+    iter = malloc(sizeof(session_iter_t));
+    /* Lock the list, preventing anyone from editing it */
+    pthread_mutex_lock(&sessionlock);
+    /* Start with the first satelite */
+    iter->next = sessions;
+    /* Return iterator */
+    return iter;
+}
+
+session_t *session_iterator_next(session_iter_t *iter){
+    session_t *next = iter->next;
+    // If not reached the last one, store the next iteration pointer
+    if (next){
+        iter->next = next->next;
+    }
+    return next;
+}
+
+void session_iterator_destroy(session_iter_t *iter){
+    /* Destroy iterator */
+    free(iter);
+    /* Just unlock the Sessions List lock */
+    pthread_mutex_unlock(&sessionlock);
+}
+
+session_t *session_by_id(const char *id){
+    session_iter_t *iter;
+    session_t *sess;
+
+    iter = session_iterator_new();
+    while((sess = session_iterator_next(iter))){
+        if (!strcmp(sess->id, id))
+            break;
+    }
+    session_iterator_destroy(iter);
+    return sess;
 }

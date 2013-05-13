@@ -29,6 +29,7 @@
  */
 #ifndef __ISAAC_H_
 #define __ISAAC_H_
+#include "config.h"
 #include "log.h"
 
 //! Sorter declaration of isaac_cfg struct
@@ -49,7 +50,8 @@ struct isaac_cfg
 };
 
 extern isaac_cfg_t config;
-
+extern int debug;
+extern struct timeval isaac_startuptime;
 
 extern void
 version();

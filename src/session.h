@@ -44,6 +44,8 @@
 typedef struct session_var session_var_t;
 //! Sorter declaration of session struct
 typedef struct session session_t;
+//! Sorter declaration of session_iterator
+typedef struct session_iterator session_iter_t;
 
 /**
  * \brief Session variable
@@ -51,7 +53,8 @@ typedef struct session session_t;
  * Structure to store session variables. Very useful for sharing
  * data between different applications.
  */
-struct session_var {
+struct session_var
+{
     char varname[80];
     char varvalue[80];
 };
@@ -65,7 +68,7 @@ struct session_var {
 struct session
 {
     //! Session ID.
-    unsigned int id;
+    char id[20];
     //! Session flags. @see session_flag
     unsigned int flags;
     //! Session variables, TODO Make this a linked list
@@ -76,6 +79,10 @@ struct session
     int fd;
     //! Socket address info
     struct sockaddr_in addr;
+    //! Address string IPv4:Port
+    char addrstr[25];
+    //! Time of last command (for idle calculation)
+    struct timeval last_cmd_time;
     //! Session running thread
     pthread_t thread;
     //! Session lock
@@ -96,6 +103,18 @@ enum session_flag
 };
 
 /**
+ * \brief Iterator structure for session loops
+ *
+ * This structure is used to store the actual iterator state.\n
+ */
+struct session_iterator
+{
+    session_t *next;
+    char prefix[80];
+    int prefix_len;
+};
+
+/**
  * \brief Create a new session from client connection
  *
  * Create a new session structure from the incoming connection
@@ -107,7 +126,8 @@ enum session_flag
  * \param addr 	Address information of incoming connection
  * \return 		The new created session or NULL in case of alloc error
  */
-session_t *session_create(const int fd, const struct sockaddr_in addr);
+session_t *
+session_create(const int fd, const struct sockaddr_in addr);
 
 /**
  * \brief Free session memory
@@ -119,7 +139,8 @@ session_t *session_create(const int fd, const struct sockaddr_in addr);
  * \warning Dont use this function from apps. Use session_finish instead.
  * \param sess Session structure to be freed	
  */
-void session_destroy(session_t *sess);
+void
+session_destroy(session_t *sess);
 
 /**
  * \brief Closes session socket
@@ -132,7 +153,8 @@ void session_destroy(session_t *sess);
  * \param sess	Session to be finished
  * \return close function return
  */
-int session_finish(session_t *sess);
+int
+session_finish(session_t *sess);
 
 /**
  * \brief Sends some text to client socket
@@ -145,7 +167,8 @@ int session_finish(session_t *sess);
  * \param ...	Zero or more vars to fill the fmt
  * \return 0 in case of success, -1 otherwise
  */
-int session_write(session_t *sess, const char *fmt, ...);
+int
+session_write(session_t *sess, const char *fmt, ...);
 
 /**
  * \brief Read some text from client socket
@@ -164,31 +187,46 @@ int session_write(session_t *sess, const char *fmt, ...);
  * \param msg	Variable to store readed message
  * \return readed bytes or -1 in case of error
  */
-int session_read(session_t *sess, char *msg);
+int
+session_read(session_t *sess, char *msg);
 
 /**
  * \brief Checks if session has a flag enabled
  */
-int session_test_flag(session_t *sess, int flag);
+int
+session_test_flag(session_t *sess, int flag);
 
 /**
  * \brief Enables a flag in the session
  */
-void session_set_flag(session_t *sess, int flag);
+void
+session_set_flag(session_t *sess, int flag);
 
 /**
  * \brief Disables a flag in the session
  */
-void session_clear_flag(session_t *sess, int flag);
+void
+session_clear_flag(session_t *sess, int flag);
 
 /**
  * \brief Set a value in the given variable
  */
-void session_set_variable(session_t *sess, char *varname, char *varvalue);
+void
+session_set_variable(session_t *sess, char *varname, char *varvalue);
 
 /**
  * \brief Get a value of the given variable
  */
-const char *session_get_variable(session_t *sess, char *varname);
+const char *
+session_get_variable(session_t *sess, char *varname);
+
+extern session_iter_t *
+session_iterator_new();
+extern session_t *
+session_iterator_next(session_iter_t *iter);
+extern void
+session_iterator_destroy(session_iter_t *iter);
+
+session_t *session_by_id(const char *id);
 
 #endif

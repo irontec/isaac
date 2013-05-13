@@ -32,7 +32,7 @@
 #include <time.h>
 #include <pthread.h>
 #include "log.h"
-//#include "cli.h"
+#include "cli.h"
 
 //! Pointer for File descriptor. Only used if logtype is LOG_TYPE_FILE
 FILE *logfile;
@@ -84,7 +84,9 @@ isaac_log_location(int log_type, const char *file, int line, const char *functio
     struct tm tm;
     char date[80];
 
-    if (log_type < LOG_VERBOSE_1 && log_type >= config.loglevel) return;
+    if (log_type < LOG_VERBOSE_1 && log_type >= config.loglevel) {
+        return;
+    }
 
     time(&t);
     localtime_r(&t, &tm);
@@ -103,10 +105,12 @@ isaac_log_location(int log_type, const char *file, int line, const char *functio
     }
 
     /* If running in debug mode **/
-    printf("%s", logmsg);
+    if (debug) {
+        printf("%s", logmsg);
+    }
 
     /* Write to clients **/
-    //write_clis(logmsg);
+    write_clis(logmsg);
 
     /* Write to log medium**/
     clean_text(logmsg);

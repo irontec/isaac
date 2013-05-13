@@ -24,22 +24,26 @@
  *
  * \brief Main Initialization and shutdown functions
  */
-#include "config.h"
+
+#include "isaac.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <libconfig.h>
-#include "isaac.h"
 #include "pidfile.h"
 #include "module.h"
 #include "manager.h"
 #include "server.h"
 #include "log.h"
+#include "cli.h"
+#include "remote.h"
+#include "util.h"
 
-int debug; ///< Debug level. The more -d, the more debug
+
 int opt_execute = 0; ///< Determines CLI behaviour
 struct timeval isaac_startuptime; ///< Starting time, used to count the uptime time
 isaac_cfg_t config;
+int debug = 0;
 
 /**
  * \brief Prints program version and exits
@@ -197,6 +201,7 @@ main(int argc, char *argv[])
     pid_t pid;
     int opt_remote = 0;
     char opt;
+    char * xarg = NULL;
 
     // Parse commandline arguments
     while ((opt = getopt(argc, argv, "dhrvx:")) != EOF) {
@@ -213,7 +218,7 @@ main(int argc, char *argv[])
         case 'x':
             opt_execute++;
             opt_remote++; // This is implicit in 'x'
-            //xarg = strdup(optarg);
+            xarg = strdup(optarg);
             break;
         case 'v':
             version();
@@ -225,12 +230,12 @@ main(int argc, char *argv[])
     }
 
     // Check if there is an Isaac is already running
-    if (0/*cli_tryconnect()*/) {
+    if (cli_tryconnect()) {
         if (opt_remote && !opt_execute) {
-            //cli_remotecontrol(NULL);
+            cli_remotecontrol(NULL);
             return 0;
         } else if (opt_remote && opt_execute) {
-            //cli_remotecontrol(xarg);
+            cli_remotecontrol(xarg);
             return 0;
         } else {
             fprintf(stderr, "Isaac already running on %s.  Use '%s -r' to connect.\n", CLI_SOCKET,
@@ -242,11 +247,14 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    /* If we are not in debug mode, then fork to background */
+    // If we are not in debug mode, then fork to background
     if (!debug) {
         if ((pid = fork()) < 0) exit(1);
         else if (pid > 0) exit(0);
     }
+
+    // Store startup time for core show uptime
+    isaac_startuptime = isaac_tvnow();
 
     // Setup signal handlers
     (void) signal(SIGINT, quit);
@@ -268,8 +276,6 @@ main(int argc, char *argv[])
         quit(EXIT_FAILURE);
     }
 
-    // scheduler_start
-
     // Load Modules. The contain the server Applications
     if (load_modules() != 0) {
         quit(EXIT_FAILURE);
@@ -281,14 +287,14 @@ main(int argc, char *argv[])
     }
 
     // Start cli service
+    if (cli_server_start() != 0){
+        quit(EXIT_FAILURE);
+    }
 
     // Start server thread
     if (start_server(config.listenaddr, config.listenport) == -1) {
         quit(EXIT_FAILURE);
     }
-
-    // XXX
-    usleep(500000);
 
     // All subsystems Up!
     isaac_log(LOG_NONE, "\e[1;37m%s Ready.\e[0m\n", PACKAGE_NAME);

@@ -629,6 +629,8 @@ CC
 isaaclibdir
 isaacinitdir
 isaacconfdir
+AM_BACKSLASH
+AM_DEFAULT_VERBOSITY
 am__untar
 am__tar
 AMTAR
@@ -693,6 +695,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_silent_rules
 enable_dependency_tracking
 '
       ac_precious_vars='build_alias
@@ -1323,6 +1326,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-silent-rules          less verbose build output (undo: `make V=1')
+  --disable-silent-rules         verbose build output (undo: `make V=0')
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
 
@@ -2722,7 +2727,18 @@ am__tar='${AMTAR} chof - "$$tardir"'; am__untar='${AMTAR} xf -'
 
 
 
-#AM_SILENT_RULES([yes])
+# Check whether --enable-silent-rules was given.
+if test "${enable_silent_rules+set}" = set; then :
+  enableval=$enable_silent_rules;
+fi
+
+case $enable_silent_rules in
+yes) AM_DEFAULT_VERBOSITY=0;;
+no)  AM_DEFAULT_VERBOSITY=1;;
+*)   AM_DEFAULT_VERBOSITY=0;;
+esac
+AM_BACKSLASH='\'
+
 ac_config_headers="$ac_config_headers config.h"
 
 
@@ -5468,6 +5484,55 @@ else
 
 fi
 
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for history in -ledit" >&5
+$as_echo_n "checking for history in -ledit... " >&6; }
+if test "${ac_cv_lib_edit_history+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ledit  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char history ();
+int
+main ()
+{
+return history ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_edit_history=yes
+else
+  ac_cv_lib_edit_history=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_edit_history" >&5
+$as_echo "$ac_cv_lib_edit_history" >&6; }
+if test "x$ac_cv_lib_edit_history" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBEDIT 1
+_ACEOF
+
+  LIBS="-ledit $LIBS"
+
+else
+
+    as_fn_error $? "libedit library is required to comile Isaac." "$LINENO" 5
+
+fi
 
 
 #######################################################################
