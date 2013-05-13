@@ -1,16 +1,12 @@
 AC_PREREQ([2.6])
 AC_INIT([Isaac], [0.1], [kaian@irontec.com])
 AM_INIT_AUTOMAKE([-Werror foreign])
-AM_SILENT_RULES([yes])
+#AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS([config.h])
+AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_COPYRIGHT("Irontec")
 AC_REVISION("$Revision: 188")
-
-# Set directories
-AC_SUBST([isaacconfdir],['$(sysconfdir)/isaac/'])
-AC_SUBST([isaacinitdir],['$(sysconfdir)/init.d/'])
-AC_SUBST([isaaclibdir], ['$(libdir)/isaac'])
 
 # Define _GNU_SOURCE etc.
 AC_USE_SYSTEM_EXTENSIONS
@@ -25,7 +21,6 @@ AC_LANG(C)
  
 #######################################################################
 # Check for other REQUIRED libraries
-#AC_CHECK_LIB([edit], [main])
 
 AC_CHECK_LIB([dl], [dlopen], [], [
     AC_MSG_ERROR(No libdl library found.)
@@ -47,10 +42,6 @@ AC_CHECK_LIB([edit], [history], [], [
 # Check for REQUIRED header files
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h stdint.h stdlib.h string.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h])
 
-#AC_CHECK_HEADER([iniparser.h], [], [
-#    AC_MSG_ERROR([iniparser must be installed to compile])
-#])
-
 #######################################################################
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_PID_T
@@ -63,10 +54,14 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([bzero inet_ntoa gethostbyname gettimeofday socket strcasecmp strchr strcspn strdup strerror strncasecmp strstr])
 
 # Program defines
-AC_DEFINE_UNQUOTED([CLI_SOCKET], "/var/run/isaac.sock", [Define Unix socket for Command Line Interface])
-AC_DEFINE_UNQUOTED([PIDFILE], "/var/run/isaac.pid", [Define program pidfile])
-AC_DEFINE_UNQUOTED([CFILE],"/etc/isaac.conf", [Define program configuration file])
-AC_DEFINE_UNQUOTED([PACKAGE_LNAME], "Isaac - Ivozng Simplified Asterisk AMI Connector", [Long name of the package])
+AC_DEFINE_UNQUOTED([PACKAGE_LNAME], ["Isaac - Ivozng Simplified Asterisk AMI Connector"], [Long name of the package])
+
+# Set directories and files
+AC_SUBST([isaaccfile],[${sysconfdir}/isaac.conf])
+AC_SUBST([isaacinitdir],[${sysconfdir}/init.d/])
+AC_SUBST([isaacmoddir],[${libdir}/isaac])
+AC_SUBST([isaacpid],[${localstatedir}/run/isaac.pid])
+AC_SUBST([isaacsock],[${localstatedir}/run/isaac.sock])
 
 ######################################################################
 # DOXYGEN SUPPORT
@@ -119,5 +114,6 @@ AC_MSG_NOTICE
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([apps/Makefile])
+AC_CONFIG_FILES([conf/Makefile])
 
 AC_OUTPUT

@@ -1,11 +1,5 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define program configuration file */
-#undef CFILE
-
-/* Define Unix socket for Command Line Interface */
-#undef CLI_SOCKET
-
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -148,9 +142,6 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
-
-/* Define program pidfile */
-#undef PIDFILE
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS

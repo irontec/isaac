@@ -1,8 +1,6 @@
-appsdir=@isaaclibdir@
+appsdir=@isaacmoddir@
 appsCFLAGS=-I@top_srcdir@/src -fPIC
 appsLDFLAGS=-shared -Wl
-
-
 
 app_login_PROGRAMS = app_login.so
 app_login_so_SOURCES = app_login.c

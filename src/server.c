@@ -167,7 +167,7 @@ manage_session(void *session)
 
     isaac_log(LOG_VERBOSE, "[Session %s] Received connection from %s\n", sess->id, sess->addrstr);
     // Write the welcome banner
-    if (session_write(sess, "%s v%s\n", PACKAGE_LNAME, VERSION) == -1) {
+    if (session_write(sess, "%s/%s\n", PACKAGE_LNAME, VERSION) == -1) {
         isaac_log(LOG_ERROR, "Error sending welcome banner.");
         return NULL;
     }
