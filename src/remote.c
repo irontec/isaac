@@ -532,7 +532,7 @@ char *
 prompt(EditLine *e)
 {
     char cli_promt[50];
-    sprintf(cli_promt, "%s*CLI> ", PACKAGE_NAME);
+    sprintf(cli_promt, "%s*CLI> ", APP_NAME);
     return strdup(cli_promt);
 }
 

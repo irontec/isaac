@@ -54,7 +54,9 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([bzero inet_ntoa gethostbyname gettimeofday socket strcasecmp strchr strcspn strdup strerror strncasecmp strstr])
 
 # Program defines
-AC_DEFINE_UNQUOTED([PACKAGE_LNAME], ["Isaac - Ivozng Simplified Asterisk AMI Connector"], [Long name of the package])
+AC_DEFINE_UNQUOTED([APP_NAME], ["${PACKAGE_NAME}"], [Application name])
+AC_DEFINE_UNQUOTED([APP_LNAME], ["Isaac - Ivozng Simplified Asterisk AMI Connector"], [Long name of the package])
+AC_DEFINE_UNQUOTED([APP_VERSION], ["${PACKAGE_VERSION}"], [Application version])
 
 # Set directories and files
 AC_SUBST([isaaccfile],[${sysconfdir}/isaac.conf])

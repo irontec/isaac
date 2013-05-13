@@ -84,7 +84,7 @@ cli_server_start()
 
     /** Create a new Local socket for incoming connections */
     if ((isaac_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
-        fprintf(stderr, "Cannot create listener socket!\n");
+        isaac_log(LOG_ERROR, "Cannot create listener socket!: %s\n", strerror(errno));
         return -1;
     }
     memset(&sunaddr, 0, sizeof(sunaddr));
@@ -96,7 +96,7 @@ cli_server_start()
 
     /** Bind socket to local address */
     if (bind(isaac_sock, (struct sockaddr *) &sunaddr, sizeof(sunaddr)) < 0) {
-        fprintf(stderr, "Cannot bind to listener socket!\n");
+        isaac_log(LOG_ERROR, "Cannot bind to listener socket!: %s\n", strerror(errno));
         return -1;
     }
 
@@ -1062,7 +1062,7 @@ handle_core_show_version(struct isaac_cli_entry *e, int cmd, struct isaac_cli_ar
     }
 
     /* Pirnt a welcome message */
-    isaac_cli(a->fd, "%s v%s\n", PACKAGE_LNAME, VERSION);
+    isaac_cli(a->fd, "%s v%s\n", APP_LNAME, APP_VERSION);
 
     return CLI_SUCCESS;
 }

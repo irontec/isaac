@@ -6360,7 +6360,17 @@ done
 # Program defines
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE_LNAME "Isaac - Ivozng Simplified Asterisk AMI Connector"
+#define APP_NAME "${PACKAGE_NAME}"
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define APP_LNAME "Isaac - Ivozng Simplified Asterisk AMI Connector"
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define APP_VERSION "${PACKAGE_VERSION}"
 _ACEOF
 
 

@@ -1,5 +1,14 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Long name of the package */
+#undef APP_LNAME
+
+/* Application name */
+#undef APP_NAME
+
+/* Application version */
+#undef APP_VERSION
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -124,9 +133,6 @@
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
-
-/* Long name of the package */
-#undef PACKAGE_LNAME
 
 /* Define to the full name of this package. */
 #undef PACKAGE_NAME

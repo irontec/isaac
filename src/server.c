@@ -167,7 +167,7 @@ manage_session(void *session)
 
     isaac_log(LOG_VERBOSE, "[Session %s] Received connection from %s\n", sess->id, sess->addrstr);
     // Write the welcome banner
-    if (session_write(sess, "%s/%s\n", PACKAGE_LNAME, VERSION) == -1) {
+    if (session_write(sess, "%s/%s\n", APP_LNAME, APP_VERSION) == -1) {
         isaac_log(LOG_ERROR, "Error sending welcome banner.");
         return NULL;
     }
@@ -177,7 +177,8 @@ manage_session(void *session)
         // Store the last action time
         sess->last_cmd_time = isaac_tvnow();
         // Get message action
-        if (sscanf(msg, "%[^ \n] %[^\n]", action, args)) {
+        if (sscanf(msg, "%s %[^\n]", action, args)) {
+            isaac_log(LOG_NOTICE, "[Session %s] Requested application %s (args: %s)\n", sess->id, action, args);
             if ((app = application_find(action))) {
                 // Run the application
                 if ((ret = application_run(app, session, args)) != 0) {
