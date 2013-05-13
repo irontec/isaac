@@ -893,11 +893,6 @@ isaac_complete_session(const char *line, const char *word, int pos, int state, i
     //} else {
     //  iter = satelite_iterator_by_name_new(word, strlen(word));
     //}
-
-    if (!iter) {
-        return NULL;
-    }
-
     while (ret == &notfound && (s = session_iterator_next(iter))) {
         if (++which > state) {
             ret = s->id;

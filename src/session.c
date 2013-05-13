@@ -45,7 +45,7 @@
 //! Session list
 session_t *sessions;
 //! Session List (and ID) lock
-pthread_mutex_t sessionlock;
+pthread_mutex_t sessionlock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 //! Last created session id
 unsigned int last_sess_id = 0;
 
@@ -83,7 +83,7 @@ session_t *session_create(const int fd, const struct sockaddr_in addr)
 /*****************************************************************************/
 void session_destroy(session_t *sess)
 {
-    filter_t *filter;
+    //filter_t *filter;
     session_t *cur, *prev = NULL;
 
     // Remove this session from the list
@@ -97,13 +97,15 @@ void session_destroy(session_t *sess)
                 sessions = cur->next;
             break;
         }
+        prev = cur;
+        cur = cur->next;
     }
     pthread_mutex_unlock(&sessionlock);
 
     // Unregister all this connection filters
-    while((filter = get_session_filter(sess))){
-        filter_unregister(filter);
-    }
+//    while((filter = get_session_filter(sess))){
+//        filter_unregister(filter);
+//    }
     // Destroy the session mutex
     pthread_mutex_destroy(&sess->lock);
     // Free the session allocated memory
