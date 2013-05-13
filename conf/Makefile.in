@@ -141,6 +141,7 @@ includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
 isaaccfile = @isaaccfile@
+isaacconfdir = @isaacconfdir@
 isaacinitdir = @isaacinitdir@
 isaacmoddir = @isaacmoddir@
 isaacpid = @isaacpid@
@@ -159,12 +160,12 @@ psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
-sysconfdir = @sysconfdir@
+sysconfdir = @isaacconfdir@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-sysconf_DATA = isaac.conf
+sysconf_DATA = isaac.conf call.conf
 all: all-am
 
 .SUFFIXES:

@@ -4,7 +4,7 @@ appsLDFLAGS=-shared -Wl
 
 app_login_PROGRAMS = app_login.so
 app_login_so_SOURCES = app_login.c
-app_login_so_CFLAGS = $(appsCFLAGS)
+app_login_so_CFLAGS = $(appsCFLAGS) 
 app_login_so_LDFLAGS = $(appsLDFLAGS) -lodbc
 app_logindir = $(appsdir)
 
@@ -28,7 +28,7 @@ app_helpdir = $(appsdir)
 
 app_call_PROGRAMS = app_call.so
 app_call_so_SOURCES = app_call.c
-app_call_so_CFLAGS = $(appsCFLAGS)
+app_call_so_CFLAGS = $(appsCFLAGS) -DCALLCONF=\"@isaacconfdir@/call.conf\"
 app_call_so_LDFLAGS = $(appsLDFLAGS)
 app_calldir = $(appsdir)
 

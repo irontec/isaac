@@ -604,6 +604,7 @@ isaacpid
 isaacmoddir
 isaacinitdir
 isaaccfile
+isaacconfdir
 LIBOBJS
 LN_S
 am__fastdepCXX_FALSE
@@ -6375,7 +6376,9 @@ _ACEOF
 
 
 # Set directories and files
-isaaccfile=${sysconfdir}/isaac.conf
+isaacconfdir=${sysconfdir}/isaac
+
+isaaccfile=${isaacconfdir}/isaac.conf
 
 isaacinitdir=${sysconfdir}/init.d/
 
@@ -6384,6 +6387,7 @@ isaacmoddir=${libdir}/isaac
 isaacpid=${localstatedir}/run/isaac.pid
 
 isaacsock=${localstatedir}/run/isaac.sock
+
 
 
 ######################################################################

@@ -1,10 +1,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <libconfig.h>
 #include "app.h"
 #include "session.h"
 #include "manager.h"
 #include "filter.h"
+#include "log.h"
+
+
+struct app_call_config
+{
+    char incontext[80];
+    char outcontext[80];
+    char rol[20];
+    int autoanswer;
+} call_config;
 
 struct app_call_info
 {
@@ -13,7 +24,8 @@ struct app_call_info
     char duid[50];
 };
 
-int call_state(filter_t *filter, ami_message_t *msg)
+int
+call_state(filter_t *filter, ami_message_t *msg)
 {
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
     const char *event = message_get_header(msg, "Event");
@@ -51,7 +63,7 @@ int call_state(filter_t *filter, ami_message_t *msg)
         }
     } else if (!strcasecmp(event, "VarSet")) {
         const char *value = message_get_header(msg, "Value");
-        if (!strcasecmp(value, "SIP 183 Session Progress")){
+        if (!strcasecmp(value, "SIP 183 Session Progress")) {
             session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\n", info->actionid, from);
         }
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
@@ -70,7 +82,8 @@ int call_state(filter_t *filter, ami_message_t *msg)
     }
 }
 
-int call_response(filter_t *filter, ami_message_t *msg)
+int
+call_response(filter_t *filter, ami_message_t *msg)
 {
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
 
@@ -90,7 +103,8 @@ int call_response(filter_t *filter, ami_message_t *msg)
     filter_unregister(filter);
 }
 
-int call_exec(session_t *sess, const char *args)
+int
+call_exec(session_t *sess, const char *args)
 {
     char actionid[20];
     char exten[20];
@@ -126,27 +140,67 @@ int call_exec(session_t *sess, const char *args)
     memset(&msg, 0, sizeof(ami_message_t));
     message_add_header(&msg, "Action: Originate");
     message_add_header(&msg, "CallerID: %s", agent);
-    message_add_header(&msg, "Channel: Local/%s@outcall-leg1", agent);
-    message_add_header(&msg, "Context: outcall-leg2");
+    message_add_header(&msg, "Channel: Local/%s@%s", agent, call_config.incontext);
+    message_add_header(&msg, "Context: %s", call_config.outcontext);
     message_add_header(&msg, "Priority: 1");
     message_add_header(&msg, "ActionID: %s", actionid);
     message_add_header(&msg, "Exten: %s", exten);
     message_add_header(&msg, "Async: 1");
     message_add_header(&msg, "Variable: ACTIONID=%s", actionid);
-    message_add_header(&msg, "Variable: ROL=%s", "USUARIO");
+    message_add_header(&msg, "Variable: ROL=%s", call_config.rol);
     message_add_header(&msg, "Variable: CALLERID=%s", agent);
-    message_add_header(&msg, "Variable: AUTOANSWER=%s", "1");
+    message_add_header(&msg, "Variable: AUTOANSWER=%d", call_config.autoanswer);
     manager_write_message(get_manager(), &msg);
 
     return 0;
 }
 
-int load_module()
+int
+read_call_config(const char *cfile)
 {
+    config_t cfg;
+    // Initialize configuration
+    config_init(&cfg);
+    char *value;
+
+    // Read configuraiton file
+    if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
+        isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
+                config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return -1;
+    }
+
+    // Read known configuration options
+    if (config_lookup_string(&cfg, "originate.incontext", &value) == CONFIG_TRUE){
+        strcpy(call_config.incontext, value);
+    }
+    if (config_lookup_string(&cfg, "originate.outcontext", &value) == CONFIG_TRUE){
+        strcpy(call_config.outcontext, value);
+    }
+    if (config_lookup_string(&cfg, "originate.rol", &value) == CONFIG_TRUE){
+        strcpy(call_config.rol, value);
+    }
+    if (config_lookup_int(&cfg, "originate.autoanswer", &call_config.autoanswer) == CONFIG_TRUE){
+    }
+
+    isaac_log(LOG_NOTICE, "IN context %s\n", call_config.incontext);
+
+    return 0;
+}
+
+int
+load_module()
+{
+    if (read_call_config(CALLCONF) != 0) {
+        isaac_log(LOG_ERROR, "Failed to read app_call config file %s\n", CALLCONF);
+        return -1;
+    }
     return application_register("Call", call_exec);
 }
 
-int unload_module()
+int
+unload_module()
 {
     return application_unregister("Call");
 }

@@ -1,1 +1,2 @@
-sysconf_DATA=isaac.conf
+sysconfdir=@isaacconfdir@
+sysconf_DATA=isaac.conf call.conf

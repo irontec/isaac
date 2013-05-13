@@ -178,7 +178,6 @@ manage_session(void *session)
         sess->last_cmd_time = isaac_tvnow();
         // Get message action
         if (sscanf(msg, "%s %[^\n]", action, args)) {
-            isaac_log(LOG_NOTICE, "[Session %s] Requested application %s (args: %s)\n", sess->id, action, args);
             if ((app = application_find(action))) {
                 // Run the application
                 if ((ret = application_run(app, session, args)) != 0) {

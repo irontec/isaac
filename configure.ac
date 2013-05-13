@@ -59,11 +59,13 @@ AC_DEFINE_UNQUOTED([APP_LNAME], ["Isaac - Ivozng Simplified Asterisk AMI Connect
 AC_DEFINE_UNQUOTED([APP_VERSION], ["${PACKAGE_VERSION}"], [Application version])
 
 # Set directories and files
-AC_SUBST([isaaccfile],[${sysconfdir}/isaac.conf])
+AC_SUBST([isaacconfdir],[${sysconfdir}/isaac])
+AC_SUBST([isaaccfile],[${isaacconfdir}/isaac.conf])
 AC_SUBST([isaacinitdir],[${sysconfdir}/init.d/])
 AC_SUBST([isaacmoddir],[${libdir}/isaac])
 AC_SUBST([isaacpid],[${localstatedir}/run/isaac.pid])
 AC_SUBST([isaacsock],[${localstatedir}/run/isaac.sock])
+
 
 ######################################################################
 # DOXYGEN SUPPORT

@@ -114,6 +114,7 @@ read_config(const char *cfile)
     const char *catname = "", *settname = "";
     // Initialize configuration
     config_init(&cfg);
+    isaac_log(LOG_VERBOSE, "Reading configuration from file %s\n", cfile);
 
     // Read configuraiton file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {

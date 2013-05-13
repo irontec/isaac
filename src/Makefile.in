@@ -141,6 +141,7 @@ includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
 isaaccfile = @isaaccfile@
+isaacconfdir = @isaacconfdir@
 isaacinitdir = @isaacinitdir@
 isaacmoddir = @isaacmoddir@
 isaacpid = @isaacpid@
