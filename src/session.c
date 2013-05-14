@@ -85,7 +85,7 @@ session_create(const int fd, const struct sockaddr_in addr)
 void
 session_destroy(session_t *sess)
 {
-    //filter_t *filter;
+    filter_t *filter;
     session_t *cur, *prev = NULL;
 
     // Remove this session from the list

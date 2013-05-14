@@ -18,7 +18,7 @@ build:
 	dh_auto_build
 	#dh_auto_test
 
-install: build
+install: 
 	dh_testdir
 	dh_testroot
 	dh_prep
