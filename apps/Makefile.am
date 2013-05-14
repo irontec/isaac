@@ -20,12 +20,6 @@ app_ping_so_CFLAGS = $(appsCFLAGS)
 app_ping_so_LDFLAGS = $(appsLDFLAGS)
 app_pingdir = $(appsdir)
 
-#app_queuestatus_PROGRAMS = app_queuestatus.so
-#app_queuestatus_so_SOURCES = app_queuestatus.c
-#app_queuestatus_so_CFLAGS = $(appsCFLAGS)
-#app_queuestatus_so_LDFLAGS = $(appsLDFLAGS)
-#app_queuestatusdir = $(appsdir)
-
 app_help_PROGRAMS = app_help.so
 app_help_so_SOURCES = app_help.c
 app_help_so_CFLAGS = $(appsCFLAGS)
@@ -38,9 +32,9 @@ app_call_so_CFLAGS = $(appsCFLAGS) -DCALLCONF=\"@isaacconfdir@/call.conf\"
 app_call_so_LDFLAGS = $(appsLDFLAGS)
 app_calldir = $(appsdir)
 
-app_debug_PROGRAMS = app_debug.so
-app_debug_so_SOURCES = app_debug.c
-app_debug_so_CFLAGS = $(appsCFLAGS)
-app_debug_so_LDFLAGS = $(appsLDFLAGS)
-app_debugdir = $(appsdir)
+#app_debug_PROGRAMS = app_debug.so
+#app_debug_so_SOURCES = app_debug.c
+#app_debug_so_CFLAGS = $(appsCFLAGS)
+#app_debug_so_LDFLAGS = $(appsLDFLAGS)
+#app_debugdir = $(appsdir)
 
