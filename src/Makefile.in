@@ -59,10 +59,25 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 am__mv = mv -f
+AM_V_lt = $(am__v_lt_$(V))
+am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
+am__v_lt_0 = --silent
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_$(V))
+am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
+am__v_CC_0 = @echo "  CC    " $@;
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_$(V))
+am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
+am__v_CCLD_0 = @echo "  CCLD  " $@;
+AM_V_GEN = $(am__v_GEN_$(V))
+am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
+am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(isaac_SOURCES)
 DIST_SOURCES = $(isaac_SOURCES)
 ETAGS = etags
@@ -70,6 +85,7 @@ CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
@@ -241,7 +257,7 @@ clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 isaac$(EXEEXT): $(isaac_OBJECTS) $(isaac_DEPENDENCIES) 
 	@rm -f isaac$(EXEEXT)
-	$(isaac_LINK) $(isaac_OBJECTS) $(isaac_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(isaac_LINK) $(isaac_OBJECTS) $(isaac_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -263,185 +279,211 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/isaac-util.Po@am__quote@
 
 .c.o:
-@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
 @am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ $<
 
 .c.obj:
-@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
 @am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 isaac-isaac.o: isaac.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-isaac.o -MD -MP -MF $(DEPDIR)/isaac-isaac.Tpo -c -o isaac-isaac.o `test -f 'isaac.c' || echo '$(srcdir)/'`isaac.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-isaac.Tpo $(DEPDIR)/isaac-isaac.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-isaac.o -MD -MP -MF $(DEPDIR)/isaac-isaac.Tpo -c -o isaac-isaac.o `test -f 'isaac.c' || echo '$(srcdir)/'`isaac.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-isaac.Tpo $(DEPDIR)/isaac-isaac.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='isaac.c' object='isaac-isaac.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-isaac.o `test -f 'isaac.c' || echo '$(srcdir)/'`isaac.c
 
 isaac-isaac.obj: isaac.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-isaac.obj -MD -MP -MF $(DEPDIR)/isaac-isaac.Tpo -c -o isaac-isaac.obj `if test -f 'isaac.c'; then $(CYGPATH_W) 'isaac.c'; else $(CYGPATH_W) '$(srcdir)/isaac.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-isaac.Tpo $(DEPDIR)/isaac-isaac.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-isaac.obj -MD -MP -MF $(DEPDIR)/isaac-isaac.Tpo -c -o isaac-isaac.obj `if test -f 'isaac.c'; then $(CYGPATH_W) 'isaac.c'; else $(CYGPATH_W) '$(srcdir)/isaac.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-isaac.Tpo $(DEPDIR)/isaac-isaac.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='isaac.c' object='isaac-isaac.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-isaac.obj `if test -f 'isaac.c'; then $(CYGPATH_W) 'isaac.c'; else $(CYGPATH_W) '$(srcdir)/isaac.c'; fi`
 
 isaac-manager.o: manager.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-manager.o -MD -MP -MF $(DEPDIR)/isaac-manager.Tpo -c -o isaac-manager.o `test -f 'manager.c' || echo '$(srcdir)/'`manager.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-manager.Tpo $(DEPDIR)/isaac-manager.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-manager.o -MD -MP -MF $(DEPDIR)/isaac-manager.Tpo -c -o isaac-manager.o `test -f 'manager.c' || echo '$(srcdir)/'`manager.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-manager.Tpo $(DEPDIR)/isaac-manager.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='manager.c' object='isaac-manager.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-manager.o `test -f 'manager.c' || echo '$(srcdir)/'`manager.c
 
 isaac-manager.obj: manager.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-manager.obj -MD -MP -MF $(DEPDIR)/isaac-manager.Tpo -c -o isaac-manager.obj `if test -f 'manager.c'; then $(CYGPATH_W) 'manager.c'; else $(CYGPATH_W) '$(srcdir)/manager.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-manager.Tpo $(DEPDIR)/isaac-manager.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-manager.obj -MD -MP -MF $(DEPDIR)/isaac-manager.Tpo -c -o isaac-manager.obj `if test -f 'manager.c'; then $(CYGPATH_W) 'manager.c'; else $(CYGPATH_W) '$(srcdir)/manager.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-manager.Tpo $(DEPDIR)/isaac-manager.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='manager.c' object='isaac-manager.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-manager.obj `if test -f 'manager.c'; then $(CYGPATH_W) 'manager.c'; else $(CYGPATH_W) '$(srcdir)/manager.c'; fi`
 
 isaac-filter.o: filter.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-filter.o -MD -MP -MF $(DEPDIR)/isaac-filter.Tpo -c -o isaac-filter.o `test -f 'filter.c' || echo '$(srcdir)/'`filter.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-filter.Tpo $(DEPDIR)/isaac-filter.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-filter.o -MD -MP -MF $(DEPDIR)/isaac-filter.Tpo -c -o isaac-filter.o `test -f 'filter.c' || echo '$(srcdir)/'`filter.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-filter.Tpo $(DEPDIR)/isaac-filter.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='filter.c' object='isaac-filter.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-filter.o `test -f 'filter.c' || echo '$(srcdir)/'`filter.c
 
 isaac-filter.obj: filter.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-filter.obj -MD -MP -MF $(DEPDIR)/isaac-filter.Tpo -c -o isaac-filter.obj `if test -f 'filter.c'; then $(CYGPATH_W) 'filter.c'; else $(CYGPATH_W) '$(srcdir)/filter.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-filter.Tpo $(DEPDIR)/isaac-filter.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-filter.obj -MD -MP -MF $(DEPDIR)/isaac-filter.Tpo -c -o isaac-filter.obj `if test -f 'filter.c'; then $(CYGPATH_W) 'filter.c'; else $(CYGPATH_W) '$(srcdir)/filter.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-filter.Tpo $(DEPDIR)/isaac-filter.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='filter.c' object='isaac-filter.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-filter.obj `if test -f 'filter.c'; then $(CYGPATH_W) 'filter.c'; else $(CYGPATH_W) '$(srcdir)/filter.c'; fi`
 
 isaac-session.o: session.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-session.o -MD -MP -MF $(DEPDIR)/isaac-session.Tpo -c -o isaac-session.o `test -f 'session.c' || echo '$(srcdir)/'`session.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-session.Tpo $(DEPDIR)/isaac-session.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-session.o -MD -MP -MF $(DEPDIR)/isaac-session.Tpo -c -o isaac-session.o `test -f 'session.c' || echo '$(srcdir)/'`session.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-session.Tpo $(DEPDIR)/isaac-session.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='session.c' object='isaac-session.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-session.o `test -f 'session.c' || echo '$(srcdir)/'`session.c
 
 isaac-session.obj: session.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-session.obj -MD -MP -MF $(DEPDIR)/isaac-session.Tpo -c -o isaac-session.obj `if test -f 'session.c'; then $(CYGPATH_W) 'session.c'; else $(CYGPATH_W) '$(srcdir)/session.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-session.Tpo $(DEPDIR)/isaac-session.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-session.obj -MD -MP -MF $(DEPDIR)/isaac-session.Tpo -c -o isaac-session.obj `if test -f 'session.c'; then $(CYGPATH_W) 'session.c'; else $(CYGPATH_W) '$(srcdir)/session.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-session.Tpo $(DEPDIR)/isaac-session.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='session.c' object='isaac-session.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-session.obj `if test -f 'session.c'; then $(CYGPATH_W) 'session.c'; else $(CYGPATH_W) '$(srcdir)/session.c'; fi`
 
 isaac-server.o: server.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-server.o -MD -MP -MF $(DEPDIR)/isaac-server.Tpo -c -o isaac-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-server.Tpo $(DEPDIR)/isaac-server.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-server.o -MD -MP -MF $(DEPDIR)/isaac-server.Tpo -c -o isaac-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-server.Tpo $(DEPDIR)/isaac-server.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='server.c' object='isaac-server.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
 
 isaac-server.obj: server.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-server.obj -MD -MP -MF $(DEPDIR)/isaac-server.Tpo -c -o isaac-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-server.Tpo $(DEPDIR)/isaac-server.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-server.obj -MD -MP -MF $(DEPDIR)/isaac-server.Tpo -c -o isaac-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-server.Tpo $(DEPDIR)/isaac-server.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='server.c' object='isaac-server.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
 
 isaac-app.o: app.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-app.o -MD -MP -MF $(DEPDIR)/isaac-app.Tpo -c -o isaac-app.o `test -f 'app.c' || echo '$(srcdir)/'`app.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-app.Tpo $(DEPDIR)/isaac-app.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-app.o -MD -MP -MF $(DEPDIR)/isaac-app.Tpo -c -o isaac-app.o `test -f 'app.c' || echo '$(srcdir)/'`app.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-app.Tpo $(DEPDIR)/isaac-app.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app.c' object='isaac-app.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-app.o `test -f 'app.c' || echo '$(srcdir)/'`app.c
 
 isaac-app.obj: app.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-app.obj -MD -MP -MF $(DEPDIR)/isaac-app.Tpo -c -o isaac-app.obj `if test -f 'app.c'; then $(CYGPATH_W) 'app.c'; else $(CYGPATH_W) '$(srcdir)/app.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-app.Tpo $(DEPDIR)/isaac-app.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-app.obj -MD -MP -MF $(DEPDIR)/isaac-app.Tpo -c -o isaac-app.obj `if test -f 'app.c'; then $(CYGPATH_W) 'app.c'; else $(CYGPATH_W) '$(srcdir)/app.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-app.Tpo $(DEPDIR)/isaac-app.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app.c' object='isaac-app.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-app.obj `if test -f 'app.c'; then $(CYGPATH_W) 'app.c'; else $(CYGPATH_W) '$(srcdir)/app.c'; fi`
 
 isaac-module.o: module.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-module.o -MD -MP -MF $(DEPDIR)/isaac-module.Tpo -c -o isaac-module.o `test -f 'module.c' || echo '$(srcdir)/'`module.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-module.Tpo $(DEPDIR)/isaac-module.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-module.o -MD -MP -MF $(DEPDIR)/isaac-module.Tpo -c -o isaac-module.o `test -f 'module.c' || echo '$(srcdir)/'`module.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-module.Tpo $(DEPDIR)/isaac-module.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='module.c' object='isaac-module.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-module.o `test -f 'module.c' || echo '$(srcdir)/'`module.c
 
 isaac-module.obj: module.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-module.obj -MD -MP -MF $(DEPDIR)/isaac-module.Tpo -c -o isaac-module.obj `if test -f 'module.c'; then $(CYGPATH_W) 'module.c'; else $(CYGPATH_W) '$(srcdir)/module.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-module.Tpo $(DEPDIR)/isaac-module.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-module.obj -MD -MP -MF $(DEPDIR)/isaac-module.Tpo -c -o isaac-module.obj `if test -f 'module.c'; then $(CYGPATH_W) 'module.c'; else $(CYGPATH_W) '$(srcdir)/module.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-module.Tpo $(DEPDIR)/isaac-module.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='module.c' object='isaac-module.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-module.obj `if test -f 'module.c'; then $(CYGPATH_W) 'module.c'; else $(CYGPATH_W) '$(srcdir)/module.c'; fi`
 
 isaac-log.o: log.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-log.o -MD -MP -MF $(DEPDIR)/isaac-log.Tpo -c -o isaac-log.o `test -f 'log.c' || echo '$(srcdir)/'`log.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-log.Tpo $(DEPDIR)/isaac-log.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-log.o -MD -MP -MF $(DEPDIR)/isaac-log.Tpo -c -o isaac-log.o `test -f 'log.c' || echo '$(srcdir)/'`log.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-log.Tpo $(DEPDIR)/isaac-log.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='log.c' object='isaac-log.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-log.o `test -f 'log.c' || echo '$(srcdir)/'`log.c
 
 isaac-log.obj: log.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-log.obj -MD -MP -MF $(DEPDIR)/isaac-log.Tpo -c -o isaac-log.obj `if test -f 'log.c'; then $(CYGPATH_W) 'log.c'; else $(CYGPATH_W) '$(srcdir)/log.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-log.Tpo $(DEPDIR)/isaac-log.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-log.obj -MD -MP -MF $(DEPDIR)/isaac-log.Tpo -c -o isaac-log.obj `if test -f 'log.c'; then $(CYGPATH_W) 'log.c'; else $(CYGPATH_W) '$(srcdir)/log.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-log.Tpo $(DEPDIR)/isaac-log.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='log.c' object='isaac-log.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-log.obj `if test -f 'log.c'; then $(CYGPATH_W) 'log.c'; else $(CYGPATH_W) '$(srcdir)/log.c'; fi`
 
 isaac-pidfile.o: pidfile.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-pidfile.o -MD -MP -MF $(DEPDIR)/isaac-pidfile.Tpo -c -o isaac-pidfile.o `test -f 'pidfile.c' || echo '$(srcdir)/'`pidfile.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-pidfile.Tpo $(DEPDIR)/isaac-pidfile.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-pidfile.o -MD -MP -MF $(DEPDIR)/isaac-pidfile.Tpo -c -o isaac-pidfile.o `test -f 'pidfile.c' || echo '$(srcdir)/'`pidfile.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-pidfile.Tpo $(DEPDIR)/isaac-pidfile.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='pidfile.c' object='isaac-pidfile.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-pidfile.o `test -f 'pidfile.c' || echo '$(srcdir)/'`pidfile.c
 
 isaac-pidfile.obj: pidfile.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-pidfile.obj -MD -MP -MF $(DEPDIR)/isaac-pidfile.Tpo -c -o isaac-pidfile.obj `if test -f 'pidfile.c'; then $(CYGPATH_W) 'pidfile.c'; else $(CYGPATH_W) '$(srcdir)/pidfile.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-pidfile.Tpo $(DEPDIR)/isaac-pidfile.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-pidfile.obj -MD -MP -MF $(DEPDIR)/isaac-pidfile.Tpo -c -o isaac-pidfile.obj `if test -f 'pidfile.c'; then $(CYGPATH_W) 'pidfile.c'; else $(CYGPATH_W) '$(srcdir)/pidfile.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-pidfile.Tpo $(DEPDIR)/isaac-pidfile.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='pidfile.c' object='isaac-pidfile.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-pidfile.obj `if test -f 'pidfile.c'; then $(CYGPATH_W) 'pidfile.c'; else $(CYGPATH_W) '$(srcdir)/pidfile.c'; fi`
 
 isaac-cli.o: cli.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-cli.o -MD -MP -MF $(DEPDIR)/isaac-cli.Tpo -c -o isaac-cli.o `test -f 'cli.c' || echo '$(srcdir)/'`cli.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-cli.Tpo $(DEPDIR)/isaac-cli.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-cli.o -MD -MP -MF $(DEPDIR)/isaac-cli.Tpo -c -o isaac-cli.o `test -f 'cli.c' || echo '$(srcdir)/'`cli.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-cli.Tpo $(DEPDIR)/isaac-cli.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cli.c' object='isaac-cli.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-cli.o `test -f 'cli.c' || echo '$(srcdir)/'`cli.c
 
 isaac-cli.obj: cli.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-cli.obj -MD -MP -MF $(DEPDIR)/isaac-cli.Tpo -c -o isaac-cli.obj `if test -f 'cli.c'; then $(CYGPATH_W) 'cli.c'; else $(CYGPATH_W) '$(srcdir)/cli.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-cli.Tpo $(DEPDIR)/isaac-cli.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-cli.obj -MD -MP -MF $(DEPDIR)/isaac-cli.Tpo -c -o isaac-cli.obj `if test -f 'cli.c'; then $(CYGPATH_W) 'cli.c'; else $(CYGPATH_W) '$(srcdir)/cli.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-cli.Tpo $(DEPDIR)/isaac-cli.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='cli.c' object='isaac-cli.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-cli.obj `if test -f 'cli.c'; then $(CYGPATH_W) 'cli.c'; else $(CYGPATH_W) '$(srcdir)/cli.c'; fi`
 
 isaac-remote.o: remote.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-remote.o -MD -MP -MF $(DEPDIR)/isaac-remote.Tpo -c -o isaac-remote.o `test -f 'remote.c' || echo '$(srcdir)/'`remote.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-remote.Tpo $(DEPDIR)/isaac-remote.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-remote.o -MD -MP -MF $(DEPDIR)/isaac-remote.Tpo -c -o isaac-remote.o `test -f 'remote.c' || echo '$(srcdir)/'`remote.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-remote.Tpo $(DEPDIR)/isaac-remote.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='remote.c' object='isaac-remote.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-remote.o `test -f 'remote.c' || echo '$(srcdir)/'`remote.c
 
 isaac-remote.obj: remote.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-remote.obj -MD -MP -MF $(DEPDIR)/isaac-remote.Tpo -c -o isaac-remote.obj `if test -f 'remote.c'; then $(CYGPATH_W) 'remote.c'; else $(CYGPATH_W) '$(srcdir)/remote.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-remote.Tpo $(DEPDIR)/isaac-remote.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-remote.obj -MD -MP -MF $(DEPDIR)/isaac-remote.Tpo -c -o isaac-remote.obj `if test -f 'remote.c'; then $(CYGPATH_W) 'remote.c'; else $(CYGPATH_W) '$(srcdir)/remote.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-remote.Tpo $(DEPDIR)/isaac-remote.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='remote.c' object='isaac-remote.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-remote.obj `if test -f 'remote.c'; then $(CYGPATH_W) 'remote.c'; else $(CYGPATH_W) '$(srcdir)/remote.c'; fi`
 
 isaac-util.o: util.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-util.o -MD -MP -MF $(DEPDIR)/isaac-util.Tpo -c -o isaac-util.o `test -f 'util.c' || echo '$(srcdir)/'`util.c
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-util.Tpo $(DEPDIR)/isaac-util.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-util.o -MD -MP -MF $(DEPDIR)/isaac-util.Tpo -c -o isaac-util.o `test -f 'util.c' || echo '$(srcdir)/'`util.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-util.Tpo $(DEPDIR)/isaac-util.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='util.c' object='isaac-util.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-util.o `test -f 'util.c' || echo '$(srcdir)/'`util.c
 
 isaac-util.obj: util.c
-@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-util.obj -MD -MP -MF $(DEPDIR)/isaac-util.Tpo -c -o isaac-util.obj `if test -f 'util.c'; then $(CYGPATH_W) 'util.c'; else $(CYGPATH_W) '$(srcdir)/util.c'; fi`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/isaac-util.Tpo $(DEPDIR)/isaac-util.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT isaac-util.obj -MD -MP -MF $(DEPDIR)/isaac-util.Tpo -c -o isaac-util.obj `if test -f 'util.c'; then $(CYGPATH_W) 'util.c'; else $(CYGPATH_W) '$(srcdir)/util.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/isaac-util.Tpo $(DEPDIR)/isaac-util.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='util.c' object='isaac-util.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(isaac_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o isaac-util.obj `if test -f 'util.c'; then $(CYGPATH_W) 'util.c'; else $(CYGPATH_W) '$(srcdir)/util.c'; fi`

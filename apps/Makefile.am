@@ -38,8 +38,9 @@ app_call_so_CFLAGS = $(appsCFLAGS) -DCALLCONF=\"@isaacconfdir@/call.conf\"
 app_call_so_LDFLAGS = $(appsLDFLAGS)
 app_calldir = $(appsdir)
 
-#app_debug_PROGRAMS = app_debug.so
-#app_debug_so_SOURCES = app_debug.c
-#app_debug_so_CFLAGS = $(appsCFLAGS)
-#app_debug_so_LDFLAGS = $(appsLDFLAGS)
-#app_debugdir = $(appsdir)
+app_debug_PROGRAMS = app_debug.so
+app_debug_so_SOURCES = app_debug.c
+app_debug_so_CFLAGS = $(appsCFLAGS)
+app_debug_so_LDFLAGS = $(appsLDFLAGS)
+app_debugdir = $(appsdir)
+

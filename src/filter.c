@@ -62,7 +62,7 @@ int filter_add_condition(filter_t *filter, cond_t cond)
     return 0;
 }
 
-int filter_add_condition2(filter_t *filter, enum condtype type, char *hdr, char *val)
+int filter_add_condition2(filter_t *filter, enum condtype type, char *hdr, const char *val)
 {
     if (filter->condcount == MAX_CONDS) return 1;
     filter->conds[filter->condcount].type = type;
@@ -70,6 +70,10 @@ int filter_add_condition2(filter_t *filter, enum condtype type, char *hdr, char 
     strcpy(filter->conds[filter->condcount].val, val);
     filter->condcount++;
     return 0;
+}
+
+void filter_remove_conditions(filter_t *filter){
+    filter->condcount = 0;
 }
 
 int filter_register(filter_t *filter)
@@ -154,6 +158,12 @@ int check_message_filters(ami_message_t *msg)
             case MATCH_EXACT:
                 if (message_get_header(msg, cur->conds[i].hdr) && !strcmp(message_get_header(msg,
                         cur->conds[i].hdr), cur->conds[i].val)) {
+                    matches++;
+                }
+                break;
+            case MATCH_START_WITH:
+                if (message_get_header(msg, cur->conds[i].hdr) && !strncmp(message_get_header(msg,
+                        cur->conds[i].hdr), cur->conds[i].val, strlen(cur->conds[i].val)-1)) {
                     matches++;
                 }
                 break;

@@ -81,7 +81,8 @@ typedef struct filter filter_t;
 filter_t *filter_create(session_t *sess, enum callbacktype cbtype, int(*callback)(filter_t *filter,
         ami_message_t *msg));
 int filter_add_condition(filter_t *filter, cond_t cond);
-int filter_add_condition2(filter_t *filter, enum condtype type, char *hdr, char *val);
+int filter_add_condition2(filter_t *filter, enum condtype type, char *hdr, const char *val);
+void filter_remove_conditions(filter_t *filter);
 int filter_register(filter_t *filter);
 int filter_unregister(filter_t *filter);
 int filter_exec_callback(filter_t *filter, ami_message_t *msg);

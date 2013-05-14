@@ -521,7 +521,7 @@ cli_remotecontrol(char* data)
     /* Clean up our memory */
     history_end(el_hist);
     el_end(el);
-    printf("\nDisconnected from Irontec Satelite Controller\n");
+    printf("\nDisconnected from Isaac CLI.\n");
 
 }
 

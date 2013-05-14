@@ -51,7 +51,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         } else if (!strcasecmp(cause, "17")) {
             session_write(filter->sess, "CALLSTATUS %s %s BUSY\n", info->actionid, from);
         } else {
-            session_write(filter->sess, "CALLSTATUS %s %s UNKOWNHANGUP\n", info->actionid, from); 
+            session_write(filter->sess, "CALLSTATUS %s %s UNKOWNHANGUP %s\n", info->actionid, from, cause);
 	}
 
         // We dont expect more info about this filter, it's safe to unregister it here
@@ -165,7 +165,8 @@ read_call_config(const char *cfile)
     config_t cfg;
     // Initialize configuration
     config_init(&cfg);
-    char *value;
+    const char *value;
+    long int intvalue;
 
     // Read configuraiton file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
@@ -185,7 +186,8 @@ read_call_config(const char *cfile)
     if (config_lookup_string(&cfg, "originate.rol", &value) == CONFIG_TRUE){
         strcpy(call_config.rol, value);
     }
-    if (config_lookup_int(&cfg, "originate.autoanswer", &call_config.autoanswer) == CONFIG_TRUE){
+    if (config_lookup_int(&cfg, "originate.autoanswer", &intvalue) == CONFIG_TRUE){
+        call_config.autoanswer = intvalue;
     }
 
     isaac_log(LOG_NOTICE, "IN context %s\n", call_config.incontext);
