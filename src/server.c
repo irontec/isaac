@@ -192,6 +192,10 @@ manage_session(void *session)
             // A message must have at least... one word
             session_write(sess, "%s\n", apperr2str(INVALID_FORMAT));
         }
+        // Clean the buffers for the next run
+        memset(action, 0, sizeof(action));
+        memset(args,0,sizeof(args));
+        memset(msg, 0, sizeof(msg));
     }
 
     // Connection closed, Thanks all for the fish

@@ -29,13 +29,15 @@ call_state(filter_t *filter, ami_message_t *msg)
 {
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
     const char *event = message_get_header(msg, "Event");
-    const char *from;
+    const char *from, *to;
 
     // So this leg is ?
     if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
         from = "AGENT";
+        to = "REMOTE";
     } else {
         from = "REMOTE";
+        to = "AGENT";
     }
 
     // Send CallStatus message depending on received event
@@ -48,7 +50,9 @@ call_state(filter_t *filter, ami_message_t *msg)
             session_write(filter->sess, "CALLSTATUS %s %s HANGUP\n", info->actionid, from);
         } else if (!strcasecmp(cause, "17")) {
             session_write(filter->sess, "CALLSTATUS %s %s BUSY\n", info->actionid, from);
-        }
+        } else {
+            session_write(filter->sess, "CALLSTATUS %s %s UNKOWNHANGUP\n", info->actionid, from); 
+	}
 
         // We dont expect more info about this filter, it's safe to unregister it here
         filter_unregister(filter);
@@ -64,7 +68,7 @@ call_state(filter_t *filter, ami_message_t *msg)
     } else if (!strcasecmp(event, "VarSet")) {
         const char *value = message_get_header(msg, "Value");
         if (!strcasecmp(value, "SIP 183 Session Progress")) {
-            session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\n", info->actionid, to);
         }
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
             "Begin")) {
