@@ -50,7 +50,8 @@ pthread_mutex_t sessionlock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 unsigned int last_sess_id = 0;
 
 /*****************************************************************************/
-session_t *session_create(const int fd, const struct sockaddr_in addr)
+session_t *
+session_create(const int fd, const struct sockaddr_in addr)
 {
 
     session_t *sess;
@@ -61,12 +62,12 @@ session_t *session_create(const int fd, const struct sockaddr_in addr)
     }
 
     // Initialize session fields
-    sprintf(sess->id, "%d",last_sess_id++);
+    sprintf(sess->id, "%d", last_sess_id++);
     sess->fd = fd;
     sess->addr = addr;
     sess->flags = 0x00;
     sess->varcount = 0;
-    memset(sess->vars, 0, sizeof(session_var_t)*MAX_VARS);
+    memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
     pthread_mutex_init(&sess->lock, NULL);
 
@@ -81,7 +82,8 @@ session_t *session_create(const int fd, const struct sockaddr_in addr)
 }
 
 /*****************************************************************************/
-void session_destroy(session_t *sess)
+void
+session_destroy(session_t *sess)
 {
     //filter_t *filter;
     session_t *cur, *prev = NULL;
@@ -89,10 +91,9 @@ void session_destroy(session_t *sess)
     // Remove this session from the list
     pthread_mutex_lock(&sessionlock);
     cur = sessions;
-    while(cur){
-        if (cur == sess){
-            if (prev)
-                prev->next = cur->next;
+    while (cur) {
+        if (cur == sess) {
+            if (prev) prev->next = cur->next;
             else
                 sessions = cur->next;
             break;
@@ -103,9 +104,9 @@ void session_destroy(session_t *sess)
     pthread_mutex_unlock(&sessionlock);
 
     // Unregister all this connection filters
-//    while((filter = get_session_filter(sess))){
-//        filter_unregister(filter);
-//    }
+    while ((filter = get_session_filter(sess))) {
+        filter_unregister(filter);
+    }
     // Destroy the session mutex
     pthread_mutex_destroy(&sess->lock);
     // Free the session allocated memory
@@ -113,7 +114,8 @@ void session_destroy(session_t *sess)
 }
 
 /*****************************************************************************/
-int session_finish(session_t *sess)
+int
+session_finish(session_t *sess)
 {
     int res;
     // Close the session socket thread-safe way
@@ -125,7 +127,8 @@ int session_finish(session_t *sess)
 }
 
 /*****************************************************************************/
-int session_write(session_t *sess, const char *fmt, ...)
+int
+session_write(session_t *sess, const char *fmt, ...)
 {
     int wbytes = 0;
     va_list ap;
@@ -159,7 +162,8 @@ int session_write(session_t *sess, const char *fmt, ...)
 }
 
 /*****************************************************************************/
-int session_read(session_t *sess, char *msg)
+int
+session_read(session_t *sess, char *msg)
 {
     int rbytes = 0;
     char buffer[1024]; // XXX This should be enough in most cases...
@@ -167,7 +171,7 @@ int session_read(session_t *sess, char *msg)
     char c;
 
     // Sanity check.
-    if (!sess){
+    if (!sess) {
         isaac_log(LOG_WARNING, "Trying to read from non-existant session. Bug!?\n");
         return -1;
     }
@@ -176,16 +180,15 @@ int session_read(session_t *sess, char *msg)
     memset(buffer, 0, sizeof(buffer));
 
     // Read character by character until the next CR
-    for(n = 0; n < sizeof(buffer); n++){
+    for (n = 0; n < sizeof(buffer); n++) {
         if (recv(sess->fd, &c, 1, 0) == 1) {
             // Add this character to the buffer
             buffer[n] = c;
             // Increase the readed bytes counter
             rbytes++;
             // If end of line, stop reading
-            if (c == '\n')
-                break;
-        } else{
+            if (c == '\n') break;
+        } else {
             // Interruption is not an error
             if (errno == EINTR) continue;
             return -1;
@@ -205,26 +208,30 @@ int session_read(session_t *sess, char *msg)
 }
 
 /*****************************************************************************/
-int session_test_flag(session_t *sess, int flag)
+int
+session_test_flag(session_t *sess, int flag)
 {
     return sess->flags & flag;
 }
 
 /*****************************************************************************/
-void session_set_flag(session_t *sess, int flag)
+void
+session_set_flag(session_t *sess, int flag)
 {
     sess->flags |= flag;
 }
 
 /*****************************************************************************/
-void session_clear_flag(session_t *sess, int flag)
+void
+session_clear_flag(session_t *sess, int flag)
 {
     sess->flags &= ~flag;
 }
 
 /*****************************************************************************/
 // TODO Implement linked lists
-void session_set_variable(session_t *sess, char *varname, char *varvalue)
+void
+session_set_variable(session_t *sess, char *varname, char *varvalue)
 {
     strcpy(sess->vars[sess->varcount].varname, varname);
     strcpy(sess->vars[sess->varcount].varvalue, varvalue);
@@ -233,7 +240,8 @@ void session_set_variable(session_t *sess, char *varname, char *varvalue)
 
 /*****************************************************************************/
 // TODO Implement linked lists
-const char *session_get_variable(session_t *sess, char *varname)
+const char *
+session_get_variable(session_t *sess, char *varname)
 {
     int i;
     for (i = 0; i < sess->varcount; i++) {
@@ -245,7 +253,9 @@ const char *session_get_variable(session_t *sess, char *varname)
 }
 
 /*****************************************************************************/
-session_iter_t *session_iterator_new(){
+session_iter_t *
+session_iterator_new()
+{
     session_iter_t *iter;
 
     /* Reserve memory for iterator */
@@ -258,30 +268,35 @@ session_iter_t *session_iterator_new(){
     return iter;
 }
 
-session_t *session_iterator_next(session_iter_t *iter){
+session_t *
+session_iterator_next(session_iter_t *iter)
+{
     session_t *next = iter->next;
     // If not reached the last one, store the next iteration pointer
-    if (next){
+    if (next) {
         iter->next = next->next;
     }
     return next;
 }
 
-void session_iterator_destroy(session_iter_t *iter){
+void
+session_iterator_destroy(session_iter_t *iter)
+{
     /* Destroy iterator */
     free(iter);
     /* Just unlock the Sessions List lock */
     pthread_mutex_unlock(&sessionlock);
 }
 
-session_t *session_by_id(const char *id){
+session_t *
+session_by_id(const char *id)
+{
     session_iter_t *iter;
     session_t *sess;
 
     iter = session_iterator_new();
-    while((sess = session_iterator_next(iter))){
-        if (!strcmp(sess->id, id))
-            break;
+    while ((sess = session_iterator_next(iter))) {
+        if (!strcmp(sess->id, id)) break;
     }
     session_iterator_destroy(iter);
     return sess;
