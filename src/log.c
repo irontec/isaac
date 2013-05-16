@@ -110,7 +110,7 @@ isaac_log_location(int log_type, const char *file, int line, const char *functio
     }
 
     /* Write to clients **/
-    write_clis(logmsg);
+    cli_broadcast(logmsg);
 
     /* Write to log medium**/
     clean_text(logmsg);

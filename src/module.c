@@ -37,7 +37,7 @@
 // We wont mutexlock this list because is only accessed on startup or
 // shutdown. This will only be a problem if \ref quit is called from
 // other thread.
-isaac_module_t *modules = NULL;
+module_t *modules = NULL;
 
 /*****************************************************************************/
 int
@@ -47,7 +47,7 @@ load_modules()
     struct dirent *l;
     char *ext; // File extension (incling dot)
     char lfullfile[256];
-    isaac_module_t *module;
+    module_t *module;
     int modcnt = 0;
 
     // Some feedback
@@ -126,7 +126,7 @@ load_modules()
 int
 unload_modules()
 {
-    isaac_module_t *module;
+    module_t *module;
     while (modules) {
         // Move the header pointer to the next module
         module = modules;
@@ -141,7 +141,7 @@ unload_modules()
 }
 
 /*****************************************************************************/
-isaac_module_t*
+module_t*
 module_create(const char* file)
 {
     struct isaac_module *module;
@@ -163,7 +163,7 @@ module_create(const char* file)
 
 /*****************************************************************************/
 void
-module_destroy(isaac_module_t *module)
+module_destroy(module_t *module)
 {
     // Sanity check
     if (!module) return;

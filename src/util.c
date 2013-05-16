@@ -22,8 +22,6 @@
 #include "util.h"
 #include "log.h"
 
-/// \cond INCLUDE_UTILS
-
 /*! \brief Wrapper for strcpy */
 int
 isaac_strcpy(char *dst, const char *src)
@@ -230,4 +228,47 @@ isaac_strlen_zero(const char *s)
     return (!s || (*s == '\0'));
 }
 
-/// \endcond INCLUDE_UTILS
+
+void
+isaac_tvelap(struct timeval timeval, int printsec, char *out)
+{
+    int x; /* the main part - years, weeks, etc. */
+    char year[256] = "", week[256] = "", day[256] = "", hour[256] = "", minute[256] = "";
+
+    if (timeval.tv_sec < 0) /* invalid, nothing to show */
+    return;
+
+    if (printsec) { /* plain seconds output */
+        sprintf(out, "%lu", (u_long) timeval.tv_sec);
+        return;
+    }
+    if (timeval.tv_sec > YEAR) {
+        x = (timeval.tv_sec / YEAR);
+        timeval.tv_sec -= (x * YEAR);
+        sprintf(year, " %d year%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
+    }
+    if (timeval.tv_sec > WEEK) {
+        x = (timeval.tv_sec / WEEK);
+        timeval.tv_sec -= (x * WEEK);
+        sprintf(week, " %d week%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
+    }
+    if (timeval.tv_sec > DAY) {
+        x = (timeval.tv_sec / DAY);
+        timeval.tv_sec -= (x * DAY);
+        sprintf(day, " %d day%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
+    }
+    if (timeval.tv_sec > HOUR) {
+        x = (timeval.tv_sec / HOUR);
+        timeval.tv_sec -= (x * HOUR);
+        sprintf(hour, " %d hour%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
+    }
+    if (timeval.tv_sec > MINUTE) {
+        x = (timeval.tv_sec / MINUTE);
+        timeval.tv_sec -= (x * MINUTE);
+        sprintf(minute, " %d minute%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
+    }
+
+    x = timeval.tv_sec;
+    sprintf(out, "%s%s%s%s%s %d second%s ", year, week, day, hour, minute, x, ESS(x));
+}
+

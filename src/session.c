@@ -33,7 +33,7 @@
  * mutex properly to make the session thread-safe.
  *
  */
-#include "config.h"
+#include "isaac.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
@@ -70,6 +70,9 @@ session_create(const int fd, const struct sockaddr_in addr)
     memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
     pthread_mutex_init(&sess->lock, NULL);
+
+    // Increase session count in stats
+    stats.sessioncnt++;
 
     // Add it to the begining of session list
     pthread_mutex_lock(&sessionlock);

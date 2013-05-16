@@ -20,7 +20,20 @@
 #include <time.h>
 #include <sys/time.h>
 
-/// \cond INCLUDE_UTILS
+/**
+ * @brief Some macros for calculating the diffenrence between two timevals
+ * @fixme someday
+ */
+#define SECOND (1)
+#define MINUTE (SECOND*60)
+#define HOUR (MINUTE*60)
+#define DAY (HOUR*24)
+#define WEEK (DAY*7)
+#define YEAR (DAY*365)
+//! define if we need a comma
+#define NEEDCOMMA(x) ((x)? ",": "")
+//! define if we need final s in descriptors
+#define ESS(x) ((x>1)? "s": "")
 
 /*! \brief Wrapper for string functions */
 int
@@ -55,6 +68,9 @@ struct timeval
 isaac_tvadd(struct timeval a, struct timeval b);
 struct timeval
 isaac_tvsub(struct timeval a, struct timeval b);
+void
+isaac_tvelap(struct timeval timeval, int printsec, char *out);
+
 
 /// \endcond INCLUDE_UTILS
 

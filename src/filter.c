@@ -78,9 +78,9 @@ void filter_remove_conditions(filter_t *filter){
 
 int filter_register(filter_t *filter)
 {
-    isaac_log(LOG_DEBUG, "[Session %d] Registering filter [%p] with %d conditions\n",
-            filter->sess->id, filter, filter->condcount);
     pthread_mutex_lock(&filters_mutex);
+    isaac_log(LOG_DEBUG, "[Session %s] Registering filter [%p] with %d conditions\n",
+            filter->sess->id, filter, filter->condcount);
     filter->next = filters;
     filters = filter;
     pthread_mutex_unlock(&filters_mutex);
@@ -89,8 +89,8 @@ int filter_register(filter_t *filter)
 
 int filter_unregister(filter_t *filter)
 {
-    isaac_log(LOG_DEBUG, "[Session %d] Unregistering filter [%p]\n", filter->sess->id, filter);
     pthread_mutex_lock(&filters_mutex);
+    isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
     filter_t *cur = filters, *prev = NULL;
     while (cur) {
         if (cur == filter) {

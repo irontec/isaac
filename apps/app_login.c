@@ -33,12 +33,11 @@
  * ************************************************************************
  */
 
+#include "app.h"
 #include <stdio.h>
 #include <sql.h>
 #include <sqlext.h>
 #include <string.h>
-#include "app.h"
-#include "session.h"
 
 /**
  * \brief Check Login attempt against asterisk database
@@ -108,6 +107,7 @@ int login_exec(session_t *sess, const char *args)
         session_set_variable(sess, "AGENT", agent);
         // Send a success message
         session_write(sess, "LOGINOK Welcome back %s\n", agent);
+        SQLDisconnect(dbc);
         return 0;
     } else {
         /* Login failed. This mark should not be required because we're closing the connection */
@@ -115,6 +115,7 @@ int login_exec(session_t *sess, const char *args)
         /* Send the Login failed message and close connection */
         session_write(sess, "LOGINFAIL\n");
         session_finish(sess);
+        SQLDisconnect(dbc);
         return 1;
     }
 }

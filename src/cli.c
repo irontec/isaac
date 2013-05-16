@@ -13,10 +13,12 @@
  **
  ******************************************************************************/
 /**
- * \file cli.c
- * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ * @file cli.c
+ * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Source code for functions defined in cli.h
+ * @brief Source code for functions defined in cli.h
+ *
+ * @todo Comment this file completely
  */
 
 #include "isaac.h"
@@ -27,46 +29,47 @@
 #include <signal.h>
 #include <ctype.h>
 #include <unistd.h>
+#include "cli.h"
 #include "util.h"
 #include "log.h"
-#include "cli.h"
 #include "remote.h"
-#include "session.h"
+#include "app.h"
+#include "manager.h"
 
 //! Incoming CLI clients linked list
-struct isaac_cli *clilist = NULL;
+cli_t *clilist = NULL;
 //! Lock for concurrent access to \ref clilist "CLI client list"
 pthread_mutex_t clilock;
 //! Linked list of available CLI commands an their handleds
-struct isaac_cli_entry *entries = NULL;
+cli_entry_t *entries = NULL;
 //! Lock for concurrent access to \ref entries "CLI commands list"
 pthread_mutex_t entrieslock;
-/// Thread for accepting new CLI client connections
-/** Launched at \ref cli_server_start */
-pthread_t accept_t;
+//! Thread for accepting new CLI client connections
+pthread_t accept_thread;
 //! Socket for accepting new CLI client connections
-int isaac_sock;
+int cli_sock;
 
-//! Startup time defined in \ref main.c
-extern struct timeval isaac_startuptime;
 /// Binary running in CLI client mode flag.
 /** Flag defined in \ref main.c to determine if binary is being executed as CLI client. */
 extern int opt_remote;
 
 /**
- * \brief Satelite list with all default CLI commands
+ * @brief Satelite list with all default CLI commands
  *
  * This linked list will have the CLI some core commands using
- * \ref AST_CLI_DEFINE macro.
- * This commands are added into the \ref entries "CLI command list" when
- * CLI servers starts using \ref isaac_cli_register_multiple
+ * @ref AST_CLI_DEFINE macro.
+ * This commands are added into the @ref entries "CLI command list" when
+ * CLI servers starts using @ref cli_register_multiple
  */
-static struct isaac_cli_entry cli_cli[] = {
+static cli_entry_t cli_entries[] = {
         AST_CLI_DEFINE(handle_commandcomplete, "Internal use: Complete"),
         AST_CLI_DEFINE(handle_commandmatchesarray, "Internal use: Match Array"),
         AST_CLI_DEFINE(handle_commandnummatches, "Internal use: Match Array"),
         AST_CLI_DEFINE(handle_core_show_version, "Show Isaac version"),
         AST_CLI_DEFINE(handle_core_show_uptime, "Show Isaac uptime"),
+        AST_CLI_DEFINE(handle_core_show_settings, "Show Isaac running settings"),
+        AST_CLI_DEFINE(handle_core_show_applications, "Show Isaac registered applications"),
+        AST_CLI_DEFINE(handle_core_set_verbose, "Change Isaac log level"),
         AST_CLI_DEFINE(handle_show_connections, "Show connected sessions"),
         AST_CLI_DEFINE(handle_kill_connection, "Stops a connected session"),
         AST_CLI_DEFINE(handle_debug_connection, "Mark debug flag to a connected session") };
@@ -74,16 +77,14 @@ static struct isaac_cli_entry cli_cli[] = {
 //! Some regexp characters in cli arguments are reserved and used as separators.
 static const char cli_rsvd[] = "[]{}|*%";
 
-/******************************************************************************
- *****************************************************************************/
 int
 cli_server_start()
 {
     struct sockaddr_un sunaddr;
     pthread_attr_t attr;
 
-    /** Create a new Local socket for incoming connections */
-    if ((isaac_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
+    // Create a new Local socket for incoming connections
+    if ((cli_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
         isaac_log(LOG_ERROR, "Cannot create listener socket!: %s\n", strerror(errno));
         return -1;
     }
@@ -94,56 +95,55 @@ cli_server_start()
     // fixme Drop socket before starting. When ISC crashes it leaves the socket binded.
     unlink(CLI_SOCKET);
 
-    /** Bind socket to local address */
-    if (bind(isaac_sock, (struct sockaddr *) &sunaddr, sizeof(sunaddr)) < 0) {
+    // Bind socket to local address
+    if (bind(cli_sock, (struct sockaddr *) &sunaddr, sizeof(sunaddr)) < 0) {
         isaac_log(LOG_ERROR, "Cannot bind to listener socket!: %s\n", strerror(errno));
         return -1;
     }
 
-    /** Open the socket to new incoming connections */
-    if (listen(isaac_sock, 5) < 0) {
-        fprintf(stderr, "Cannot listen on socket!\n");
+    // Open the socket to new incoming connections
+    if (listen(cli_sock, 5) < 0) {
+        isaac_log(LOG_ERROR, "Cannot listen on socket!: %s\n", strerror(errno));
         return -1;
     }
     isaac_log(LOG_VERBOSE_1, "CLI Server Started.\n");
 
-    /** Register Core commands */
-    isaac_cli_register_multiple(cli_cli, ARRAY_LEN(cli_cli));
+    // Register Core commands
+    cli_register_entry_multiple(cli_entries, ARRAY_LEN(cli_entries));
 
-    /** Start Accept connections thread */
+    // Start Accept connections thread
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (pthread_create(&accept_t, &attr, (void *) cli_accept, NULL)) {
+    if (pthread_create(&accept_thread, &attr, (void *) cli_accept, NULL)) {
         fprintf(stderr, "Unable to create CLI Thread!\n");
     }
     pthread_attr_destroy(&attr);
     return 0;
 }
 
-/*****************************************************************************/
 void
 cli_server_stop()
 {
-    /** Avoid new incoming connections **/
-    close(isaac_sock);
+    // Avoid new incoming connections
+    close(cli_sock);
     unlink(CLI_SOCKET);
-    /** Look for the current client in the client list **/
+    //@todo iterate here
+    // Destroy all clients in client list
     while (clilist) {
         cli_destroy(clilist);
     }
-    /** Destroy Listening thread */
-    pthread_cancel(accept_t);
-    //isaac_log(LOG_VERBOSE_1, "CLI Server stoped.\n");
+    // Destroy Listening thread
+    pthread_cancel(accept_thread);
+    isaac_log(LOG_VERBOSE_1, "CLI Server stoped.\n");
 }
 
-/*****************************************************************************/
 void
 cli_accept()
 {
     struct sockaddr_un sun;
     socklen_t sunlen;
     pthread_attr_t attr;
-    struct isaac_cli *c;
+    struct isaac_cli *cli;
     struct pollfd fds[1];
     int s;
 
@@ -151,17 +151,22 @@ cli_accept()
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     for (;;) {
-        if (isaac_sock < 0) return;
 
-        fds[0].fd = isaac_sock;
+        if (cli_sock < 0) {
+            return;
+        }
+
+        fds[0].fd = cli_sock;
         fds[0].events = POLLIN;
         if ((s = poll(fds, 1, -1)) < 0) {
-            if (errno != EINTR) isaac_log(LOG_WARNING, "Poll returned error: %s\n", strerror(errno));
+            if (errno != EINTR) {
+                isaac_log(LOG_WARNING, "Poll returned error: %s\n", strerror(errno));
+            }
             continue;
         }
 
         sunlen = sizeof(sun);
-        if ((s = accept(isaac_sock, (struct sockaddr *) &sun, &sunlen)) < 0) {
+        if ((s = accept(cli_sock, (struct sockaddr *) &sun, &sunlen)) < 0) {
             isaac_log(LOG_ERROR, "Accept returned -1: %s\n", strerror(errno));
             continue;
         }
@@ -172,56 +177,66 @@ cli_accept()
             continue;
         }
 
-        /** Reserve memory for this client **/
-        if (!(c = malloc(sizeof(struct isaac_cli)))) {
-            isaac_log(LOG_ERROR, "Failed to allocate client manager: %s\n", strerror(errno));
+        if (!(cli = cli_create(s, sun))) {
             continue;
         }
 
-        /** Copy all required data to this client **/
-        memset(c, 0, sizeof(struct isaac_cli));
-        memcpy(&c->sun, &sun, sizeof(sun)); // Address Data
-        pthread_mutex_init(&c->lock, NULL); // Lock
-        c->fd = s; // File Descriptor
-
-        /** Add client to the client list **/
-        pthread_mutex_lock(&clilock);
-        c->next = clilist;
-        clilist = c;
-        pthread_mutex_unlock(&clilock);
-
-        if (pthread_create(&c->t, &attr, (void *) cli_do, c)) cli_destroy(c);
+        if (pthread_create(&cli->thread, &attr, (void *) cli_do, cli) != 0) {
+            cli_destroy(cli);
+        }
     }
     pthread_attr_destroy(&attr);
     return;
 }
 
-/*****************************************************************************/
 void *
-cli_do(struct isaac_cli *c)
+cli_do(cli_t *cli)
 {
     char command[256];
     int rbytes;
 
     for (;;) {
-        /** Read requested data **/
-        if ((rbytes = cli_read(c->fd, command)) <= 0) {
+        if ((rbytes = cli_read(cli, command)) <= 0) {
             break;
         }
         if (strncmp(command, "cli quit after ", 15) == 0) {
-            isaac_cli_command_multiple_full(c->fd, rbytes - 15, command + 15);
+            cli_command_multiple_full(cli, rbytes - 15, command + 15);
             break;
         }
-        isaac_cli_command_multiple_full(c->fd, rbytes, command);
+        cli_command_multiple_full(cli, rbytes, command);
     }
-    cli_destroy(c);
+    cli_destroy(cli);
     pthread_exit(NULL);
-    return NULL;
 }
 
-/*****************************************************************************/
+cli_t *
+cli_create(int fd, struct sockaddr_un sun)
+{
+    cli_t *cli;
+
+    // Reserve memory for this client
+    if (!(cli = malloc(sizeof(cli_t)))) {
+        isaac_log(LOG_ERROR, "Failed to allocate client manager: %s\n", strerror(errno));
+        return NULL;
+    }
+
+    // Copy all required data to this client
+    memset(cli, 0, sizeof(cli_t));
+    memcpy(&cli->sun, &sun, sizeof(sun));
+    pthread_mutex_init(&cli->lock, NULL);
+    cli->fd = fd;
+
+    // Add client to the client list
+    pthread_mutex_lock(&clilock);
+    cli->next = clilist;
+    clilist = cli;
+    pthread_mutex_unlock(&clilock);
+
+    return cli;
+}
+
 void
-cli_destroy(struct isaac_cli *c)
+cli_destroy(cli_t *cli)
 {
     struct isaac_cli *cur, *prev = NULL;
 
@@ -230,7 +245,7 @@ cli_destroy(struct isaac_cli *c)
     cur = clilist;
     /** Look for the current client in the client list **/
     while (cur) {
-        if (cur == c) {
+        if (cur == cli) {
             // Update CLI list
             if (prev) prev->next = cur->next;
             else
@@ -243,70 +258,66 @@ cli_destroy(struct isaac_cli *c)
     pthread_mutex_unlock(&clilock); // We have finished with the list
 
     if (cur) {
-        // This message won't be notify to current isaac_cli cause it's no longer
+        // This message won't be notify to current cli cause it's no longer
         // in the cli list
         isaac_log(LOG_VERBOSE, "Remote UNIX connection disconnected\n");
-        /** Destroy the client data **/
-        close(c->fd);
-        pthread_cancel(c->t);
-        pthread_mutex_destroy(&c->lock);
-        free(c);
+        close(cli->fd);
+        pthread_cancel(cli->thread);
+        pthread_mutex_destroy(&cli->lock);
+        free(cli);
     } else {
         // This should happen!!
-        isaac_log(LOG_ERROR, "Trying to destroy non-existent CLI: %d\n", c->fd);
+        isaac_log(LOG_ERROR, "Trying to destroy non-existent CLI: %d\n", cli->fd);
     }
 }
 
-/*****************************************************************************/
 int
-cli_read(int fd, char* readed)
+cli_read(cli_t *cli, char *readed)
 {
     bzero(readed, 256);
-    return read(fd, readed, 255);
+    return read(cli->fd, readed, 255);
 }
 
-/*****************************************************************************/
 int
-cli_write(int fd, const char *fmt, ...)
+cli_write(cli_t *cli, const char *fmt, ...)
 {
     char message[MAX_MSG_SIZE];
     va_list ap;
+    int ret;
 
     va_start(ap, fmt);
     vsprintf(message, fmt, ap);
     va_end(ap);
-
-    return write(fd, message, isaac_strlen(message) + 1);
+    pthread_mutex_lock(&cli->lock);
+    ret = write(cli->fd, message, isaac_strlen(message) + 1);
+    pthread_mutex_unlock(&cli->lock);
+    return ret;
 }
 
-/*****************************************************************************/
 void
-write_clis(const char *climsg)
+cli_broadcast(const char *msg)
 {
-    struct isaac_cli *cur;
-    /* Write to clients **/
+    cli_t *cur;
+    // Loop through the CLIs and writting the message
     for (cur = clilist; cur; cur = cur->next) {
-        pthread_mutex_lock(&cur->lock);
-        cli_write(cur->fd, climsg);
-        //usleep(100); //fixme why?
-        pthread_mutex_unlock(&cur->lock);
+        cli_write(cur, msg);
     }
 }
 
-/*****************************************************************************/
 int
-isaac_cli_register(struct isaac_cli_entry *e)
+cli_register_entry(cli_entry_t *entry)
 {
     int i;
-    struct isaac_cli_args a; /* fake argument */
-    char **dst = (char **) e->cmda; /* need to cast as the entry is readonly */
+    cli_args_t args; /* fake argument */
+    char **dst = (char **) entry->cmda; /* need to cast as the entry is readonly */
     char *s;
 
-    memset(&a, '\0', sizeof(a));
-    e->handler(e, CLI_INIT, &a);
-    /* XXX check that usage and command are filled up */
-    s = isaac_skip_blanks(e->command);
-    s = e->command = strdup(s);
+    memset(&args, '\0', sizeof(args));
+    entry->handler(entry, CLI_INIT, &args);
+
+    // XXX check that usage and command are filled up
+    s = isaac_skip_blanks(entry->command);
+    s = entry->command = strdup(s);
     for (i = 0; !isaac_strlen_zero(s) && i < 100 - 1; i++) {
         *dst++ = s; /* store string */
         s = isaac_skip_nonblanks(s);
@@ -317,73 +328,73 @@ isaac_cli_register(struct isaac_cli_entry *e)
     }
     *dst++ = NULL;
 
-    /** Check if already has been registered **/
-    if (find_cli(e->cmda, 1)) {
+    // Check if already has been registered
+    if (cli_find(entry->cmda, 1)) {
         isaac_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n",
-                (e->_full_cmd) ? e->_full_cmd : e->command);
+                (entry->_full_cmd) ? entry->_full_cmd : entry->command);
         return -1;
     }
-    if (set_full_cmd(e)) return -1;
+    if (cli_entry_cmd(entry)) {
+        return -1;
+    }
 
-    /** Push this entry in the top of the list */
+    // Push this entry in the top of the list
     pthread_mutex_lock(&entrieslock);
-    e->next = entries;
-    entries = e;
+    entry->next = entries;
+    entries = entry;
     pthread_mutex_unlock(&entrieslock);
 
-    isaac_log(LOG_VERBOSE_2, "Registered command '%s'\n", e->_full_cmd);
+    isaac_log(LOG_VERBOSE_2, "Registered command '%s'\n", entry->_full_cmd);
     return 0;
 }
 
-/*****************************************************************************/
 int
-isaac_cli_register_multiple(struct isaac_cli_entry *e, int len)
+cli_register_entry_multiple(cli_entry_t *entry, int len)
 {
     int i, res = 0;
-    for (i = 0; i < len; i++)
-        res |= isaac_cli_register(e + i);
+    for (i = 0; i < len; i++) {
+        res |= cli_register_entry(entry + i);
+    }
     return res;
 }
 
-/*****************************************************************************/
 int
-set_full_cmd(struct isaac_cli_entry *e)
+cli_entry_cmd(cli_entry_t *entry)
 {
     int i;
     char buf[80];
 
-    /** Build the Full command field from Command Array **/
-    isaac_join(buf, sizeof(buf), e->cmda);
-    e->_full_cmd = strdup(buf);
-    if (!e->_full_cmd) {
+    // Build the Full command field from Command Array
+    isaac_join(buf, sizeof(buf), entry->cmda);
+    entry->_full_cmd = strdup(buf);
+    if (!entry->_full_cmd) {
         isaac_log(LOG_WARNING, "-- cannot allocate <%s>\n", buf);
         return -1;
     }
-    /** Return the comman part avoiding the Arguments **/
-    e->cmdlen = strcspn(e->_full_cmd, cli_rsvd);
-    for (i = 0; e->cmda[i]; i++)
+    // Return the comman part avoiding the Arguments
+    entry->cmdlen = strcspn(entry->_full_cmd, cli_rsvd);
+    for (i = 0; entry->cmda[i]; i++)
         ;
-    e->args = i;
+    entry->args = i;
     return 0;
 }
 
-/*****************************************************************************/
 int
-word_match(const char *cmd, const char *cli_word)
+cli_word_match(const char *cmd, const char *cli_word)
 {
     int l;
     char *pos;
     if (isaac_strlen_zero(cmd) || isaac_strlen_zero(cli_word)) return -1;
     if (!strchr(cli_rsvd, cli_word[0])) /* normal match */
     return (strcasecmp(cmd, cli_word) == 0) ? 1 : -1;
-    /* regexp match, takes [foo|bar] or {foo|bar} */
+    // regexp match, takes [foo|bar] or {foo|bar}
     l = strlen(cmd);
-    /* wildcard match - will extend in the future */
+    // wildcard match - will extend in the future
     if (l > 0 && cli_word[0] == '%') {
         return 1; /* wildcard */
     }
     //FIXME pos = strcasestr(cli_word, cmd);
-    pos = strstr(cli_word, cmd);
+    pos = strcasestr(cli_word, cmd);
     if (pos == NULL) /* not found, say ok if optional */
     return cli_word[0] == '[' ? 0 : -1;
     if (pos == cli_word) /* no valid match at the beginning */
@@ -392,21 +403,20 @@ word_match(const char *cmd, const char *cli_word)
     return -1; /* not found */
 }
 
-/*****************************************************************************/
-struct isaac_cli_entry *
-find_cli(const char * const cmds[], int match_type)
+cli_entry_t *
+cli_find(const char * const cmds[], int match_type)
 {
     int matchlen = -1; /* length of longest match so far */
-    struct isaac_cli_entry *cand = NULL, *e = NULL;
+    cli_entry_t *cand = NULL, *entry = NULL;
 
-    for (e = entries; e; e = e->next) {
+    for (entry = entries; entry; entry = entry->next) {
 
         /* word-by word regexp comparison *//* word-by word regexp comparison */
         const char * const *src = cmds;
-        const char * const *dst = e->cmda;
+        const char * const *dst = entry->cmda;
         int n = 0;
         for (;; dst++, src += n) {
-            n = word_match(*src, *dst);
+            n = cli_word_match(*src, *dst);
             if (n < 0) break;
         }
         if (isaac_strlen_zero(*dst) || ((*dst)[0] == '[' && isaac_strlen_zero(dst[1]))) {
@@ -429,17 +439,16 @@ find_cli(const char * const cmds[], int match_type)
         }
         if (src - cmds > matchlen) { /* remember the candidate */
             matchlen = src - cmds;
-            cand = e;
+            cand = entry;
         }
 
     }
 
-    return e ? e : cand;
+    return entry ? entry : cand;
 }
 
-/*****************************************************************************/
 char *
-complete_number(const char *partial, unsigned int min, unsigned int max, int n)
+cli_complete_number(const char *partial, unsigned int min, unsigned int max, int n)
 {
     int i, count = 0;
     unsigned int prospective[2];
@@ -479,9 +488,8 @@ complete_number(const char *partial, unsigned int min, unsigned int max, int n)
     return NULL;
 }
 
-/*****************************************************************************/
 char *
-parse_args(const char *s, int *argc, const char *argv[], int max, int *trailingwhitespace)
+cli_parse_args(const char *s, int *argc, const char *argv[], int max, int *trailingwhitespace)
 {
     char *duplicate, *cur;
     int x = 0;
@@ -544,9 +552,8 @@ parse_args(const char *s, int *argc, const char *argv[], int max, int *trailingw
     return duplicate;
 }
 
-/*****************************************************************************/
 char *
-find_best(const char *argv[])
+cli_find_best(const char *argv[])
 {
     static char cmdline[80];
     int x;
@@ -556,23 +563,22 @@ find_best(const char *argv[])
 
     for (x = 0; argv[x]; x++) {
         myargv[x] = argv[x];
-        if (!find_cli(myargv, -1)) break;
+        if (!cli_find(myargv, -1)) break;
     }
     isaac_join(cmdline, sizeof(cmdline), myargv);
     return cmdline;
 }
 
-/*****************************************************************************/
 int
-isaac_cli_command_full(int fd, const char *s)
+cli_command_full(cli_t *cli, const char *s)
 {
     const char *args[AST_MAX_ARGS + 1];
-    struct isaac_cli_entry *e;
+    cli_entry_t *entry;
     int x;
-    char *duplicate = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
+    char *duplicate = cli_parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
     char *retval = NULL;
-    struct isaac_cli_args a = {
-            .fd = fd,
+    cli_args_t a = {
+            .cli = cli,
             .argc = x,
             .argv = args+1 };
 
@@ -581,34 +587,33 @@ isaac_cli_command_full(int fd, const char *s)
     if (x < 1) /* We need at least one entry, otherwise ignore */
     goto done;
 
-    e = find_cli(args + 1, 0);
-    if (e == NULL) {
-        isaac_cli(fd,
-                "\rNo such command '%s' (type 'core show help %s' for other possible commands)\n",
-                s, find_best(args + 1));
+    entry = cli_find(args + 1, 0);
+    if (entry == NULL) {
+        cli_write(cli, "\rNo such command '%s'\n", s, cli_find_best(args + 1));
         goto done;
     }
 
-    /* Within the handler, argv[-1] contains a pointer to the isaac_cli_entry.
+    /* Within the handler, argv[-1] contains a pointer to the cli_entry_t.
      * Remember that the array returned by parse_args is NULL-terminated.
      */
-    args[0] = (char *) e;
+    args[0] = (char *) entry;
 
-    retval = e->handler(e, CLI_HANDLER, &a);
+    retval = entry->handler(entry, CLI_HANDLER, &a);
 
     if (retval == CLI_SHOWUSAGE) {
-        isaac_cli(fd, "%s", (e->usage) ? e->usage
+        cli_write(cli, "%s", (entry->usage) ? entry->usage
                 : "Invalid usage, but no usage information available.\n");
-    } else {
-        if (retval == CLI_FAILURE) isaac_cli(fd, "Command '%s' failed.\n", s);
+    } else if (retval == CLI_FAILURE) {
+        cli_write(cli, "Command '%s' failed.\n", s);
     }
+
     done: free(duplicate);
     return 0;
 }
 
-/*****************************************************************************/
+
 int
-isaac_cli_command_multiple_full(int fd, size_t size, const char *s)
+cli_command_multiple_full(cli_t *cli, size_t size, const char *s)
 {
     char cmd[512];
     int x, y = 0, count = 0;
@@ -617,7 +622,7 @@ isaac_cli_command_multiple_full(int fd, size_t size, const char *s)
         cmd[y] = s[x];
         y++;
         if (s[x] == '\0') {
-            isaac_cli_command_full(fd, cmd);
+            cli_command_full(cli, cmd);
             y = 0;
             count++;
         }
@@ -625,13 +630,13 @@ isaac_cli_command_multiple_full(int fd, size_t size, const char *s)
     return count;
 }
 
-/*****************************************************************************/
+
 /*! \brief if word is a valid prefix for token, returns the pos-th
  * match as a malloced string, or NULL otherwise.
  * Always tell in *actual how many matches we got.
  */
 char *
-is_prefix(const char *word, const char *token, int pos, int *actual)
+cli_is_prefix(const char *word, const char *token, int pos, int *actual)
 {
     int lw;
     char *s, *t1;
@@ -663,9 +668,9 @@ is_prefix(const char *word, const char *token, int pos, int *actual)
     return NULL;
 }
 
-/*****************************************************************************/
+
 int
-more_words(const char * const *dst)
+cli_more_words(const char * const *dst)
 {
     int i;
     for (i = 0; dst[i]; i++) {
@@ -674,15 +679,15 @@ more_words(const char * const *dst)
     return 0;
 }
 
-/*****************************************************************************/
+
 /*
  * generate the entry at position 'state'
  */
 char *
-isaac_cli_generator(const char *text, const char *word, int state)
+cli_generator(const char *text, const char *word, int state)
 {
     const char *argv[AST_MAX_ARGS];
-    struct isaac_cli_entry *e = NULL;
+    cli_entry_t *entry = NULL;
     int x = 0, argindex, matchlen;
     int matchnum = 0;
     char *ret = NULL;
@@ -690,7 +695,7 @@ isaac_cli_generator(const char *text, const char *word, int state)
     int tws = 0;
 
     /* Split the argument into an array of words */
-    char *duplicate = parse_args(text, &x, argv, ARRAY_LEN(argv), &tws);
+    char *duplicate = cli_parse_args(text, &x, argv, ARRAY_LEN(argv), &tws);
 
     if (!duplicate) /* malloc error */
     return NULL;
@@ -705,25 +710,25 @@ isaac_cli_generator(const char *text, const char *word, int state)
         strcat(matchstr, " "); /* XXX */
         if (matchlen) matchlen++;
     }
-    for (e = entries; e; e = e->next) {
+    for (entry = entries; entry; entry = entry->next) {
         /* XXX repeated code */
         int src = 0, dst = 0, n = 0;
 
         /** Skip internal commands **/
-        if (e->command[0] == '_') continue;
+        if (entry->command[0] == '_') continue;
 
         /*
          * Try to match words, up to and excluding the last word, which
          * is either a blank or something that we want to extend.
          */
         for (; src < argindex; dst++, src += n) {
-            n = word_match(argv[src], e->cmda[dst]);
+            n = cli_word_match(argv[src], entry->cmda[dst]);
             if (n < 0) break;
         }
 
-        if (src != argindex && more_words(e->cmda + dst)) /* not a match */
+        if (src != argindex && cli_more_words(entry->cmda + dst)) /* not a match */
         continue;
-        ret = is_prefix(argv[src], e->cmda[dst], state - matchnum, &n);
+        ret = cli_is_prefix(argv[src], entry->cmda[dst], state - matchnum, &n);
         matchnum += n; /* this many matches here */
         if (ret) {
             /*
@@ -733,21 +738,21 @@ isaac_cli_generator(const char *text, const char *word, int state)
             if (matchnum > state) break;
             free(ret);
             ret = NULL;
-        } else if (isaac_strlen_zero(e->cmda[dst])) {
+        } else if (isaac_strlen_zero(entry->cmda[dst])) {
             /*
              * This entry is a prefix of the command string entered
              * (only one entry in the list should have this property).
              * Run the generator if one is available. In any case we are done.
              */
-            if (e->handler) { /* new style command */
-                struct isaac_cli_args a = {
+            if (entry->handler) { /* new style command */
+                cli_args_t args = {
                         .line = matchstr,
                         .word = word,
                         .pos = argindex,
                         .n = state - matchnum,
                         .argv = argv,
                         .argc = x };
-                ret = e->handler(e, CLI_GENERATE, &a);
+                ret = entry->handler(entry, CLI_GENERATE, &args);
             }
             if (ret) break;
         }
@@ -756,15 +761,15 @@ isaac_cli_generator(const char *text, const char *word, int state)
     return ret;
 }
 
-/*****************************************************************************/
+
 /*! \brief Return the number of unique matches for the generator */
 int
-isaac_cli_generatornummatches(const char *text, const char *word)
+cli_generatornummatches(const char *text, const char *word)
 {
     int matches = 0, i = 0;
     char *buf = NULL, *oldbuf = NULL;
 
-    while ((buf = isaac_cli_generator(text, word, i++))) {
+    while ((buf = cli_generator(text, word, i++))) {
         if (!oldbuf || strcmp(buf, oldbuf)) matches++;
         if (oldbuf) free(oldbuf);
         oldbuf = buf;
@@ -773,9 +778,9 @@ isaac_cli_generatornummatches(const char *text, const char *word)
     return matches;
 }
 
-/*****************************************************************************/
+
 char **
-isaac_cli_completion_matches(const char *text, const char *word)
+cli_completion_matches(const char *text, const char *word)
 {
     char **match_list = NULL, *retstr, *prevstr;
     size_t match_list_len, max_equal, which, i;
@@ -783,7 +788,7 @@ isaac_cli_completion_matches(const char *text, const char *word)
 
     /* leave entry 0 free for the longest common substring */
     match_list_len = 1;
-    while ((retstr = isaac_cli_generator(text, word, matches)) != NULL) {
+    while ((retstr = cli_generator(text, word, matches)) != NULL) {
         if (matches + 1 >= match_list_len) {
             match_list_len <<= 1;
             if (!(match_list = realloc(match_list, match_list_len * sizeof(*match_list)))) return NULL;
@@ -821,62 +826,9 @@ isaac_cli_completion_matches(const char *text, const char *word)
     return match_list;
 }
 
-/*****************************************************************************/
-void
-print_uptimestr(struct timeval timeval, int printsec, char *out)
-{
-    int x; /* the main part - years, weeks, etc. */
-    char year[256] = "", week[256] = "", day[256] = "", hour[256] = "", minute[256] = "";
-#define SECOND (1)
-#define MINUTE (SECOND*60)
-#define HOUR (MINUTE*60)
-#define DAY (HOUR*24)
-#define WEEK (DAY*7)
-#define YEAR (DAY*365)
-#define NEEDCOMMA(x) ((x)? ",": "") /* define if we need a comma */
-#define ESS(x) ((x>1)? "s": "")		/* define if we need final s in descriptors */
 
-    if (timeval.tv_sec < 0) /* invalid, nothing to show */
-    return;
-
-    if (printsec) { /* plain seconds output */
-        sprintf(out, "%lu", (u_long) timeval.tv_sec);
-        return;
-    }
-    if (timeval.tv_sec > YEAR) {
-        x = (timeval.tv_sec / YEAR);
-        timeval.tv_sec -= (x * YEAR);
-        sprintf(year, " %d year%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
-    }
-    if (timeval.tv_sec > WEEK) {
-        x = (timeval.tv_sec / WEEK);
-        timeval.tv_sec -= (x * WEEK);
-        sprintf(week, " %d week%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
-    }
-    if (timeval.tv_sec > DAY) {
-        x = (timeval.tv_sec / DAY);
-        timeval.tv_sec -= (x * DAY);
-        sprintf(day, " %d day%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
-    }
-    if (timeval.tv_sec > HOUR) {
-        x = (timeval.tv_sec / HOUR);
-        timeval.tv_sec -= (x * HOUR);
-        sprintf(hour, " %d hour%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
-    }
-    if (timeval.tv_sec > MINUTE) {
-        x = (timeval.tv_sec / MINUTE);
-        timeval.tv_sec -= (x * MINUTE);
-        sprintf(minute, " %d minute%s%s", x, ESS(x), NEEDCOMMA(timeval.tv_sec));
-    }
-
-    x = timeval.tv_sec;
-    sprintf(out, "%s%s%s%s%s %d second%s ", year, week, day, hour, minute, x, ESS(x));
-}
-
-/*****************************************************************************/
-/*****************************************************************************/
 char *
-isaac_complete_session(const char *line, const char *word, int pos, int state, int rpos)
+cli_complete_session(const char *line, const char *word, int pos, int state, int rpos)
 {
     int which = 0;
     char notfound = '\0';
@@ -905,7 +857,7 @@ isaac_complete_session(const char *line, const char *word, int pos, int state, i
 /******************************************************************************
  *****************************************************************************/
 char *
-handle_commandmatchesarray(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     char *buf, *obuf;
     int buflen = 2048;
@@ -915,8 +867,8 @@ handle_commandmatchesarray(struct isaac_cli_entry *e, int cmd, struct isaac_cli_
 
     switch (cmd) {
     case CLI_INIT:
-        e->command = "_command matchesarray";
-        e->usage = "Usage: _command matchesarray \"<line>\" text \n"
+        entry->command = "_command matchesarray";
+        entry->usage = "Usage: _command matchesarray \"<line>\" text \n"
             "       This function is used internally to help with command completion and should.\n"
             "       never be called by the user directly.\n";
         return NULL;
@@ -924,10 +876,10 @@ handle_commandmatchesarray(struct isaac_cli_entry *e, int cmd, struct isaac_cli_
         return NULL;
     }
 
-    if (a->argc != 4) return CLI_SHOWUSAGE;
+    if (args->argc != 4) return CLI_SHOWUSAGE;
     if (!(buf = malloc(buflen))) return CLI_FAILURE;
     buf[len] = '\0';
-    matches = isaac_cli_completion_matches(a->argv[2], a->argv[3]);
+    matches = cli_completion_matches(args->argv[2], args->argv[3]);
     if (matches) {
         for (x = 0; matches[x]; x++) {
             matchlen = strlen(matches[x]) + 1;
@@ -946,49 +898,50 @@ handle_commandmatchesarray(struct isaac_cli_entry *e, int cmd, struct isaac_cli_
     }
 
     if (buf) {
-        isaac_cli(a->fd, "%s%s", buf, AST_CLI_COMPLETE_EOF);
+        cli_write(args->cli, "%s%s", buf, AST_CLI_COMPLETE_EOF);
         free(buf);
     } else
-        isaac_cli(a->fd, "NULL\n");
+        cli_write(args->cli, "NULL\n");
 
     return CLI_SUCCESS;
 }
 
-/*****************************************************************************/
+
 char *
-handle_commandcomplete(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     char *buf;
     switch (cmd) {
     case CLI_INIT:
-        e->command = "_command complete";
-        e->usage = "Usage: _command complete \"<line>\" text state\n"
+        entry->command = "_command complete";
+        entry->usage = "Usage: _command complete \"<line>\" text state\n"
             "       This function is used internally to help with command completion and should.\n"
             "       never be called by the user directly.\n";
         return NULL;
     case CLI_GENERATE:
         return NULL;
     }
-    if (a->argc != 5) return CLI_SHOWUSAGE;
-    buf = isaac_cli_generator(a->argv[2], a->argv[3], atoi(a->argv[4]));
+    if (args->argc != 5) return CLI_SHOWUSAGE;
+    buf = cli_generator(args->argv[2], args->argv[3], atoi(args->argv[4]));
     if (buf) {
-        isaac_cli(a->fd, "%s", buf);
+        cli_write(args->cli, "%s", buf);
         free(buf);
-    } else
-        isaac_cli(a->fd, "NULL\n");
+    } else {
+        cli_write(args->cli, "NULL\n");
+    }
     return CLI_SUCCESS;
 }
 
-/*****************************************************************************/
+
 char *
-handle_commandnummatches(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     int matches = 0;
 
     switch (cmd) {
     case CLI_INIT:
-        e->command = "_command nummatches";
-        e->usage = "Usage: _command nummatches \"<line>\" text \n"
+        entry->command = "_command nummatches";
+        entry->usage = "Usage: _command nummatches \"<line>\" text \n"
             "       This function is used internally to help with command completion and should.\n"
             "       never be called by the user directly.\n";
         return NULL;
@@ -996,19 +949,19 @@ handle_commandnummatches(struct isaac_cli_entry *e, int cmd, struct isaac_cli_ar
         return NULL;
     }
 
-    if (a->argc != 4) return CLI_SHOWUSAGE;
+    if (args->argc != 4) return CLI_SHOWUSAGE;
 
-    matches = isaac_cli_generatornummatches(a->argv[2], a->argv[3]);
+    matches = cli_generatornummatches(args->argv[2], args->argv[3]);
 
-    isaac_cli(a->fd, "%d", matches);
+    cli_write(args->cli, "%d", matches);
 
     return CLI_SUCCESS;
 }
 
-/*****************************************************************************/
+
 /*! \brief Give how much this IronSC has been up and running */
 char *
-handle_core_show_uptime(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     struct timeval curtime = isaac_tvnow();
     int printsec;
@@ -1016,8 +969,8 @@ handle_core_show_uptime(struct isaac_cli_entry *e, int cmd, struct isaac_cli_arg
 
     switch (cmd) {
     case CLI_INIT:
-        e->command = "core show uptime [seconds]";
-        e->usage = "Usage: core show uptime [seconds]\n"
+        entry->command = "core show uptime [seconds]";
+        entry->usage = "Usage: core show uptime [seconds]\n"
             "       Shows Isaac uptime information.\n"
             "       The seconds word returns the uptime in seconds only.\n";
         return NULL;
@@ -1027,44 +980,126 @@ handle_core_show_uptime(struct isaac_cli_entry *e, int cmd, struct isaac_cli_arg
     }
 
     /* regular handler */
-    if (a->argc == e->args && !strcasecmp(a->argv[e->args - 1], "seconds")) printsec = 1;
-    else if (a->argc == e->args - 1) printsec = 0;
+    if (args->argc == entry->args && !strcasecmp(args->argv[entry->args - 1], "seconds")) printsec
+            = 1;
+    else if (args->argc == entry->args - 1) printsec = 0;
     else
         return CLI_SHOWUSAGE;
 
-    if (isaac_startuptime.tv_sec) {
-        print_uptimestr(isaac_tvsub(curtime, isaac_startuptime), printsec, out);
-        isaac_cli(a->fd, "\r%s: %s\n", "System uptime", out);
+    if (stats.startuptime.tv_sec) {
+        isaac_tvelap(isaac_tvsub(curtime, stats.startuptime), printsec, out);
+        cli_write(args->cli, "\r%s: %s\n", "System uptime", out);
     }
 
     return CLI_SUCCESS;
 
 }
 
-/*****************************************************************************/
+
 char *
-handle_core_show_version(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_core_show_version(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
 
     switch (cmd) {
     case CLI_INIT:
-        e->command = "core show version";
-        e->usage = "Usage: core show version\n"
+        entry->command = "core show version";
+        entry->usage = "Usage: core show version\n"
             "       Show  Isaac version";
         return NULL;
     case CLI_GENERATE:
         return NULL;
     }
 
-    /* Pirnt a welcome message */
-    isaac_cli(a->fd, "%s v%s\n", APP_LNAME, APP_VERSION);
+    // Print the version string
+    cli_write(args->cli, "%s v%s\n", APP_LNAME, APP_VERSION);
 
     return CLI_SUCCESS;
 }
 
-/*****************************************************************************/
 char *
-handle_show_connections(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
+{
+    char running[256];
+    char manconnected[256];
+
+    switch (cmd) {
+    case CLI_INIT:
+        entry->command = "core show settings";
+        entry->usage = "Usage: core show settings\n"
+            "       Show  Isaac configuration options";
+        return NULL;
+    case CLI_GENERATE:
+        return NULL;
+    }
+
+    isaac_tvelap(isaac_tvsub(isaac_tvnow(), stats.startuptime), 0, running);
+    isaac_tvelap(isaac_tvsub(isaac_tvnow(), manager->connectedtime), 0, manconnected);
+
+    cli_write(args->cli, "\n%s Core settings\n----------------------\n", APP_NAME);
+    cli_write(args->cli, "   %-20s: %s\n", "Version", APP_VERSION);
+    cli_write(args->cli, "   %-20s: %d (%s)\n", "Log Type", config.logtype, "syslog");
+    cli_write(args->cli, "   %-20s: %d\n", "Log Level", config.loglevel);
+    cli_write(args->cli, "   %-20s: %s\n", "Log Tag", config.logtag);
+    cli_write(args->cli, "   %-20s: %d apps \n", "Aplications", application_count());
+    cli_write(args->cli, "   %-20s:%s\n", "Running since", running);
+    cli_write(args->cli, "\nManager settings\n----------------------\n");
+    cli_write(args->cli, "   %-20s: %s\n", "Address", config.manaddr);
+    cli_write(args->cli, "   %-20s: %d\n", "Port", config.manport);
+    cli_write(args->cli, "   %-20s: %s\n", "Username", config.manuser);
+    cli_write(args->cli, "   %-20s:%s\n", "Connected since", ((manager->connected) ? manconnected
+            : "Disconnected"));
+    cli_write(args->cli, "\nServer settings\n----------------------\n");
+    cli_write(args->cli, "   %-20s: %s\n", "Address", config.listenaddr);
+    cli_write(args->cli, "   %-20s: %d\n", "Port", config.listenport);
+    cli_write(args->cli, "   %-20s: %d\n", "Processed sessions", stats.sessioncnt);
+    cli_write(args->cli, "\n\n");
+
+    return CLI_SUCCESS;
+}
+
+char *
+handle_core_show_applications(cli_entry_t *entry, int cmd, cli_args_t *args)
+{
+    switch (cmd) {
+    case CLI_INIT:
+        entry->command = "core show applications";
+        entry->usage = "Usage: core show applications\n"
+            "       Show  Isaac registered applications";
+        return NULL;
+    case CLI_GENERATE:
+        return NULL;
+    }
+    return CLI_SUCCESS;
+}
+
+char *
+handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args)
+{
+    const char * const *argv = args->argv;
+    int newlevel;
+
+    switch (cmd) {
+    case CLI_INIT:
+        entry->command = "core set verbose";
+        entry->usage = "Usage: core set verbose <level>"
+            "       Set verbosity level of core.\n";
+        return NULL;
+    case CLI_GENERATE:
+        return NULL;
+    }
+
+    if (args->argc != entry->args + 1) return CLI_SHOWUSAGE;
+
+    if (sscanf(argv[entry->args], "%30d", &newlevel) != 1) return CLI_SHOWUSAGE;
+
+    config.loglevel = newlevel;
+    cli_write(args->cli, "Verbosity level is %d\n", newlevel);
+
+    return CLI_SUCCESS;
+}
+
+char *
+handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     int sessioncnt = 0;
     struct timeval curtime = isaac_tvnow();
@@ -1072,8 +1107,8 @@ handle_show_connections(struct isaac_cli_entry *e, int cmd, struct isaac_cli_arg
 
     switch (cmd) {
     case CLI_INIT:
-        e->command = "show connections";
-        e->usage = "Usage: show connections\n"
+        entry->command = "show connections";
+        entry->usage = "Usage: show connections\n"
             "       Show connected session";
         return NULL;
     case CLI_GENERATE:
@@ -1084,7 +1119,7 @@ handle_show_connections(struct isaac_cli_entry *e, int cmd, struct isaac_cli_arg
     pthread_mutex_lock(&clilock);
 
     /* Print header for satelites */
-    isaac_cli(a->fd, "%-10s%-25s%-20s%s\n", "ID", "Address", "Logged as", "Idle");
+    cli_write(args->cli, "%-10s%-25s%-20s%s\n", "ID", "Address", "Logged as", "Idle");
 
     session_iter_t *iter = session_iterator_new();
     session_t *sess;
@@ -1092,13 +1127,14 @@ handle_show_connections(struct isaac_cli_entry *e, int cmd, struct isaac_cli_arg
     /* Print available satelites */
     while ((sess = session_iterator_next(iter))) {
         sessioncnt++;
-        print_uptimestr(isaac_tvsub(curtime, sess->last_cmd_time), 1, idle);
-        isaac_cli(a->fd, "%-10s%-25s%-20s%s\n", sess->id, sess->addrstr, ((session_test_flag(sess,
-                SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT") : "not logged"),
-                idle);
+        isaac_tvelap(isaac_tvsub(curtime, sess->last_cmd_time), 1, idle);
+        cli_write(args->cli, "%-10s%-25s%-20s%s\n", sess->id, sess->addrstr, ((session_test_flag(
+                sess, SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT")
+                : "not logged"), idle);
     }
 
-    isaac_cli(a->fd, "%d active sessions.\n", sessioncnt);
+    cli_write(args->cli, "%d active sessions\n", sessioncnt);
+    cli_write(args->cli, "%d processed sessions\n", stats.sessioncnt);
     /* Destroy iterator after finishing */
     session_iterator_destroy(iter);
 
@@ -1108,32 +1144,32 @@ handle_show_connections(struct isaac_cli_entry *e, int cmd, struct isaac_cli_arg
     return CLI_SUCCESS;
 }
 
-/*****************************************************************************/
+
 char *
-handle_kill_connection(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     session_t *sess;
     switch (cmd) {
     case CLI_INIT:
-        e->command = "kill connection";
-        e->usage = "Usage: kill connection [sessionid]\n"
+        entry->command = "kill connection";
+        entry->usage = "Usage: kill connection [sessionid]\n"
             "       Kill a session connection\n";
         return NULL;
     case CLI_GENERATE:
-        if (a->pos == 2) {
-            return isaac_complete_session(a->line, a->word, a->pos, a->n, 1);
+        if (args->pos == 2) {
+            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
         }
         return NULL;
     }
 
     /* Inform all required parameters */
-    if (a->argc != 3) {
+    if (args->argc != 3) {
         return CLI_SHOWUSAGE;
     }
 
     /* Get satelite */
-    if (!(sess = session_by_id(a->argv[2]))) {
-        isaac_cli(a->fd, "Unable to find session with id %s\n", a->argv[2]);
+    if (!(sess = session_by_id(args->argv[2]))) {
+        cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {
         session_write(sess, "BYE Connection killed from CLI\r\n");
         session_finish(sess);
@@ -1142,39 +1178,39 @@ handle_kill_connection(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args
     return CLI_SUCCESS;
 }
 
-/*****************************************************************************/
+
 char *
-handle_debug_connection(struct isaac_cli_entry *e, int cmd, struct isaac_cli_args *a)
+handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     session_t *sess;
     switch (cmd) {
     case CLI_INIT:
-        e->command = "debug connection";
-        e->usage = "Usage: debug connection [sessionid]\n"
+        entry->command = "debug connection";
+        entry->usage = "Usage: debug connection [sessionid]\n"
             "       debug a session connection\n";
         return NULL;
     case CLI_GENERATE:
-        if (a->pos == 2) {
-            return isaac_complete_session(a->line, a->word, a->pos, a->n, 1);
+        if (args->pos == 2) {
+            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
         }
         return NULL;
     }
 
     /* Inform all required parameters */
-    if (a->argc != 3) {
+    if (args->argc != 3) {
         return CLI_SHOWUSAGE;
     }
 
     /* Get satelite */
-    if (!(sess = session_by_id(a->argv[2]))) {
-        isaac_cli(a->fd, "Unable to find session with id %s\n", a->argv[2]);
+    if (!(sess = session_by_id(args->argv[2]))) {
+        cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {
         if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
             session_clear_flag(sess, SESS_FLAG_DEBUG);
-            isaac_log(LOG_NOTICE, "Debug on session %s \e[1;31mdisabled\e[0m.\n", a->argv[2]);
+            isaac_log(LOG_NOTICE, "Debug on session %s \e[1;31mdisabled\e[0m.\n", args->argv[2]);
         } else {
             session_set_flag(sess, SESS_FLAG_DEBUG);
-            isaac_log(LOG_NOTICE, "Debug on session %s \e[1;32menabled\e[0m.\n", a->argv[2]);
+            isaac_log(LOG_NOTICE, "Debug on session %s \e[1;32menabled\e[0m.\n", args->argv[2]);
         }
     }
 

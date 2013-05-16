@@ -33,6 +33,7 @@
  */
 #ifndef __ISAAC_SESSION_H
 #define __ISAAC_SESSION_H
+#include "isaac.h"
 #include <netinet/in.h>
 #include <pthread.h>
 

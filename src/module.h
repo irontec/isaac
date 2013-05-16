@@ -25,15 +25,15 @@
  * 
  * Actually loadable modules can only register applications. But hey, it's an
  * open door.
- *
  */
+
 #ifndef __ISAAC_MODULE_H_
 #define __ISAAC_MODULE_H_
 #include <dirent.h>
 #include <dlfcn.h>
 
 //! Sorter declaration of struct isaac_module
-typedef struct isaac_module isaac_module_t;
+typedef struct isaac_module module_t;
 
 /**
  * \brief This structure contains of related information to one Isaac module
@@ -56,7 +56,7 @@ struct isaac_module
     void *dlhandle;
 
     //! Next module in the list
-    isaac_module_t *next;
+    module_t *next;
 };
 
 /**
@@ -91,7 +91,7 @@ unload_modules();
  *
  * \return A new allocated module structure
  */
-extern isaac_module_t*
+extern module_t*
 module_create(const char* file);
 
 /**
@@ -104,7 +104,7 @@ module_create(const char* file);
  *
  */
 extern void
-module_destroy(isaac_module_t* module);
+module_destroy(module_t* module);
 
 
 #endif         /* __ISAAC_MODULE_H_ */

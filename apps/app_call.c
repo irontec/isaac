@@ -154,7 +154,7 @@ call_exec(session_t *sess, const char *args)
     message_add_header(&msg, "Variable: ROL=%s", call_config.rol);
     message_add_header(&msg, "Variable: CALLERID=%s", agent);
     message_add_header(&msg, "Variable: AUTOANSWER=%d", call_config.autoanswer);
-    manager_write_message(get_manager(), &msg);
+    manager_write_message(manager, &msg);
 
     return 0;
 }
@@ -189,8 +189,6 @@ read_call_config(const char *cfile)
     if (config_lookup_int(&cfg, "originate.autoanswer", &intvalue) == CONFIG_TRUE){
         call_config.autoanswer = intvalue;
     }
-
-    isaac_log(LOG_NOTICE, "IN context %s\n", call_config.incontext);
 
     return 0;
 }

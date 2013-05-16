@@ -39,7 +39,7 @@ static struct isaac_sig_flags
     unsigned int need_quit_handler :1;
 } sig_flags;
 
-int isaac_consock;
+cli_t *cli;
 extern int opt_execute;
 extern int debug;
 
@@ -49,25 +49,27 @@ pthread_mutex_t output;
 int still = 0;
 
 int
-cli_tryconnect(void)
+cli_tryconnect()
 {
     struct sockaddr_un sunaddr;
     int res;
-    isaac_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
-    if (isaac_consock < 0) {
+    int clisocket = socket(PF_LOCAL, SOCK_STREAM, 0);
+    if (clisocket < 0) {
         isaac_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
         return 0;
     }
     memset(&sunaddr, 0, sizeof(sunaddr));
     sunaddr.sun_family = AF_LOCAL;
     strcpy(sunaddr.sun_path, CLI_SOCKET);
-    res = connect(isaac_consock, (struct sockaddr *) &sunaddr, sizeof(sunaddr));
+    res = connect(clisocket, (struct sockaddr *) &sunaddr, sizeof(sunaddr));
     if (res) {
-        close(isaac_consock);
-        isaac_consock = -1;
+        close(clisocket);
+        clisocket = -1;
         return 0;
-    } else
+    } else{
+        cli = cli_create(clisocket, sunaddr);
         return 1;
+    }
 }
 
 int
@@ -143,8 +145,8 @@ cli_complete(EditLine *editline, int ch)
     len = lf->cursor - ptr;
 
     snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr);
-    cli_write(isaac_consock, "%s", buf); // FIXME
-    res = cli_read(isaac_consock, buf);
+    cli_write(cli, "%s", buf); // FIXME
+    res = cli_read(cli, buf);
     buf[res] = '\0';
     nummatches = atoi(buf);
     if (nummatches > 0) {
@@ -156,7 +158,7 @@ cli_complete(EditLine *editline, int ch)
             return (char *) (CC_ERROR);
         }
         snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr);
-        cli_write(isaac_consock, "%s", buf); //FIXME
+        cli_write(cli, "%s", buf); //FIXME
         res = 0;
         mbuf[0] = '\0';
         while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
@@ -169,7 +171,7 @@ cli_complete(EditLine *editline, int ch)
                 }
             }
             /* Only read 1024 bytes at a time */
-            res = read(isaac_consock, mbuf + mlen, 1024);
+            res = read(cli->fd, mbuf + mlen, 1024);
             if (res > 0) mlen += res;
         }
         mbuf[mlen] = '\0';
@@ -284,7 +286,7 @@ isaac_el_read_char(EditLine *editline, char *cp)
         if (sig_flags.need_quit || sig_flags.need_quit_handler) break;
 
         max = 1;
-        fds[0].fd = isaac_consock;
+        fds[0].fd = cli->fd;
         fds[0].events = POLLIN;
         if (!opt_execute) {
             fds[1].fd = STDIN_FILENO;
@@ -309,7 +311,7 @@ isaac_el_read_char(EditLine *editline, char *cp)
         }
         if (fds[0].revents) {
             char *tmp;
-            res = read(isaac_consock, buf, sizeof(buf) - 1);
+            res = read(cli->fd, buf, sizeof(buf) - 1);
             /* if the remote side disappears exit */
             if (res < 1) {
                 __remote_quit_handler(0);
@@ -414,7 +416,7 @@ cli_remotecontrol(char* data)
         char prefix[] = "cli quit after ";
         char *tmp = alloca(strlen(data) + strlen(prefix) + 1);
         sprintf(tmp, "%s%s", prefix, data);
-        if (write(isaac_consock, tmp, strlen(tmp) + 1) < 0) {
+        if (write(cli->fd, tmp, strlen(tmp) + 1) < 0) {
             isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
             if (sig_flags.need_quit || sig_flags.need_quit_handler) {
                 return;
@@ -422,7 +424,7 @@ cli_remotecontrol(char* data)
         }
     } else {
         /* Get running version */
-        if (write(isaac_consock, "core show version", 18) < 0) {
+        if (write(cli->fd, "core show version", 18) < 0) {
             isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
             if (sig_flags.need_quit || sig_flags.need_quit_handler) {
                 return;
@@ -432,7 +434,7 @@ cli_remotecontrol(char* data)
 
     if (opt_execute && data) { /* hack to print output then exit if asterisk -rx is used */
         struct pollfd fds;
-        fds.fd = isaac_consock;
+        fds.fd = cli->fd;
         fds.events = POLLIN;
         fds.revents = 0;
         while (poll(&fds, 1, 60000) > 0) {
@@ -443,7 +445,7 @@ cli_remotecontrol(char* data)
                 break;
             }
 
-            if (read(isaac_consock, buffer, sizeof(buffer) - 1) <= 0) {
+            if (read(cli->fd, buffer, sizeof(buffer) - 1) <= 0) {
                 break;
             }
 
@@ -501,7 +503,7 @@ cli_remotecontrol(char* data)
                     }
                 }
                 if (strncmp(ebuf, "still alive", 11)) {
-                    res = write(isaac_consock, ebuf, strlen(ebuf) + 1);
+                    res = write(cli->fd, ebuf, strlen(ebuf) + 1);
                     if (res < 1) {
                         isaac_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
                         break;

@@ -23,7 +23,7 @@
  * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  * \brief Source code for funtions defined in manager.h
  */
-#include "config.h"
+#include "isaac.h"
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
@@ -31,13 +31,13 @@
 #include "manager.h"
 #include "filter.h"
 #include "log.h"
+#include "util.h"
 
 //! Manager connection singleton instance
-isaac_manager_t *manager;
+manager_t *manager;
 
-/*****************************************************************************/
 int
-manager_read_header(isaac_manager_t *man, char *output)
+manager_read_header(manager_t *man, char *output)
 {
     // Output must have at least sizeof(man->inbuf) space
     int res;
@@ -83,9 +83,8 @@ manager_read_header(isaac_manager_t *man, char *output)
     return 0;
 }
 
-/*****************************************************************************/
 int
-manager_read_message(isaac_manager_t *man, struct ami_message *msg)
+manager_read_message(manager_t *man, struct ami_message *msg)
 {
     int res;
 
@@ -114,9 +113,8 @@ manager_read_message(isaac_manager_t *man, struct ami_message *msg)
     return res;
 }
 
-/*****************************************************************************/
 int
-manager_write_header(isaac_manager_t *man, char *header, int hdrlen)
+manager_write_header(manager_t *man, char *header, int hdrlen)
 {
     // Try to write string, but wait no more than ms milliseconds
     // before timing out
@@ -143,9 +141,8 @@ manager_write_header(isaac_manager_t *man, char *header, int hdrlen)
     return res;
 }
 
-/*****************************************************************************/
 int
-manager_write_message(isaac_manager_t *man, struct ami_message *msg)
+manager_write_message(manager_t *man, struct ami_message *msg)
 {
     int i, wbytes = 0;
     // Lock the manager before writting to avoid multiple threads
@@ -166,7 +163,6 @@ manager_write_message(isaac_manager_t *man, struct ami_message *msg)
     return wbytes;
 }
 
-/*****************************************************************************/
 int
 message_add_header(struct ami_message *man, const char *fmt, ...)
 {
@@ -182,7 +178,6 @@ message_add_header(struct ami_message *man, const char *fmt, ...)
     return 0;
 }
 
-/*****************************************************************************/
 const char *
 message_get_header(struct ami_message *man, const char *var)
 {
@@ -197,9 +192,8 @@ message_get_header(struct ami_message *man, const char *var)
     return "";
 }
 
-/*****************************************************************************/
 int
-manager_connect(isaac_manager_t *man)
+manager_connect(manager_t *man)
 {
     int r = 1, res = 0;
     struct ami_message msg;
@@ -248,22 +242,25 @@ manager_connect(isaac_manager_t *man)
     }
 }
 
-/*****************************************************************************/
 void *
 manager_read_thread(void *man)
 {
     ami_message_t msg;
-    int res, connected = 0;
-    isaac_manager_t *manager = (isaac_manager_t *) man;
+    int res;
+    manager_t *manager = (manager_t *) man;
+
+    // Start disconnected
+    manager->connected = 0;
 
     // Give some feedback about us
     isaac_log(LOG_VERBOSE, "Launched manager session thread [ID %ld].\n", TID);
 
     // Start reading messages
     for (;;) {
-        if (!connected) {
+        if (!manager->connected) {
             if (manager_connect(manager) != -1) {
-                connected = 1;
+                manager->connected = 1;
+                manager->connectedtime = isaac_tvnow();
             }
         }
 
@@ -278,7 +275,7 @@ manager_read_thread(void *man)
             // Something bad has happened with our socket :(
             isaac_log(LOG_WARNING, "Manager read error %s [%d]\n", strerror(errno), errno);
             // Try to connect again
-            connected = 0;
+            manager->connected = 0;
         }
     }
 
@@ -287,7 +284,6 @@ manager_read_thread(void *man)
     return NULL;
 }
 
-/*****************************************************************************/
 int
 start_manager(const char* addrstr, const int port, const char* username, const char *secret)
 {
@@ -295,7 +291,7 @@ start_manager(const char* addrstr, const int port, const char* username, const c
     struct in_addr maddr;
 
     // Allocate memory for the manager data
-    if (!(manager = malloc(sizeof(isaac_manager_t)))) {
+    if (!(manager = malloc(sizeof(manager_t)))) {
         isaac_log(LOG_ERROR, "Failed to allocate server manager: %s\n", strerror(errno));
         return 1;
     }
@@ -329,14 +325,7 @@ start_manager(const char* addrstr, const int port, const char* username, const c
 
     return 0;
 }
-/*****************************************************************************/
-isaac_manager_t *
-get_manager()
-{
-    return manager;
-}
 
-/*****************************************************************************/
 char *
 message_to_text(ami_message_t *msg)
 {

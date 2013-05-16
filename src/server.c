@@ -41,7 +41,7 @@
 #include "util.h"
 
 //! Server socket
-int isaac_sockfd = 0;
+int server_sock = 0;
 //! Server accept connections thread
 pthread_t accept_thread;
 
@@ -54,13 +54,13 @@ start_server(const char *addrstr, const int port)
     int reuse = 1;
 
     // Create a socket for a new TCP IPv4 connection
-    if ((isaac_sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         isaac_log(LOG_ERROR, "Error creating server socket: %s\n", strerror(errno));
         return -1;
     }
 
     // Force reuse address (in case there are ending connections in TIME_WAIT)
-    if (setsockopt(isaac_sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) == -1) {
+    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) == -1) {
         isaac_log(LOG_ERROR, "Error setting socket options: %s\n", strerror(errno));
         return -1;
     }
@@ -76,13 +76,13 @@ start_server(const char *addrstr, const int port)
     srvaddr.sin_family = AF_INET;
     srvaddr.sin_addr = addr;
     srvaddr.sin_port = htons(port);
-    if (bind(isaac_sockfd, (struct sockaddr *) &srvaddr, sizeof(srvaddr)) == -1) {
+    if (bind(server_sock, (struct sockaddr *) &srvaddr, sizeof(srvaddr)) == -1) {
         isaac_log(LOG_ERROR, "Error binding address: %s\n", strerror(errno));
         return -1;
     }
 
     // Listen for new connections (Max queue 512)
-    if (listen(isaac_sockfd, 512) == -1) {
+    if (listen(server_sock, 512) == -1) {
         isaac_log(LOG_ERROR, "Error listening on address: %s\n", strerror(errno));
         return -1;
     }
@@ -106,7 +106,7 @@ stop_server()
     // \todo close session socket and wait for their threads
 
     // This is a bit hardcore
-    shutdown(isaac_sockfd, SHUT_RD);
+    shutdown(server_sock, SHUT_RD);
     // Wait for the accept thread to finish
     pthread_join(accept_thread, NULL);
     return 0;
@@ -126,7 +126,7 @@ accept_connections(void *sock)
     for(;;) {
         // Accept the next connections
         clilen = sizeof(cliaddr);
-        if ((clifd = accept(isaac_sockfd, (struct sockaddr *) &cliaddr, &clilen)) == -1) {
+        if ((clifd = accept(server_sock, (struct sockaddr *) &cliaddr, &clilen)) == -1) {
             if (errno != EINVAL) {
                 isaac_log(LOG_WARNING, "Error accepting new connection: %s\n", strerror(errno));
             }

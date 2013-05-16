@@ -24,9 +24,7 @@
  *
  * \brief Main Initialization and shutdown functions
  */
-
 #include "isaac.h"
-#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <libconfig.h>
@@ -40,50 +38,35 @@
 #include "util.h"
 
 
-int opt_execute = 0; ///< Determines CLI behaviour
-struct timeval isaac_startuptime; ///< Starting time, used to count the uptime time
-isaac_cfg_t config;
+//! Determines CLI behaviour
+int opt_execute = 0;
+//! Status structure, for information in some commands
+stats_t stats;
+//! Configuration structure, readed from CFILE
+cfg_t config;
+//! Debug flag (for -d argument)
 int debug = 0;
 
-/**
- * \brief Prints program version and exits
- */
 void
 version()
 {
     printf("%s: Version %s, (C) 2013 Irontec S.L. \n", APP_NAME, APP_VERSION);
     printf("Created by Ivan Alonso [aka Kaian] <kaian@irontec.com>\n");
-    exit(EXIT_SUCCESS);
 }
 
-/**
- * \brief Print usage info and exits
- *
- * \param progname binary file name
- */
 void
 usage(const char* progname)
 {
-    printf("%s: Version %s, (C) 2013 Irontec S.L. \n", APP_NAME, APP_VERSION);
-    printf("Created by Ivan Alonso [aka Kaian] <kaian@irontec.com>\n\n");
-    printf("Usage: %s [-d|-h|-v]\n", progname);
+    printf("\nUsage: %s [-d|-r|-h|-v|-x command]\n", progname);
     printf(" -d : Start in Debug Mode\n");
+    printf(" -r : Start in CLI client Mode\n");
+    printf(" -x : Run CLI command and exit\n");
     printf(" -h : Displays this usage\n");
     printf(" -v : Displays version information\n");
     printf("Start with no options to run as daemon\n");
-    exit(EXIT_SUCCESS);
 }
 
-/**
- * \brief Quit handler function
- *
- * This function will do all necesary cleanup before exiting
- * the program. Use this instead of exit() if launchers, satelites,
- * cli or scheduler are still running.
- *
- * \param exitcode Received/Forced signal code
- * \todo Implement Service cleanup
- */
+
 void
 quit(int exitcode)
 {
@@ -102,9 +85,6 @@ quit(int exitcode)
     exit(exitcode);
 }
 
-/**
- * \brief Read configuration file
- */
 int
 read_config(const char *cfile)
 {
@@ -210,9 +190,6 @@ main(int argc, char *argv[])
         case 'd':
             debug++;
             break;
-        case 'h':
-            usage(argv[0]);
-            return 0;
         case 'r':
             opt_remote++;
             break;
@@ -223,10 +200,12 @@ main(int argc, char *argv[])
             break;
         case 'v':
             version();
-            return 0;
+            exit(EXIT_SUCCESS);
+        case 'h':
         case '?':
+            version();
             usage(argv[0]);
-            return 1;
+            exit(EXIT_SUCCESS);
         }
     }
 
@@ -254,8 +233,9 @@ main(int argc, char *argv[])
         else if (pid > 0) exit(0);
     }
 
-    // Store startup time for core show uptime
-    isaac_startuptime = isaac_tvnow();
+    // Initialize stored stats
+    stats.startuptime = isaac_tvnow();
+    stats.sessioncnt = 0;
 
     // Setup signal handlers
     (void) signal(SIGINT, quit);

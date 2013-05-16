@@ -19,11 +19,27 @@
  **
  *****************************************************************************/
 /**
- * \file filter.h
- * \brief Functions to manage connection with Asterisk Manager Interface
+ * @file filter.h
+ * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ * @brief Functions for creating and managin AMI message filters
  *
- * \warning This incldue requires manager.h to be previously declared
+ * A filter is acts as hooks for applications. When a message from manager
+ * is received, it will check against all registered filters. If a filter
+ * match its conditions with the message format, it will trigger the
+ * application callback.
  *
+ * There are two ways of trigger a callback: Sync and Async.
+ * In Sync mode, the manager thread will block until the callback has
+ * finished. That way, the callback can register new filters that will match
+ * following events.
+ * Async mode is more designed for events that wont depend on other events.
+ * That callbacks are executed by a scheduler thread.
+ *
+ * Filters condition are used to determine witch manager messages will trigger
+ * the filter callback, comparing each header and value with the defined in the
+ * condition.
+ *
+ * @warning This include requires manager.h to be previously declared
  */
 
 #ifndef __ISAAC_FILTER_H_
@@ -38,11 +54,14 @@
 #endif
 #include "session.h"
 
-
-
+//! Maximum number of conditions a filter can contain
 #define MAX_CONDS       10
+//! Max length of header and value of conditions
 #define MAX_CONDLEN     512
 
+/**
+ * @brief Determine how to match the filter condition
+ */
 enum condtype
 {
     MATCH_EXACT = 0,

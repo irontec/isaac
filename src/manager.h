@@ -31,14 +31,17 @@
 #define __ISAAC_MANAGER_H_
 #include <pthread.h>
 #include <arpa/inet.h>
+#include <stdlib.h>
 
 //! Max number of headers a message can contain
-#define MAX_HEADERS             256
+#define MAX_HEADERS 256
 //! Max length of a message header (including its value)
-#define MAX_LEN                 1024
+#define MAX_LEN 1024
 
 //! Sorter declaration of isaac_manager struct
-typedef struct isaac_manager isaac_manager_t;
+typedef struct isaac_manager manager_t;
+//! Sorter declaration of ami_message struct
+typedef struct ami_message ami_message_t;
 
 /**
  * \brief Asterisk Manager Connection Session structure
@@ -62,13 +65,13 @@ struct isaac_manager
     const char *username;
     //! Secret for AMI Login event
     const char *secret;
+    //! Starting time, used to count the uptime time
+    struct timeval connectedtime;
+    //! Connected flag
+    int connected;
     //! Mutex to avoid simultaneous writting to manager
     pthread_mutex_t lock;
 };
-
-
-//! Sorter declaration of ami_message struct
-typedef struct ami_message ami_message_t;
 
 /**
  * \brief Structure containing all data of a single message sent or recv from AMI
@@ -87,6 +90,8 @@ struct ami_message
     int in_command;
 };
 
+//! Manager connection singleton instance
+extern manager_t *manager;
 
 /**
  * \brief Read next header from Asterisk Manager connection
@@ -105,7 +110,7 @@ struct ami_message
  * \retval 0    If something has been readed, but not a full header
  */
 extern int
-manager_read_header(isaac_manager_t *man, char *output);
+manager_read_header(manager_t *man, char *output);
 
 /**
  * \brief Read a full message from Asterisk Manager connection
@@ -120,7 +125,7 @@ manager_read_header(isaac_manager_t *man, char *output);
  * \retval -1   If some error occurs while reading
  */
 extern int
-manager_read_message(isaac_manager_t *man, ami_message_t *msg);
+manager_read_message(manager_t *man, ami_message_t *msg);
 
 /**
  * \brief Write a header to Asterisk Manager connection
@@ -137,7 +142,7 @@ manager_read_message(isaac_manager_t *man, ami_message_t *msg);
  *
  */
 extern int
-manager_write_header(isaac_manager_t *man, char *header, int hdrlen);
+manager_write_header(manager_t *man, char *header, int hdrlen);
 
 /**
  * \brief Writes a message to asterisk through AMI connection
@@ -152,7 +157,7 @@ manager_write_header(isaac_manager_t *man, char *header, int hdrlen);
  * \retval -1   If some error occurs while writing
  */
 extern int
-manager_write_message(isaac_manager_t *man, ami_message_t *msg);
+manager_write_message(manager_t *man, ami_message_t *msg);
 
 /**
  * \brief Add a new header with formatted value to an ami message
@@ -196,7 +201,7 @@ message_get_header(ami_message_t *msg, const char *var);
  *
  */
 extern int
-manager_connect(isaac_manager_t *man);
+manager_connect(manager_t *man);
 
 /**
  * \brief Main Asterisk Manager read thread
@@ -230,21 +235,6 @@ manager_read_thread(void *man);
  */
 extern int
 start_manager(const char *addrstr, const int port, const char *username, const char *secret);
-
-/**
- * \brief Get the manager global instance
- *
- * Returns the global instance of manager structure.
- * The returned structure can be used by applications to write messages to manager.
- * Avoid at all cost reading messages from this instance. If you want any AMI message,
- * register a filter and wait for its trigger.
- *
- * \todo TODO Is it possible to do this without a global variable?
- *
- * \return The manager structure for
- */
-extern isaac_manager_t *
-get_manager();
 
 /**
  * \brief Get AMI message as a preformated string.
