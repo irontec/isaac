@@ -78,7 +78,6 @@ manager_read_header(manager_t *man, char *output)
             res = recv(man->fd, man->inbuf + man->inlen, sizeof(man->inbuf) - 1 - man->inlen, 0);
             if (res < 1) return -1;
             break;
-
         }
     } while (res < 0);
 
