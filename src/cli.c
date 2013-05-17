@@ -1047,7 +1047,7 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
     cli_write(args->cli, "   %-20s: %d\n", "Port", config.manport);
     cli_write(args->cli, "   %-20s: %s\n", "Username", config.manuser);
     cli_write(args->cli, "   %-20s:%s\n", "Connected since", ((manager->connected) ? manconnected
-            : "Disconnected"));
+            : " Disconnected"));
     cli_write(args->cli, "\nServer settings\n----------------------\n");
     cli_write(args->cli, "   %-20s: %s\n", "Address", config.listenaddr);
     cli_write(args->cli, "   %-20s: %d\n", "Port", config.listenport);

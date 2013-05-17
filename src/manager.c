@@ -42,6 +42,7 @@ manager_read_header(manager_t *man, char *output)
     // Output must have at least sizeof(man->inbuf) space
     int res;
     int x;
+    struct pollfd fds[1];
 
     // Look for \r\n from the front, our preferred end of line
     for (x = 0; x < man->inlen; x++) {
@@ -63,16 +64,21 @@ manager_read_header(manager_t *man, char *output)
 
     // If we have reached here, we have not readed a full header line
     // Verify the readed data is not higher than the buffer size
-    if (man->inlen >= sizeof(man->inbuf) - 1) {
-        man->inlen = 0;
-    }
-
+    fds[0].fd = man->fd;
+    fds[0].events = POLLIN;
     do {
-        // Continue (or start) reading from manager socket
-        res = recv(man->fd, man->inbuf + man->inlen, sizeof(man->inbuf) - 1 - man->inlen, 0);
+        res = poll(fds, 1, -1);
         if (res < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR) {
+                continue;
+            }
             return -1;
+        } else if (res > 0) {
+            // Continue (or start) reading from manager socket
+            res = recv(man->fd, man->inbuf + man->inlen, sizeof(man->inbuf) - 1 - man->inlen, 0);
+            if (res < 1) return -1;
+            break;
+
         }
     } while (res < 0);
 
@@ -213,6 +219,11 @@ manager_connect(manager_t *man)
         if (connect(man->fd, (const struct sockaddr *) &man->addr, sizeof(man->addr)) == -1) {
             isaac_log(LOG_WARNING, "Manager: Connect failed, Retrying (%d) :%s [%d]\n", r++,
                     strerror(errno), errno);
+            // Create a new socket if transport stands still
+            if (errno == EISCONN || errno == ECONNABORTED|| errno == ECONNREFUSED) {
+                close(man->fd);
+                man->fd = socket(AF_INET, SOCK_STREAM, 0);
+            }
             sleep(1);
         } else {
             // Send login message

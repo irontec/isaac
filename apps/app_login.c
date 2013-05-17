@@ -144,8 +144,6 @@ int load_module()
     int res = 0;
     res |= application_register("Login", login_exec);
     res |= application_register("Logout", logout_exec);
-    res |= application_register("Quit", logout_exec);
-    res |= application_register("Exit", logout_exec);
     return res;
 }
 
@@ -157,7 +155,5 @@ int unload_module()
     int res = 0;
      res |= application_unregister("LOGIN");
      res |= application_unregister("LOGOUT");
-     res |= application_unregister("QUIT");
-     res |= application_unregister("EXIT");
     return res;
 }
