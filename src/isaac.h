@@ -41,7 +41,7 @@ typedef struct isaac_stats stats_t;
  *
  * This structure stores all information readed from CFILE
  * in @ref read_config.
- * It should include manager, server, log configuration.
+ * It should include manager, server, log and modules configuration.
  *
  */
 struct isaac_cfg
@@ -56,6 +56,8 @@ struct isaac_cfg
     int loglevel;
     char logfile[256];
     char logtag[20];
+    char modules[256][50];
+    int modulecnt;
 };
 
 /**

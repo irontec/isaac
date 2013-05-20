@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "isaac.h"
 #include "log.h"
 #include "app.h"
 #include "module.h"
@@ -49,7 +50,7 @@ load_modules()
     char *ext; // File extension (incling dot)
     char lfullfile[256];
     module_t *module;
-    int modcnt = 0;
+    int modcnt = 0, i;
 
     // Some feedback
     isaac_log(LOG_VERBOSE, "Loading modules ...\n");
@@ -70,6 +71,17 @@ load_modules()
 
         // Must end in .so to load it.
         if (strcasecmp(ext, ".so")) continue;
+
+        // Check if this module should be loaded
+        for (i = 0; i < config.modulecnt; i++) {
+            if (!strcmp(l->d_name, config.modules[i])) {
+                break;
+            }
+        }
+        // Not in configuration module list
+        if (i == config.modulecnt){
+            continue;
+        }
 
         // Create full module file path
         sprintf(lfullfile, "%s/%s", MODDIR, l->d_name);

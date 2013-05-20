@@ -82,7 +82,7 @@ quit(int exitcode)
     // Stop server thread
     stop_server();
     // Remove all loaded modules. They should unregister their apps
-    unload_modules();
+    //unload_modules();
     // Remove pidfile
     remove_pid(PIDFILE);
     // if requested to restart
@@ -101,6 +101,7 @@ read_config(const char *cfile)
     // Initialize configuration
     config_init(&cfg);
     isaac_log(LOG_VERBOSE, "Reading configuration from file %s\n", cfile);
+    config.modulecnt = 0;
 
     // Read configuraiton file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
@@ -163,6 +164,11 @@ read_config(const char *cfile)
                 } else if (!strcasecmp(settname, "tag")) {
                     isaac_strcpy(config.logtag, config_setting_get_string(sett));
                 }
+            }
+        } else if (!strcasecmp(catname, "modules")) {
+            for (j = 0; j < config_setting_length(cat); j++) {
+                sett = config_setting_get_elem(cat, j);
+                isaac_strcpy(config.modules[config.modulecnt++], config_setting_get_string(sett));
             }
         } else {
             isaac_log(LOG_WARNING, "Unkown category %s\n", settname);
