@@ -29,9 +29,9 @@
  */
 #ifndef __ISAAC_MANAGER_H_
 #define __ISAAC_MANAGER_H_
+#include "isaac.h"
 #include <pthread.h>
 #include <arpa/inet.h>
-#include <stdlib.h>
 
 //! Max number of headers a message can contain
 #define MAX_HEADERS 256

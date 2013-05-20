@@ -1,22 +1,28 @@
-/******************************************************************************
+/*****************************************************************************
+ ** Isaac -- Ivozng simplified Asterisk AMI Connector
  **
- ** Copyright (C) 2011-2012 Irontec SL. All rights reserved.
+ ** Copyright (C) 2013 Irontec S.L.
+ ** Copyright (C) 2013 Ivan Alonso (aka Kaian)
  **
- ** This file may be used under the terms of the GNU General Public
- ** License version 3.0 as published by the Free Software Foundation
- ** and appearing in the file LICENSE.GPL included in the packaging of
- ** this file.  Please review the following information to ensure GNU
- ** General Public Licensing requirements will be met:
+ ** This program is free software: you can redistribute it and/or modify
+ ** it under the terms of the GNU General Public License as published by
+ ** the Free Software Foundation, either version 3 of the License, or
+ ** (at your option) any later version.
  **
- ** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
- ** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ ** This program is distributed in the hope that it will be useful,
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ ** GNU General Public License for more details.
  **
- ******************************************************************************/
+ ** You should have received a copy of the GNU General Public License
+ ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ **
+ *****************************************************************************/
 /**
- * \file util.c
- * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ * @file util.c
+ * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Source code for functions defined in util.h
+ * @brief Source code for functions defined in util.h
  */
 
 #include "util.h"
@@ -97,16 +103,14 @@ isaac_tvnow(void)
     return t;
 }
 
-#define ONE_MILLION     1000000
-
-static struct timeval
+struct timeval
 tvfix(struct timeval a)
 {
-    if (a.tv_usec >= ONE_MILLION) {
+    if (a.tv_usec >= 1000000) {
         isaac_log(LOG_WARNING, "warning too large timestamp %ld.%ld\n",
                 (long)a.tv_sec, (long int) a.tv_usec);
-        a.tv_sec += a.tv_usec / ONE_MILLION;
-        a.tv_usec %= ONE_MILLION;
+        a.tv_sec += a.tv_usec / 1000000;
+        a.tv_usec %= 1000000;
     } else if (a.tv_usec < 0) {
         isaac_log(LOG_WARNING, "warning negative timestamp %ld.%ld\n",
                 (long)a.tv_sec, (long int) a.tv_usec);
@@ -123,9 +127,9 @@ isaac_tvadd(struct timeval a, struct timeval b)
     b = tvfix(b);
     a.tv_sec += b.tv_sec;
     a.tv_usec += b.tv_usec;
-    if (a.tv_usec >= ONE_MILLION) {
+    if (a.tv_usec >= 1000000) {
         a.tv_sec++;
-        a.tv_usec -= ONE_MILLION;
+        a.tv_usec -= 1000000;
     }
     return a;
 }
@@ -140,7 +144,7 @@ isaac_tvsub(struct timeval a, struct timeval b)
     a.tv_usec -= b.tv_usec;
     if (a.tv_usec < 0) {
         a.tv_sec--;
-        a.tv_usec += ONE_MILLION;
+        a.tv_usec += 1000000;
     }
     return a;
 }

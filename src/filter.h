@@ -52,6 +52,7 @@
 #ifndef __ISAAC_MANAGER_H_
 #error Include manager.h before using filter.h
 #endif
+#include "isaac.h"
 #include "session.h"
 
 //! Maximum number of conditions a filter can contain

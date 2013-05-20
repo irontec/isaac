@@ -1,17 +1,23 @@
-/****************************************************************************
+/*****************************************************************************
+ ** Isaac -- Ivozng simplified Asterisk AMI Connector
  **
- ** Copyright (C) 2011 Irontec SL. All rights reserved.
+ ** Copyright (C) 2013 Irontec S.L.
+ ** Copyright (C) 2013 Ivan Alonso (aka Kaian)
  **
- ** This file may be used under the terms of the GNU General Public
- ** License version 3.0 as published by the Free Software Foundation
- ** and appearing in the file LICENSE.GPL included in the packaging of
- ** this file.  Please review the following information to ensure GNU
- ** General Public Licensing requirements will be met:
+ ** This program is free software: you can redistribute it and/or modify
+ ** it under the terms of the GNU General Public License as published by
+ ** the Free Software Foundation, either version 3 of the License, or
+ ** (at your option) any later version.
  **
- ** This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
- ** WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ ** This program is distributed in the hope that it will be useful,
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ ** GNU General Public License for more details.
  **
- ****************************************************************************/
+ ** You should have received a copy of the GNU General Public License
+ ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ **
+ *****************************************************************************/
 #ifndef UTIL_H_
 #define UTIL_H_
 
@@ -35,19 +41,31 @@
 //! define if we need final s in descriptors
 #define ESS(x) ((x>1)? "s": "")
 
-/*! \brief Wrapper for string functions */
+/**
+ * @brief String wrapper functions
+ * Most of these functions are their original with some extra
+ * sanity checks to avoid common segfaults.
+ */
+
+//! Wrapper for strcpy with sanity checks
 int
 isaac_strcpy(char *dst, const char *src);
+//! Wrapper for strncpy with sanity checks
 int
 isaac_strncpy(char *dst, const char *src, int len);
+//! Wrapper for strlen with sanity checks
 int
 isaac_strlen(const char *str);
+//! Wrapper for strcpy with sanity checks
 int
 isaac_strcmp(const char *s1, const char *s2);
+//! Wrapper for strcpy with sanity checks
 int
 isaac_strncmp(const char *s1, const char *s2, int len);
+//! Wrapper for strcpy with sanity checks
 char *
 isaac_strip(char *s);
+
 char *
 isaac_skip_blanks(const char *str);
 char *
@@ -70,8 +88,5 @@ struct timeval
 isaac_tvsub(struct timeval a, struct timeval b);
 void
 isaac_tvelap(struct timeval timeval, int printsec, char *out);
-
-
-/// \endcond INCLUDE_UTILS
 
 #endif /* UTIL_H_ */

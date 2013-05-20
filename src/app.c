@@ -120,7 +120,8 @@ application_run(app_t *app, session_t *sess, const char *args)
         return -1;
     }
     // Some debug logging
-    isaac_log(LOG_DEBUG, "[Session %s] Requested application %s [args: %s]\n", sess->id, app->name, args);
+    isaac_log(LOG_DEBUG, "[Session %s] Requested application %s [args: %s]\n", sess->id, app->name,
+            args);
 
     // Run the application entry point
     return app->execute(sess, args);
