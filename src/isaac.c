@@ -19,15 +19,21 @@
  **
  *****************************************************************************/
 /**
- * \file main.c
- * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ * @file isaac.c
+ * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Main Initialization and shutdown functions
+ * @brief Main Initialization and shutdown functions
+ *
+ * Isaac is a small application that serves as interface and translator for
+ * Asterisk Manager Interface (aka AMI). It runs applications that can send
+ * request commands through AMI and parse received messages.
+ *
  */
-#include "isaac.h"
+#include "config.h"
 #include <unistd.h>
 #include <signal.h>
 #include <libconfig.h>
+#include "isaac.h"
 #include "pidfile.h"
 #include "module.h"
 #include "manager.h"
@@ -116,13 +122,13 @@ read_config(const char *cfile)
                 sett = config_setting_get_elem(cat, j);
                 settname = config_setting_name(sett);
                 if (!strcasecmp(settname, "address")) {
-                    strcpy(config.manaddr, config_setting_get_string(sett));
+                    isaac_strcpy(config.manaddr, config_setting_get_string(sett));
                 } else if (!strcasecmp(settname, "port")) {
                     config.manport = config_setting_get_int(sett);
                 } else if (!strcasecmp(settname, "username")) {
-                    strcpy(config.manuser, config_setting_get_string(sett));
+                    isaac_strcpy(config.manuser, config_setting_get_string(sett));
                 } else if (!strcasecmp(settname, "secret")) {
-                    strcpy(config.manpass, config_setting_get_string(sett));
+                    isaac_strcpy(config.manpass, config_setting_get_string(sett));
                 }
             }
         } else if (!strcasecmp(catname, "server")) {
@@ -131,7 +137,7 @@ read_config(const char *cfile)
                 sett = config_setting_get_elem(cat, j);
                 settname = config_setting_name(sett);
                 if (!strcasecmp(settname, "address")) {
-                    strcpy(config.listenaddr, config_setting_get_string(sett));
+                    isaac_strcpy(config.listenaddr, config_setting_get_string(sett));
                 } else if (!strcasecmp(settname, "port")) {
                     config.listenport = config_setting_get_int(sett);
                 }
@@ -153,9 +159,9 @@ read_config(const char *cfile)
                 } else if (!strcasecmp(settname, "level")) {
                     config.loglevel = config_setting_get_int(sett);
                 } else if (!strcasecmp(settname, "file")) {
-                    strcpy(config.logfile, config_setting_get_string(sett));
+                    isaac_strcpy(config.logfile, config_setting_get_string(sett));
                 } else if (!strcasecmp(settname, "tag")) {
-                    strcpy(config.logtag, config_setting_get_string(sett));
+                    isaac_strcpy(config.logtag, config_setting_get_string(sett));
                 }
             }
         } else {

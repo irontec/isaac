@@ -19,10 +19,10 @@
  **
  *****************************************************************************/
 /**
- * \file log.c
- * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ * @file log.c
+ * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Source code for functions defined in log.h
+ * @brief Source code for functions defined in log.h
  */
 
 #include "isaac.h"
@@ -33,27 +33,26 @@
 #include <pthread.h>
 #include "log.h"
 #include "cli.h"
+#include "util.h"
 
 //! Pointer for File descriptor. Only used if logtype is LOG_TYPE_FILE
 FILE *logfile;
 //! Log lock. Avoid printing more than messages at a time
 pthread_mutex_t loglock;
 
-/******************************************************************************
- *****************************************************************************/
 const char *
-log_type_to_text(int log_type, int colour)
+log_type_to_text(int log_type)
 {
-    /* Get log prefix depending on log_type */
+    // Get log prefix depending on log_type
     switch (log_type) {
     case LOG_DEBUG:
-        return (colour) ? "\e[1;34mDEBUG\e[0m" : "DEBUG ";
+        return "\e[1;34mDEBUG\e[0m";
     case LOG_WARNING:
-        return (colour) ? "\e[0;31mWARNING\e[0m" : "WARNING ";
+        return "\e[0;31mWARNING\e[0m";
     case LOG_NOTICE:
-        return (colour) ? "\e[1;33mNOTICE\e[0m" : "NOTICE ";
+        return "\e[1;33mNOTICE\e[0m";
     case LOG_ERROR:
-        return (colour) ? "\e[1;31mERROR\e[0m" : "ERROR ";
+        return "\e[1;31mERROR\e[0m";
     case LOG_NONE:
         return "";
     case LOG_VERBOSE_1:
@@ -66,17 +65,14 @@ log_type_to_text(int log_type, int colour)
         return "        o ";
     }
 
-    /* Something went wrong */
+    // Unkown logging type
     return NULL;
 }
 
-/*****************************************************************************/
 void
-isaac_log_location(int log_type, const char *file, int line, const char *function, const char *fmt,
+isaac_log_location(int log_level, const char *file, int line, const char *function, const char *fmt,
         ...)
 {
-#define NOCOLOUR 	0
-#define COLOUR		1
     char logmsg[MAX_MSG_SIZE];
     char msgva[MAX_MSG_SIZE];
     va_list ap;
@@ -84,38 +80,43 @@ isaac_log_location(int log_type, const char *file, int line, const char *functio
     struct tm tm;
     char date[80];
 
-    if (log_type < LOG_VERBOSE_1 && log_type >= config.loglevel) {
+    // Check if the log message has enough level to be printed or it's a verbose message
+    // Verbose messages are always printed to CLI but not to syslog mediums
+    if (log_level > config.loglevel && log_level < LOG_VERBOSE_1) {
         return;
     }
 
+    // Get the actual time
     time(&t);
     localtime_r(&t, &tm);
     strftime(date, sizeof(date), DATEFORMAT, &tm);
 
-    pthread_mutex_lock(&loglock);
+    // Get the message from the format string
     va_start(ap, fmt);
     vsprintf(msgva, fmt, ap);
     va_end(ap);
 
-    if (log_type < LOG_VERBOSE_1) {
+    // Build the final message depending on its level
+    if (log_level < LOG_VERBOSE_1) {
         sprintf(logmsg, "\33[2K\r[%s] %s: [%ld]\e[1;37m: %s:%d %s:\e[0m %s", date,
-                log_type_to_text(log_type, COLOUR), TID, file, line, function, msgva);
+                log_type_to_text(log_level), TID, file, line, function, msgva);
     } else {
-        sprintf(logmsg, "\33[2K\r%s%s", log_type_to_text(log_type, COLOUR), msgva);
+        sprintf(logmsg, "\33[2K\r%s%s", log_type_to_text(log_level), msgva);
     }
 
-    /* If running in debug mode **/
+    // Lock here to avoid more than one message write at the same time
+    pthread_mutex_lock(&loglock);
+    // If running in debug mode just print to the screen
     if (debug) {
         printf("%s", logmsg);
     }
 
-    /* Write to clients **/
+    // Write to all CLI clients
     cli_broadcast(logmsg);
 
-    /* Write to log medium**/
+    // Remove all color from the messsage and write to log medium
     clean_text(logmsg);
-    write_log(log_type, logmsg);
-
+    write_log(log_level, logmsg);
     pthread_mutex_unlock(&loglock);
 }
 
@@ -135,7 +136,6 @@ start_logging(enum log_type type, const char *tag, const char *file, int level)
     return 0;
 }
 
-/*****************************************************************************/
 int
 stop_logging()
 {
@@ -151,26 +151,27 @@ stop_logging()
     return 0;
 }
 
-//*****************************************************************************/
 void
-write_log(int log_type, const char *message)
+write_log(int log_level, const char *message)
 {
-    if (log_type <= config.loglevel) {
+    // Only log to medium levels lower or same than configured
+    if (log_level <= config.loglevel) {
         if (config.logtype == LOG_TYPE_SYSLOG) {
-            syslog(log_type, "%s", message);
+            syslog(log_level, "%s", message);
         } else if (config.logtype == LOG_TYPE_FILE) {
             //\todo write log to file
         }
     }
 }
 
-//*****************************************************************************/
 void
 clean_text(char *text)
 {
     int i, j = 0;
     char clean[MAX_MSG_SIZE];
 
+    // Loop through the text searching for some special characters
+    // that give color to the CLIs. Remove them.
     for (i = 0; i <= strlen(text); i++) {
         if (text[i] == 27) {
             switch (text[i + 2]) {
@@ -188,5 +189,5 @@ clean_text(char *text)
         }
         clean[j++] = text[i];
     }
-    strcpy(text, clean);
+    isaac_strcpy(text, clean);
 }

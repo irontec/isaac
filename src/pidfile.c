@@ -99,7 +99,7 @@ write_pid(char *pidfile)
     int pid;
 
     if (((fd = open(pidfile, O_RDWR | O_CREAT, 0644)) == -1) || ((f = fdopen(fd, "r+")) == NULL)) {
-        isaac_log(LOG_ERROR, "Can't open or create %s.\n", pidfile);
+        isaac_log(LOG_ERROR, "Can't open or create %s\n", pidfile);
         return 0;
     }
 
@@ -109,25 +109,25 @@ write_pid(char *pidfile)
         } else {
             pid = -1;
         }
-        isaac_log(LOG_ERROR, "Can't lock, lock is held by pid %d.\n", pid);
+        isaac_log(LOG_ERROR, "Can't lock, lock is held by pid %d\n", pid);
         return 0;
     }
 
     pid = getpid();
     if (!fprintf(f, "%d\n", pid)) {
-        isaac_log(LOG_ERROR, "Can't write pid , %s.\n", strerror(errno));
+        isaac_log(LOG_ERROR, "Can't write pid , %s\n", strerror(errno));
         close(fd);
         return 0;
     }
     fflush(f);
 
     if (flock(fd, LOCK_UN) == -1) {
-        isaac_log(LOG_ERROR, "Can't unlock pidfile %s, %s.\n", pidfile, strerror(errno));
+        isaac_log(LOG_ERROR, "Can't unlock pidfile %s, %s\n", pidfile, strerror(errno));
         close(fd);
         return 0;
     }
     close(fd);
-    isaac_log(LOG_VERBOSE, "Pidfile written at %s.\n", pidfile);
+    isaac_log(LOG_VERBOSE, "Pidfile written at %s\n", pidfile);
 
     return pid;
 }

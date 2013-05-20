@@ -30,7 +30,6 @@
 #ifndef __ISAAC_H_
 #define __ISAAC_H_
 
-#include "config.h"
 #include <stdlib.h>
 
 //! Sorter declaration of isaac_cfg struct

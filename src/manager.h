@@ -29,7 +29,6 @@
  */
 #ifndef __ISAAC_MANAGER_H_
 #define __ISAAC_MANAGER_H_
-#include "isaac.h"
 #include <pthread.h>
 #include <arpa/inet.h>
 
@@ -99,7 +98,7 @@ extern manager_t *manager;
  * This routine has been mostly taken from Dave Troy astmanproxy and is
  * based on get_input from Asterism manager.c
  *
- * Good generic line-based input routine for \r\n\r\n terminated input
+ * Good generic line-based input routine for \\r\\n\\r\\n terminated input
  *
  * \warning Do not use in applications.
  *
@@ -149,7 +148,7 @@ manager_write_header(manager_t *man, char *header, int hdrlen);
  *
  * Function to write all headers from a message through AMI
  *
- * \TODO There should be some kind of locking here..
+ * @todo There should be some kind of locking here..
  *
  * \param man   Manager connection data
  * \param msg   AMI message structure with the readed data

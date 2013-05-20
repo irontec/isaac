@@ -19,10 +19,10 @@
  **
  *****************************************************************************/
 /**
- * \file module.c
- * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ * @file module.c
+ * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Source code for funtions defined in module.h
+ * @brief Source code for funtions defined in module.h
  *
  */
 #include "config.h"
@@ -32,6 +32,7 @@
 #include "log.h"
 #include "app.h"
 #include "module.h"
+#include "util.h"
 
 //! Loaded modules list
 // We wont mutexlock this list because is only accessed on startup or
@@ -179,10 +180,10 @@ module_destroy(module_t *module)
     }
 
     // Free module filename
-    free(module->fname);
+    isaac_free(module->fname);
 
     // Finaly free module structure
-    free(module);
+    isaac_free(module);
 
 }
 

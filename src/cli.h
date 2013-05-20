@@ -40,7 +40,6 @@
 #ifndef __ISAAC_CLI_H_
 #define __ISAAC_CLI_H_
 
-#include "isaac.h"
 #include <poll.h>
 #include <sys/un.h>
 #include <pthread.h>
@@ -229,7 +228,7 @@ cli_create(int fd, struct sockaddr_un sun);
  * This function will cleanup the running CLI thread for a given connection.\n
  * Can be used when a client disconnects or when CLI server stops.
  *
- * @param c CLI client connection
+ * @param cli CLI client connection
  */
 extern void
 cli_destroy(cli_t *cli);
@@ -304,7 +303,7 @@ cli_register_entry_multiple(cli_entry_t *entry, int len);
  * This function joins the CMDA array to build the full command
  * also stores the command part length (without the arguments)
  *
- * @param e Entry pointer
+ * @param entry Entry pointer
  * @return 0 On success
  * @return 1 On error
  */

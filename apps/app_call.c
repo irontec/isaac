@@ -127,6 +127,7 @@ read_call_config(const char *cfile)
         call_config.autoanswer = intvalue;
     }
 
+    isaac_log(LOG_VERBOSE, "Readed configuration from %s\n", cfile);
     return 0;
 }
 

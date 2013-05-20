@@ -27,7 +27,7 @@
  * @todo Comment this file completely
  */
 
-#include "isaac.h"
+#include "config.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -35,6 +35,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <unistd.h>
+#include "isaac.h"
 #include "cli.h"
 #include "util.h"
 #include "log.h"
@@ -56,7 +57,7 @@ pthread_t accept_thread;
 int cli_sock;
 
 /// Binary running in CLI client mode flag.
-/** Flag defined in \ref main.c to determine if binary is being executed as CLI client. */
+/** Flag defined in @ref isaac.c to determine if binary is being executed as CLI client. */
 extern int opt_remote;
 
 /**
@@ -270,7 +271,7 @@ cli_destroy(cli_t *cli)
         close(cli->fd);
         pthread_cancel(cli->thread);
         pthread_mutex_destroy(&cli->lock);
-        free(cli);
+        isaac_free(cli);
     } else {
         // This should happen!!
         isaac_log(LOG_ERROR, "Trying to destroy non-existent CLI: %d\n", cli->fd);
@@ -613,7 +614,7 @@ cli_command_full(cli_t *cli, const char *s)
         cli_write(cli, "Command '%s' failed.\n", s);
     }
 
-    done: free(duplicate);
+    done: isaac_free(duplicate);
     return 0;
 }
 
@@ -742,7 +743,7 @@ cli_generator(const char *text, const char *word, int state)
              * command. If this is also the correct entry, return it.
              */
             if (matchnum > state) break;
-            free(ret);
+            isaac_free(ret);
             ret = NULL;
         } else if (isaac_strlen_zero(entry->cmda[dst])) {
             /*
@@ -763,7 +764,7 @@ cli_generator(const char *text, const char *word, int state)
             if (ret) break;
         }
     }
-    free(duplicate);
+    isaac_free(duplicate);
     return ret;
 }
 
@@ -777,10 +778,10 @@ cli_generatornummatches(const char *text, const char *word)
 
     while ((buf = cli_generator(text, word, i++))) {
         if (!oldbuf || strcmp(buf, oldbuf)) matches++;
-        if (oldbuf) free(oldbuf);
+        if (oldbuf) isaac_free(oldbuf);
         oldbuf = buf;
     }
-    if (oldbuf) free(oldbuf);
+    if (oldbuf) isaac_free(oldbuf);
     return matches;
 }
 
@@ -894,18 +895,18 @@ handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
                 obuf = buf;
                 if (!(buf = realloc(obuf, buflen)))
                 /* Memory allocation failure...  Just free old buffer and be done */
-                free(obuf);
+                isaac_free(obuf);
             }
             if (buf) len += sprintf(buf + len, "%s ", matches[x]);
-            free(matches[x]);
+            isaac_free(matches[x]);
             matches[x] = NULL;
         }
-        free(matches);
+        isaac_free(matches);
     }
 
     if (buf) {
         cli_write(args->cli, "%s%s", buf, AST_CLI_COMPLETE_EOF);
-        free(buf);
+        isaac_free(buf);
     } else
         cli_write(args->cli, "NULL\n");
 
@@ -931,7 +932,7 @@ handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
     buf = cli_generator(args->argv[2], args->argv[3], atoi(args->argv[4]));
     if (buf) {
         cli_write(args->cli, "%s", buf);
-        free(buf);
+        isaac_free(buf);
     } else {
         cli_write(args->cli, "NULL\n");
     }

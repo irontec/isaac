@@ -33,14 +33,16 @@
  * mutex properly to make the session thread-safe.
  *
  */
-#include "isaac.h"
+#include "config.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
+#include "isaac.h"
 #include "manager.h"
 #include "filter.h"
 #include "session.h"
 #include "log.h"
+#include "util.h"
 
 //! Session list
 session_t *sessions;
@@ -113,7 +115,7 @@ session_destroy(session_t *sess)
     // Destroy the session mutex
     pthread_mutex_destroy(&sess->lock);
     // Free the session allocated memory
-    free(sess);
+    isaac_free(sess);
 }
 
 /*****************************************************************************/
@@ -286,7 +288,7 @@ void
 session_iterator_destroy(session_iter_t *iter)
 {
     /* Destroy iterator */
-    free(iter);
+    isaac_free(iter);
     /* Just unlock the Sessions List lock */
     pthread_mutex_unlock(&sessionlock);
 }

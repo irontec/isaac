@@ -25,7 +25,7 @@
  * \brief Source code for funtions defined in server.h
  * 
  */
-#include "isaac.h"
+#include "config.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

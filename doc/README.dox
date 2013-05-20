@@ -1,0 +1,312 @@
+/**
+ @mainpage Isaac
+ @title v0.1 Documentation
+
+ @section whats_this What's this?
+ Isaac (Ivozng simplified Asterisk AMI Connector) is a small application
+ that serves as interface and translator for Asterisk Manager Interface (aka AMI).\n 
+ This interface has a little big problem: It broadcast all events to all clients, no matter if
+ they are interested or not in the information.\n
+ Issac uses a small protocol, where each command is called an action implemented in loadable
+ module.
+ 
+ If you've ever had the need of implement a simple protocol for AMI, then maybe 
+ this software make your life easier (or may be not).
+
+ @section how_its_work How does Isaac work?
+ Isaac is basically a TCP server that accept some connections (called sessions),
+ and execute actions (custom code loaded from modules) that in most cases send and
+ receive information from Asterisk Manager.
+ 
+   
+	@dot
+	digraph IsaacGraph {
+		title="Isaac";
+		node [shape=record, fontname=Helvetica, fontsize=10, style=filled];
+		rankdir = BT;
+			
+		AMI [ label = "* Asterisk Manager Interface" ];
+		Manager -> AMI;
+		
+		Admin [ label = "Administrator" shape=octagon ];
+		Admin -> CLI -> Core;
+		
+		Client0 [ label = "Client 0" shape=octagon ];
+		Client1 [ label = "Client 1" shape=octagon ];
+		Client2 [ label = "Client 2" shape=octagon ];
+		Client0 ->Server -> Session0 [dir=both];
+		Client1 ->Server -> Session1 [dir=both];
+		Client2 ->Server -> Session2 [dir=both];
+		{ rank=same; Client0 Client1 Client2 Admin }	
+		
+		
+		subgraph clusterModules {
+			label="Modules"
+			style=dotted;
+		 	rankdir="TB"
+			Module0 [ label = "Module 0" shape = "house" rotate=90 fillcolor="#AA6666" URL="@ref module.h"];
+			Module1 [ label = "Module 1" shape = "house" fillcolor="#AA6666" URL="@ref module.h"];
+			Module2 [ label = "Module 2" shape = "house" fillcolor="#AA6666" URL="@ref module.h"];
+			Module0 -> Module1 -> Module2 [dir=back style=invis]
+		}
+		Module1 -> Applications
+		
+		subgraph clusterIsaac {
+			label="Isaac";
+			labelloc="c";
+			style=filled;
+			fillcolor="#AAAAAA";
+			color=blue;
+			
+			Manager [
+				label="{\nManager\n\n\n|Filters}"
+				width=3 
+				fillcolor="lightblue" 
+				URL="@ref manager.h"
+			];
+			
+			Core [ 
+				label="{Logging|\n\n\nCore\n\n\n|Sched}"
+				width=4 
+				height=1.5
+			];
+			
+			Session0 [ label = "Session 0" fillcolor="orange" URL="@ref session.h" ];
+			Session1 [ label = "Session 1" fillcolor="orange" URL="@ref session.h" ];
+			Session2 [ label = "Session 2" fillcolor="orange" URL="@ref session.h" ];
+			
+			Server [
+				label="Commands Server"
+				fillcolor="orange"
+				URL="@ref server.h"
+			]
+			
+			CLI [
+				label="CLI"
+				fillcolor="orange"
+				URL="@ref cli.h"
+			];
+			
+			Applications [
+				label = "Applications"
+				height=3
+				rotate=90
+				fillcolor="#AA6666"
+				URL="@ref app.h"
+			];
+			
+			Core -> Manager
+			Session0 -> Core
+			Session1 -> Core
+			Session2 -> Core
+			Session0 -> Applications -> Manager [dir=both];
+			
+			{ rank=same; Applications Core }
+			{ rank=same; Session0 Session1 Session2 CLI}
+		}
+	}
+	@enddot
+ 
+ We will describe each of this parts in following sections
+  - @subpage ServerSession
+  - @subpage AppsModules
+  - @subpage ManagerFilters
+  - @subpage CLI
+  - @subpage Logging
+
+
+ @page ServerSession Server and Sessions
+ More than anything, Isaac is a TCP Server that accept client connections (@ref accept_connections). \n
+ This incoming client connection is called @ref session.\n
+ Functions that manage this server can been found in server.h file.\n
+ \n
+ The server has the folowing configuration options:
+  - (@ref isaac_cfg::listenaddr Listen Adress)
+  - (@ref isaac_cfg::listenport Listen Port)
+ \n\n
+ When a new client connect to the server a new unique session is created and dispatched to a @ref manage_session thread that will read session commands.\n
+ This thread will manage session command input, will look for an @ref isaac_application "application" and execute its code.\n
+ A session is able to input commands, one per line, that match a registered application name.\n\n
+    ACTION ARG1 ARG2 AGR3 ... \n
+     
+ The Server thread will try to find an application with a name matching the input action, and pass its arguments to the application entry point.\n
+ If no application is found, an (@ref apperr2str standard message) will be returned.\n
+ 
+ An administrator can print active sessions can be from CLI running 'show connections' command. Also, with a given Session ID, a session can be debugged or killed.\n 
+	@dot
+	digraph ServerGraph {
+		title="Isaac";
+		node [shape=record, fontname=Helvetica, fontsize=10, style=filled];
+		rankdir = BT;
+				
+		Admin [ label = "Administrator" shape=octagon ];
+		Admin -> CLI -> Core;
+			
+		Client0 [ label = "Client 0" shape=octagon ];
+		Client1 [ label = "Client 1" shape=octagon ];
+		Client2 [ label = "Client 2" shape=octagon ];
+		Client0 ->Server -> Session0 [dir=both];
+		Client1 ->Server -> Session1 [dir=both];
+		Client2 ->Server -> Session2 [dir=both];
+		{ rank=same; Client0 Client1 Client2 Admin }
+			
+		subgraph clusterIsaac {
+			label="Isaac";
+			labelloc="c";
+			style=filled;
+			fillcolor="#AAAAAA";
+			color=blue;
+			
+			Core [ 
+				label="{Logging|\n\n\nCore\n\n\n|Sched}"
+				width=4 
+				height=1.5
+			];
+			
+			Session0 [ label = "Session 0" fillcolor="orange" URL="@ref session.h" ];
+			Session1 [ label = "Session 1" fillcolor="orange" URL="@ref session.h" ];
+			Session2 [ label = "Session 2" fillcolor="orange" URL="@ref session.h" ];
+			
+			Server [
+				label="Commands Server"
+				fillcolor="orange"
+				URL="@ref server.h"
+			]
+			
+			CLI [
+				label="CLI"
+				fillcolor="orange"
+				URL="@ref cli.h"
+			];
+			
+			Session0 -> Core
+			Session1 -> Core
+			Session2 -> Core
+			
+			{ rank=same; Session0 Session1 Session2 CLI}
+		}
+	}
+	@enddot
+
+@page AppsModules Applications and Modules
+ All Isaac funtionality is implemented in Modules. \n\n
+ Modules are loadable code that can expose Application's function that provide actions for connected sessions.\n
+ They have an entry point (@ref load_module) where developer can read custom configuration for that module, launch worker 
+ threads and expose applications to allow sessions to execute its code.\n\n
+ 
+ The code of that applications can do whatever the application developer wants with the current session, but in most cases it will
+ write and read commands from Manager. 
+  
+ Isaac offers a simple API for filtering readed manager events and executing callbacks when a message matchs the conditions.\n
+ 
+	@dot
+	digraph IsaacGraph {
+		title="Isaac";
+		node [shape=record, fontname=Helvetica, fontsize=10, style=filled];
+		rankdir = BT;
+			
+		AMI [ label = "* Asterisk Manager Interface" ];
+		Manager -> AMI;
+		
+		subgraph clusterModules {
+			label="Modules"
+			style=dotted;
+		 	rankdir="TB"
+			Module0 [ label = "Module 0" shape = "house" rotate=90 fillcolor="#AA6666" URL="@ref module.h"];
+			Module1 [ label = "Module 1" shape = "house" fillcolor="#AA6666" URL="@ref module.h"];
+			Module2 [ label = "Module 2" shape = "house" fillcolor="#AA6666" URL="@ref module.h"];
+			Module0 -> Module1 -> Module2 [dir=back style=invis]
+		}
+		Module1 -> Applications
+		
+		subgraph clusterIsaac {
+			label="Isaac";
+			labelloc="c";
+			style=filled;
+			fillcolor="#AAAAAA";
+			color=blue;
+			
+			Manager [
+				label="{\nManager\n\n\n|Filters}"
+				width=3 
+				fillcolor="lightblue" 
+				URL="@ref manager.h"
+			];
+			
+			Session0 [ label = "Session 0" fillcolor="orange" URL="@ref session.h" ];
+			
+			Applications [
+				label = "Applications"
+				height=3
+				rotate=90
+				fillcolor="#AA6666"
+				URL="@ref app.h"
+			];
+			
+			Session0 -> Applications -> Manager [dir=both];
+		}
+	}
+	@enddot
+
+@page ManagerFilters Manager and Filters
+ The main purpose of Isaac is make easier to work with manager events.\n
+ It has a running thread that will always try to connecto to Asterisk Manager using the configuration options:
+  - (@ref isaac_cfg::manaddr AMI Adress)
+  - (@ref isaac_cfg::manport AMI Port)
+  - (@ref isaac_cfg::manuser AMI Username)
+  - (@ref isaac_cfg::manpass AMI Password)
+  
+ This thread, will receive all generated events and check if any application has registered a filter that match this event, executing its callback.\n
+ Application can fill a @ref isaac_filter "filter" structure with matching @ref isaac_condition "conditions" using @ref filter_add_condition and @ref filter_add_condition2.\n
+ 
+ 	@dot
+	digraph IsaacGraph {
+		title="Isaac";
+		node [shape=record, fontname=Helvetica, fontsize=10, style=filled];
+		rankdir = BT;
+			
+		AMI [ label = "* Asterisk Manager Interface" ];
+		Manager -> AMI;
+		
+		subgraph clusterIsaac {
+			label="Isaac";
+			labelloc="c";
+			style=filled;
+			fillcolor="#AAAAAA";
+			color=blue;
+			
+			Manager [
+				label="{\nManager\n\n\n|Filters}"
+				width=3 
+				fillcolor="lightblue" 
+				URL="@ref manager.h"
+			];
+			Applications [
+				label = "Applications"
+				height=3
+				rotate=90
+				fillcolor="#AA6666"
+				URL="@ref app.h"
+			];
+			
+			Applications -> Manager [dir=both];			
+			
+			Core [ 
+				label="{Logging|\n\n\nCore\n\n\n|Sched}"
+				width=4 
+				height=1.5
+			];
+			
+			Core -> Manager [dir=both];					
+		}
+	}
+	@enddot
+   
+  
+@page CLI Command Line Interface
+ Not Yet Implemented
+@page Logging
+ Not Yet Implemented
+ 
+*/
+ 

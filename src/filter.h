@@ -52,13 +52,15 @@
 #ifndef __ISAAC_MANAGER_H_
 #error Include manager.h before using filter.h
 #endif
-#include "isaac.h"
 #include "session.h"
 
 //! Maximum number of conditions a filter can contain
 #define MAX_CONDS       10
 //! Max length of header and value of conditions
 #define MAX_CONDLEN     512
+
+typedef struct isaac_filter filter_t;
+typedef struct isaac_condition cond_t;
 
 /**
  * @brief Determine how to match the filter condition
@@ -72,13 +74,13 @@ enum condtype
 
 };
 
-struct condition
+struct isaac_condition
 {
     char hdr[MAX_CONDLEN];
     char val[MAX_CONDLEN];
     enum condtype type;
 };
-typedef struct condition cond_t;
+
 
 enum callbacktype
 {
@@ -86,17 +88,17 @@ enum callbacktype
     FILTER_SYNC_CALLBACK,
 };
 
-struct filter
+struct isaac_filter
 {
     session_t *sess;
-    struct condition conds[MAX_CONDS];
+    cond_t conds[MAX_CONDS];
     unsigned int condcount;
     enum callbacktype cbtype;
-    int (*callback)(struct filter *filter, ami_message_t *msg);
+    int (*callback)(filter_t *filter, ami_message_t *msg);
     void *app_info;
-    struct filter *next;
+    filter_t *next;
 };
-typedef struct filter filter_t;
+
 
 filter_t *filter_create(session_t *sess, enum callbacktype cbtype, int(*callback)(filter_t *filter,
         ami_message_t *msg));

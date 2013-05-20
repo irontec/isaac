@@ -24,8 +24,10 @@
  *
  * @brief Source code for funtions defined in app.h
  */
+#include "config.h"
 #include "app.h"
 #include "log.h"
+#include "util.h"
 
 //! Registered application List
 app_t *apps = NULL;
@@ -74,8 +76,8 @@ application_unregister(const char *name)
                 apps = cur->next;
             }
             // Free allocated memory
-            free(cur->name);
-            free(cur);
+            isaac_free(cur->name);
+            isaac_free(cur);
             break;
         }
     }

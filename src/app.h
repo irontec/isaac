@@ -35,7 +35,6 @@
 
 #ifndef _ISAAC_APP_H
 #define _ISAAC_APP_H
-#include "isaac.h"
 #include "session.h"
 
 /** 

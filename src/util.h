@@ -18,17 +18,29 @@
  ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
  **
  *****************************************************************************/
-#ifndef UTIL_H_
-#define UTIL_H_
+/**
+ * @file util.h
+ * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ *
+ * @brief Wrappers for safety checks on common functions
+ *
+ * Handy functions for managing strings, dates and memory with some sanity
+ * checks to avoid common segfaults.
+ * Instead of segfaulting it will be nice to print some ERROR messages
+ *
+ */
+#ifndef __ISAAC_UTIL_H_
+#define __ISAAC_UTIL_H_
 
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/time.h>
+#include <stdlib.h>
 
 /**
  * @brief Some macros for calculating the diffenrence between two timevals
- * @fixme someday
+ * @todo someday
  */
 #define SECOND (1)
 #define MINUTE (SECOND*60)
@@ -89,4 +101,4 @@ isaac_tvsub(struct timeval a, struct timeval b);
 void
 isaac_tvelap(struct timeval timeval, int printsec, char *out);
 
-#endif /* UTIL_H_ */
+#endif /* __ISAAC_UTIL_H_ */

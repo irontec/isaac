@@ -23,7 +23,7 @@
  * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  * \brief Source code for funtions defined in manager.h
  */
-#include "isaac.h"
+#include "config.h"
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>

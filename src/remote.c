@@ -25,7 +25,7 @@
  * \brief Source code for functions defined in remote.h
  */
 
-#include "isaac.h"
+#include "config.h"
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -103,7 +103,7 @@ isaac_cli_display_match_list(char **matches, int len, int max)
             /* Don't print dupes */
             if ((matches[idx + 1] != NULL && strcmp(matches[idx], matches[idx + 1]) == 0)) {
                 i--;
-                free(matches[idx]);
+                isaac_free(matches[idx]);
                 matches[idx] = NULL;
                 continue;
             }
@@ -111,7 +111,7 @@ isaac_cli_display_match_list(char **matches, int len, int max)
             numoutput++;
             numoutputline++;
             fprintf(stdout, "%-*s  ", max, matches[idx]);
-            free(matches[idx]);
+            isaac_free(matches[idx]);
             matches[idx] = NULL;
         }
         if (numoutputline > 0) fprintf(stdout, "\n");
@@ -183,7 +183,7 @@ cli_complete(EditLine *editline, int ch)
         mbuf[mlen] = '\0';
 
         matches = isaac_el_strtoarr(mbuf);
-        free(mbuf);
+        isaac_free(mbuf);
     } else
         matches = (char **) NULL;
 
@@ -218,8 +218,8 @@ cli_complete(EditLine *editline, int ch)
             }
         }
         for (i = 0; matches[i]; i++)
-            free(matches[i]);
-        free(matches);
+            isaac_free(matches[i]);
+        isaac_free(matches);
     }
 
     pthread_mutex_unlock(&output);
@@ -566,7 +566,7 @@ isaac_el_strtoarr(char *buf)
             if ((match_list_tmp = realloc(match_list, match_list_len * sizeof(char *)))) {
                 match_list = match_list_tmp;
             } else {
-                if (match_list) free(match_list);
+                if (match_list) isaac_free(match_list);
                 return (char **) NULL;
             }
         }
@@ -580,7 +580,7 @@ isaac_el_strtoarr(char *buf)
         if ((match_list_tmp = realloc(match_list, (match_list_len + 1) * sizeof(char *)))) {
             match_list = match_list_tmp;
         } else {
-            if (match_list) free(match_list);
+            if (match_list) isaac_free(match_list);
             return (char **) NULL;
         }
     }

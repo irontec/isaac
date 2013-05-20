@@ -33,7 +33,7 @@ status_print(filter_t *filter, ami_message_t *msg)
         // We dont expect more info about this filter, it's safe to unregister it here
         session_write(filter->sess, "EXTERNALCALLSTATUS %s %s HANGUP\n", info->plat,
                 info->clidnum);
-        free(info);
+        isaac_free(info);
         filter_unregister(filter);
     }
 }
