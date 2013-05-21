@@ -8,6 +8,14 @@ app_login_so_CFLAGS = $(appsCFLAGS)
 app_login_so_LDFLAGS = $(appsLDFLAGS) -lodbc
 app_logindir = $(appsdir)
 
+app_acd_PROGRAMS = app_acd.so
+app_acd_so_SOURCES = app_acd.c
+app_acd_so_CFLAGS = $(appsCFLAGS) -DACDCONF=\"@isaacconfdir@/acd.conf\"
+app_acd_so_LDFLAGS = $(appsLDFLAGS)
+app_acd_so_DATA = acd.php
+app_acddir = $(appsdir)
+app_acd_sodir = $(appsdir)
+
 app_status_PROGRAMS = app_status.so
 app_status_so_SOURCES = app_status.c
 app_status_so_CFLAGS = $(appsCFLAGS)
