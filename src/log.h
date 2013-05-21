@@ -126,7 +126,7 @@ log_type_to_text(int log_type);
  *
  * This is the main logging function with format.
  * This will log into the configured medium in CFILE and to every active CLI
- * connection. Also, if IronSC is launched in debug mode (using -d) argument, it will
+ * connection. Also, if Isaac is launched in debug mode (using -d) argument, it will
  * print to STDOUT too.
  *
  * Take into account that this will only write messages whose level are equal or less

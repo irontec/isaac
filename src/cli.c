@@ -61,7 +61,7 @@ int cli_sock;
 extern int opt_remote;
 
 /**
- * @brief Satelite list with all default CLI commands
+ * @brief List with all default CLI commands
  *
  * This linked list will have the CLI some core commands using
  * @ref AST_CLI_DEFINE macro.
@@ -847,11 +847,7 @@ cli_complete_session(const char *line, const char *word, int pos, int state, int
         return NULL;
     }
 
-    //if (isaac_strlen_zero(word)) {
     iter = session_iterator_new();
-    //} else {
-    //  iter = satelite_iterator_by_name_new(word, strlen(word));
-    //}
     while (ret == &notfound && (s = session_iterator_next(iter))) {
         if (++which > state) {
             ret = s->id;
@@ -966,7 +962,6 @@ handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 
-/*! \brief Give how much this IronSC has been up and running */
 char *
 handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
@@ -1125,13 +1120,13 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     /* Avoid other output for this cli */
     pthread_mutex_lock(&clilock);
 
-    /* Print header for satelites */
+    /* Print header for sessions */
     cli_write(args->cli, "%-10s%-25s%-20s%s\n", "ID", "Address", "Logged as", "Idle");
 
     session_iter_t *iter = session_iterator_new();
     session_t *sess;
 
-    /* Print available satelites */
+    /* Print available sessions */
     while ((sess = session_iterator_next(iter))) {
         sessioncnt++;
         isaac_tvelap(isaac_tvsub(curtime, sess->last_cmd_time), 1, idle);
@@ -1174,7 +1169,7 @@ handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
         return CLI_SHOWUSAGE;
     }
 
-    /* Get satelite */
+    /* Get session */
     if (!(sess = session_by_id(args->argv[2]))) {
         cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {
@@ -1208,7 +1203,7 @@ handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
         return CLI_SHOWUSAGE;
     }
 
-    /* Get satelite */
+    /* Get session */
     if (!(sess = session_by_id(args->argv[2]))) {
         cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {

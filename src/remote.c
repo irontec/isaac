@@ -243,7 +243,7 @@ isaac_el_initialize(void)
     if (el != NULL) el_end(el);
     if (el_hist != NULL) history_end(el_hist);
 
-    el = el_init("IronSC", stdin, stdout, stderr);
+    el = el_init("Isaac", stdin, stdout, stderr);
     el_set(el, EL_PROMPT, prompt);
     el_set(el, EL_EDITMODE, 1);
     el_set(el, EL_EDITOR, editor);
@@ -480,7 +480,7 @@ cli_remotecontrol(char* data)
         return;
     }
 
-    if (getenv("HOME")) snprintf(filename, sizeof(filename), "%s/.ironsc_history", getenv("HOME"));
+    if (getenv("HOME")) snprintf(filename, sizeof(filename), "%s/.isaac_history", getenv("HOME"));
 
     if (el_hist == NULL || el == NULL) isaac_el_initialize();
 

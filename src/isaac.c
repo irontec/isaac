@@ -78,7 +78,7 @@ quit(int exitcode)
 {
     printf("Signal %d received\n", exitcode);
     /** Notify clients before closing CLI server thread */
-    //if (sig == SIGHUP) sat_log(LOG_VERBOSE, "\e[1;37m%s will restart now.\e[0m\n", APP_NAME);
+    //if (sig == SIGHUP) isaac_log(LOG_VERBOSE, "\e[1;37m%s will restart now.\e[0m\n", APP_NAME);
     // Stop server thread
     stop_server();
     // Remove all loaded modules. They should unregister their apps
@@ -181,8 +181,8 @@ read_config(const char *cfile)
 /**
  * \brief Main program function
  *
- * This functions parse command line options to determine satcon behaviour
- * This progran can be used as a Satelite process controler or a CLI client
+ * This functions parse command line options to determine Isaac behaviour
+ * This progran can be used as a Isaac process or a CLI client
  * if -r option is specified.
  *
  * \param argc Argument counter

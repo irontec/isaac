@@ -104,63 +104,41 @@ read_acd_config(const char *cfile)
 static int
 popenRWE(int *rwepipe, const char *exe, const char * const argv[])
 {
-    int in[2];
-    int out[2];
     int err[2];
+    int out[2];
     int pid;
     int rc;
 
-    rc = pipe(in);
-    if (rc < 0) goto error_in;
+    rc = pipe(err);
+    if (rc < 0) return rc;
 
     rc = pipe(out);
-    if (rc < 0) goto error_out;
-
-    rc = pipe(err);
-    if (rc < 0) goto error_err;
+    if (rc < 0) return rc;
 
     pid = fork();
     if (pid > 0) { // parent
-        close(in[0]);
-        close(out[1]);
-        close(err[1]);
-        rwepipe[0] = in[1];
-        rwepipe[1] = out[0];
-        rwepipe[2] = err[0];
+        *rwepipe = err[0];
         return pid;
     } else if (pid == 0) { // child
-        close(in[1]);
-        close(out[0]);
-        close(err[0]);
-        close(0);
-        dup(in[0]);
-        close(1);
-        dup(out[1]);
         close(2);
         dup(err[1]);
-
+        close(1);
+        dup(out[1]);
         execvp(exe, (char**) argv);
-    } else
-        goto error_fork;
+    } else {
+        close(out[0]);
+        close(out[1]);
+        return -1;
+    }
 
     return pid;
-
-    error_fork: close(err[0]);
-    close(err[1]);
-    error_err: close(out[0]);
-    close(out[1]);
-    error_out: close(in[0]);
-    close(in[1]);
-    error_in: return -1;
 }
 
 static int
 pcloseRWE(int pid, int *rwepipe)
 {
     int rc, status;
-    close(rwepipe[0]);
-    close(rwepipe[1]);
-    close(rwepipe[2]);
+    close(*rwepipe);
     kill(pid, SIGQUIT);
     rc = waitpid(pid, &status, 0);
     return status;
@@ -170,7 +148,7 @@ int
 acd_exec(session_t *sess, const char * const php_args[])
 {
     int pid;
-    int fds[3];
+    int out;
     FILE *fd;
     char * line = NULL;
     size_t len = 0;
@@ -179,18 +157,35 @@ acd_exec(session_t *sess, const char * const php_args[])
     isaac_log(LOG_DEBUG, "Spawing PHP: %s\n", php_args[1]);
 
     // Open the requested file, load I/O file descriptors
-    pid = popenRWE(fds, php_args[0], php_args);
+    pid = popenRWE(&out, php_args[0], php_args);
 
     // Open file input descriptor
-    fd = fdopen(fds[1], "r");
+    fd = fdopen(out, "r");
 
     if (getline(&line, &len, fd) != -1) {
         session_write(sess, "%s", line);
     }
 
     return 0;
-
 }
+int
+acd_status_exec(session_t *sess, const char *args)
+{
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    const char * const php_args[] = {
+            "php",
+            acd_config.phpfile,
+            "",
+            session_get_variable(sess, "AGENT"),
+            "STATUS",
+            NULL };
+
+    return acd_exec(sess, php_args);
+}
+
 
 int
 acd_login_exec(session_t *sess, const char *args)
@@ -220,7 +215,6 @@ acd_login_exec(session_t *sess, const char *args)
 int
 acd_logout_exec(session_t *sess, const char *args)
 {
-
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
@@ -239,7 +233,6 @@ acd_logout_exec(session_t *sess, const char *args)
 int
 acd_pause_exec(session_t *sess, const char *args)
 {
-
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
@@ -258,7 +251,6 @@ acd_pause_exec(session_t *sess, const char *args)
 int
 acd_unpause_exec(session_t *sess, const char *args)
 {
-
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
@@ -290,10 +282,11 @@ load_module()
         isaac_log(LOG_ERROR, "Failed to read app_acd config file %s\n", ACDCONF);
         return -1;
     }
-    res |= application_register("ACDLOGIN", acd_login_exec);
-    res |= application_register("ACDLOGOUT", acd_logout_exec);
-    res |= application_register("ACDPAUSE", acd_pause_exec);
-    res |= application_register("ACDUNPAUSE", acd_unpause_exec);
+    res |= application_register("ACDStatus", acd_status_exec);
+    res |= application_register("ACDLogin", acd_login_exec);
+    res |= application_register("ACDLogout", acd_logout_exec);
+    res |= application_register("ACDPause", acd_pause_exec);
+    res |= application_register("ACDUnpause", acd_unpause_exec);
     return res;
 }
 
@@ -308,5 +301,10 @@ int
 unload_module()
 {
     int res = 0;
+    res |= application_unregister("ACDStatus");
+    res |= application_unregister("ACDLogin");
+    res |= application_unregister("ACDLogout");
+    res |= application_unregister("ACDPause");
+    res |= application_unregister("ACDUnpause");
     return res;
 }

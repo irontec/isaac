@@ -71,7 +71,13 @@ session_create(const int fd, const struct sockaddr_in addr)
     sess->varcount = 0;
     memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
-    pthread_mutex_init(&sess->lock, NULL);
+
+
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
+    pthread_mutex_init(&sess->lock, &attr);
+
 
     // Increase session count in stats
     stats.sessioncnt++;
@@ -92,7 +98,7 @@ session_destroy(session_t *sess)
 {
     filter_t *filter;
     session_t *cur, *prev = NULL;
-
+    pthread_mutex_lock(&sess->lock);
     // Remove this session from the list
     pthread_mutex_lock(&sessionlock);
     cur = sessions;
@@ -112,6 +118,7 @@ session_destroy(session_t *sess)
     while ((filter = get_session_filter(sess))) {
         filter_unregister(filter);
     }
+    pthread_mutex_unlock(&sess->lock);
     // Destroy the session mutex
     pthread_mutex_destroy(&sess->lock);
     // Free the session allocated memory
@@ -122,12 +129,14 @@ session_destroy(session_t *sess)
 int
 session_finish(session_t *sess)
 {
-    int res;
-    // Close the session socket thread-safe way
-    pthread_mutex_lock(&sess->lock);
-    shutdown(sess->fd, SHUT_RD);
-    res = close(sess->fd);
-    pthread_mutex_unlock(&sess->lock);
+    int res = -1;
+    if (sess) {
+        // Close the session socket thread-safe way
+        pthread_mutex_lock(&sess->lock);
+        shutdown(sess->fd, SHUT_RD);
+        res = close(sess->fd);
+        pthread_mutex_unlock(&sess->lock);
+    }
     return res;
 }
 
@@ -216,21 +225,32 @@ session_read(session_t *sess, char *msg)
 int
 session_test_flag(session_t *sess, int flag)
 {
-    return sess->flags & flag;
+    int ret = 0;
+    if (!sess) return -1;
+    pthread_mutex_lock(&sess->lock);
+    ret = sess->flags & flag;
+    pthread_mutex_unlock(&sess->lock);
+    return ret;
 }
 
 /*****************************************************************************/
 void
 session_set_flag(session_t *sess, int flag)
 {
+    if (!sess) return;
+    pthread_mutex_lock(&sess->lock);
     sess->flags |= flag;
+    pthread_mutex_unlock(&sess->lock);
 }
 
 /*****************************************************************************/
 void
 session_clear_flag(session_t *sess, int flag)
 {
+    if (!sess) return;
+    pthread_mutex_lock(&sess->lock);
     sess->flags &= ~flag;
+    pthread_mutex_unlock(&sess->lock);
 }
 
 /*****************************************************************************/
@@ -238,9 +258,12 @@ session_clear_flag(session_t *sess, int flag)
 void
 session_set_variable(session_t *sess, char *varname, char *varvalue)
 {
+    if (!sess) return;
+    pthread_mutex_lock(&sess->lock);
     strcpy(sess->vars[sess->varcount].varname, varname);
     strcpy(sess->vars[sess->varcount].varvalue, varvalue);
     sess->varcount++;
+    pthread_mutex_unlock(&sess->lock);
 }
 
 /*****************************************************************************/
@@ -248,13 +271,18 @@ session_set_variable(session_t *sess, char *varname, char *varvalue)
 const char *
 session_get_variable(session_t *sess, char *varname)
 {
+    char *varvalue = NULL;
+    if (!sess) return NULL;
     int i;
+    pthread_mutex_lock(&sess->lock);
     for (i = 0; i < sess->varcount; i++) {
         if (!strcasecmp(sess->vars[i].varname, varname)) {
-            return sess->vars[i].varvalue;
+            varvalue = sess->vars[i].varvalue;
+            break;
         }
     }
-    return NULL;
+    pthread_mutex_unlock(&sess->lock);
+    return varvalue;
 }
 
 /*****************************************************************************/
@@ -267,7 +295,7 @@ session_iterator_new()
     iter = malloc(sizeof(session_iter_t));
     /* Lock the list, preventing anyone from editing it */
     pthread_mutex_lock(&sessionlock);
-    /* Start with the first satelite */
+    /* Start with the first session */
     iter->next = sessions;
     /* Return iterator */
     return iter;
@@ -297,7 +325,7 @@ session_t *
 session_by_id(const char *id)
 {
     session_iter_t *iter;
-    session_t *sess;
+    session_t *sess = NULL;
 
     iter = session_iterator_new();
     while ((sess = session_iterator_next(iter))) {
