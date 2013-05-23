@@ -1,13 +1,12 @@
 /**
  @mainpage Isaac
- @title v0.1 Documentation
 
  @section whats_this What's this?
  Isaac (Ivozng simplified Asterisk AMI Connector) is a small application
  that serves as interface and translator for Asterisk Manager Interface (aka AMI).\n 
  This interface has a little big problem: It broadcast all events to all clients, no matter if
  they are interested or not in the information.\n
- Issac uses a small protocol, where each command is called an action implemented in loadable
+ Issac uses a small protocol, where each command is called action and must be implemented in loadable
  module.
  
  If you've ever had the need of implement a simple protocol for AMI, then maybe 
@@ -117,7 +116,7 @@
 
  @page ServerSession Server and Sessions
  More than anything, Isaac is a TCP Server that accept client connections (@ref accept_connections). \n
- This incoming client connection is called @ref session.\n
+ This incoming client connection are called @ref session.\n
  Functions that manage this server can been found in server.h file.\n
  \n
  The server has the folowing configuration options:
@@ -257,7 +256,7 @@
   - (@ref isaac_cfg::manpass AMI Password)
   
  This thread, will receive all generated events and check if any application has registered a filter that match this event, executing its callback.\n
- Application can fill a @ref isaac_filter "filter" structure with matching @ref isaac_condition "conditions" using @ref filter_add_condition and @ref filter_add_condition2.\n
+ Application can fill a @ref isaac_filter "filter" structure with matching @ref isaac_condition "conditions" using @ref filter_new_cooked_condition and @ref filter_new_condition.\n
  
  	@dot
 	digraph IsaacGraph {

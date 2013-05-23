@@ -19,64 +19,57 @@
  **
  *****************************************************************************/
 /**
- * \file filter.c
- * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ * @file filter.c
+ * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Source code for funtions defined in filter.h
- *
+ * @brief Source code for funtions defined in filter.h
  *
  */
 #include "config.h"
-#include <stdlib.h>
-#include <pthread.h>
-#include <string.h>
-#include "manager.h"
 #include "filter.h"
 #include "log.h"
 #include "util.h"
 
+//! Filters registered list. Only this fillter will be triggered
 filter_t *filters = NULL;
+//! Lock for concurrent access to filters list
 pthread_mutex_t filters_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 filter_t *
 filter_create(session_t *sess, enum callbacktype cbtype, int
 (*callback)(filter_t *filter, ami_message_t *msg))
 {
-
     filter_t *filter = NULL;
-
+    // Allocate memory for a new filter
     if ((filter = malloc(sizeof(filter_t)))) {
+        // Initialice basic fields
         filter->sess = sess;
         filter->oneshot = 0;
         filter->condcount = 0;
         filter->cbtype = cbtype;
         filter->callback = callback;
     }
+    // Return the allocated filter (or NULL ;p)
     return filter;
 
 }
+
 int
-filter_add_condition(filter_t *filter, cond_t cond)
+filter_new_cooked_condition(filter_t *filter, cond_t cond)
 {
+    // Check if we have reached the maximum of conditions
     if (filter->condcount == MAX_CONDS) return 1;
-
-    if (cond.type == MATCH_REGEX) {
-        if (regcomp(&filter->conds[filter->condcount].regex, cond.val, REG_EXTENDED) != 0) {
-            return 1;
-        }
-    }
-
-    filter->conds[filter->condcount].type = cond.type;
-    strcpy(filter->conds[filter->condcount].hdr, cond.hdr);
-    strcpy(filter->conds[filter->condcount].val, cond.val);
+    // Add the condition to the next slot
+    filter->conds[filter->condcount] = cond;
+    // And increase the conditions counter
     filter->condcount++;
-
     return 0;
 }
 
 int
 filter_new_condition(filter_t *filter, enum condtype type, char *hdr, const char *fmt, ...)
 {
+    cond_t cond;
     char condva[MAX_CONDLEN];
     va_list ap;
 
@@ -85,19 +78,19 @@ filter_new_condition(filter_t *filter, enum condtype type, char *hdr, const char
     vsprintf(condva, fmt, ap);
     va_end(ap);
 
-    if (filter->condcount == MAX_CONDS) return 1;
-
-    if (type == MATCH_REGEX) {
-        if (regcomp(&filter->conds[filter->condcount].regex, condva, REG_EXTENDED) != 0) {
-            return 1;
-        }
+    // Compile given values for Regex conditions
+    if (type == MATCH_REGEX && regcomp(&cond.regex, condva, REG_EXTENDED)) {
+        isaac_log(LOG_WARNING, "Unable to compile regex %s for filter\n", condva);
+        return 1;
     }
 
-    filter->conds[filter->condcount].type = type;
-    strcpy(filter->conds[filter->condcount].hdr, hdr);
-    strcpy(filter->conds[filter->condcount].val, condva);
-    filter->condcount++;
-    return 0;
+    // Copy condition data
+    cond.type = type;
+    strcpy(cond.hdr, hdr);
+    strcpy(cond.val, condva);
+
+    // Actually add the cooked condition to the filter
+    return filter_new_cooked_condition(filter, cond);
 }
 
 void
@@ -142,19 +135,22 @@ filter_unregister(filter_t *filter)
         cur = cur->next;
     }
     pthread_mutex_unlock(&filters_mutex);
-    //@todo remove conditions and filter memory
+    //@todo remove conditions and filter allocated memory
     return 0;
 }
 
 int
 filter_exec_callback(filter_t *filter, ami_message_t *msg)
 {
-
+    // Depending on callback type
     switch (filter->cbtype) {
     case FILTER_SYNC_CALLBACK:
-        return filter->callback(filter, msg);
+        // Invoke callback right now!
+        if (filter->callback) return filter->callback(filter, msg);
+        break;
     default:
-        /* FILTER_ASYNC_CALLBACK */
+        // Add the callback to the scheduller
+        /* FILTER_ASYNC_CALLBACK Not yet implemented */
         break;
     }
     return 1;
@@ -172,75 +168,101 @@ filter_get_userdata(filter_t *filter)
 }
 
 filter_t *
-get_session_filter(session_t *sess, filter_t *from)
+filter_from_session(session_t *sess, filter_t *from)
 {
     filter_t *cur = NULL;
     pthread_mutex_lock(&filters_mutex);
+    // From which filter will search onward?
     if (!from) {
+        // Start from the beginning
         cur = filters;
     } else {
+        // Continue searching
         cur = from->next;
     }
     while (cur) {
+        // This filter belongs to the given session
         if (cur->sess == sess) {
             break;
         }
         cur = cur->next;
     }
     pthread_mutex_unlock(&filters_mutex);
+    // Return the next found filter (or NULL if none found)
     return cur;
 }
 
 int
-check_message_filters(ami_message_t *msg)
+filter_print_message(filter_t *filter, ami_message_t *msg)
 {
-    filter_t * cur;
+    // Only for debuging purposes
+    // Write a dump version of AMI message back to the session
+    return session_write(filter->sess, "%s\n", message_to_text(msg));
+}
+
+int
+check_filters_for_message(ami_message_t *msg)
+{
+    filter_t * cur, *next;
     int i, matches;
+    const char *msgvalue, *condvalue;
 
     pthread_mutex_lock(&filters_mutex);
     cur = filters;
+    // Let's start checking if the given message match any registered filter!
     while (cur) {
+        // Save here the next filter for the loop. This is required because the pointer
+        // can disappear during the loop process (unregisted oneshot filters)
+        next = cur->next;
+        // Initialize the matching headers count
         matches = 0;
+        // Loop through all filter conditions
         for (i = 0; i < cur->condcount; i++) {
+            msgvalue = message_get_header(msg, cur->conds[i].hdr);
+            condvalue = cur->conds[i].val;
+
+            // Depending on condition type, do the proper check
             switch (cur->conds[i].type) {
             case MATCH_EXACT:
-                if (!isaac_strcmp(message_get_header(msg, cur->conds[i].hdr), cur->conds[i].val)) {
+                if (!isaac_strcmp(msgvalue, condvalue)) {
+                    matches++;
+                }
+                break;
+            case MATCH_EXACT_CASE:
+                if (!isaac_strcasecmp(msgvalue, condvalue)) {
                     matches++;
                 }
                 break;
             case MATCH_START_WITH:
-                if (!isaac_strncmp(message_get_header(msg, cur->conds[i].hdr), cur->conds[i].val,
-                        strlen(cur->conds[i].val) - 1)) {
+                if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
                     matches++;
                 }
                 break;
             case MATCH_REGEX:
-                if (!regexec(&cur->conds[i].regex, message_get_header(msg, cur->conds[i].hdr), 0,
-                        NULL, REG_EXTENDED)) {
+                if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
                     matches++;
                 }
                 break;
             default:
                 break;
             }
+
+            // If at this point, matches equals the loop counter, the last condition
+            // has not matched. No sense to continue checking.
+            if (matches == i) break;
         }
 
+        // All condition matched! We have a winner!
         if (matches == cur->condcount) {
+            // Exec the filter callback with the current message
             filter_exec_callback(cur, msg);
-            if (cur->oneshot) {
-                filter_unregister(cur);
-            }
+            // If the filter is marked for only triggering once, unregister it
+            if (cur->oneshot) filter_unregister(cur);
         }
 
-        cur = cur->next;
+        // Go on with the next message
+        cur = next;
     }
     pthread_mutex_unlock(&filters_mutex);
     return 0;
 }
-
-int
-filter_print_message(filter_t *filter, ami_message_t *msg)
-{
-    return session_write(filter->sess, "%s\n", message_to_text(msg));
-}
-

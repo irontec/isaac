@@ -1170,7 +1170,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     if (!(sess = session_by_id(args->argv[2]))) {
         cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {
-        while ((filter = get_session_filter(sess, filter))) {
+        while ((filter = filter_from_session(sess, filter))) {
             // Print session filters
             cli_write(args->cli, "------------ Filter %d %s ------------\n", filter_cnt++,
                     ((filter->oneshot) ? "(OneShot)" : ""));

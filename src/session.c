@@ -113,7 +113,7 @@ session_destroy(session_t *sess)
     pthread_mutex_unlock(&sessionlock);
 
     // Unregister all this connection filters
-    while ((filter = get_session_filter(sess, NULL))) {
+    while ((filter = filter_from_session(sess, NULL))) {
         filter_unregister(filter);
     }
     pthread_mutex_unlock(&sess->lock);

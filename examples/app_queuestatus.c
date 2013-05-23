@@ -51,22 +51,22 @@ int queuestatus_exec(session_t *sess, const char *args)
 
     // Create a new filter for QueueParams
     info->paramfilter = filter_create(sess, FILTER_SYNC_CALLBACK, print_queue_status);
-    filter_add_condition2(info->paramfilter, MATCH_EXACT, "Event", "QueueParams");
-    filter_add_condition2(info->paramfilter, MATCH_EXACT, "ActionID", actionid);
+    filter_new_condition(info->paramfilter, MATCH_EXACT, "Event", "QueueParams");
+    filter_new_condition(info->paramfilter, MATCH_EXACT, "ActionID", actionid);
     filter_set_userdata(info->paramfilter, (void*)info);
     filter_register(info->paramfilter);
 
     // Create a new filter for QueueMember
     info->memberfilter = filter_create(sess, FILTER_SYNC_CALLBACK, print_queue_member);
-    filter_add_condition2(info->memberfilter, MATCH_EXACT, "Event", "QueueMember");
-    filter_add_condition2(info->memberfilter, MATCH_EXACT, "ActionID", actionid);
+    filter_new_condition(info->memberfilter, MATCH_EXACT, "Event", "QueueMember");
+    filter_new_condition(info->memberfilter, MATCH_EXACT, "ActionID", actionid);
     filter_set_userdata(info->memberfilter, (void*)info);
     filter_register(info->memberfilter);
 
     // Create a new filter for QueueStatusComplete
     info->endfilter = filter_create(sess, FILTER_SYNC_CALLBACK, print_queue_end);
-    filter_add_condition2(info->endfilter, MATCH_EXACT, "Event", "QueueStatusComplete");
-    filter_add_condition2(info->endfilter, MATCH_EXACT, "ActionID", actionid);
+    filter_new_condition(info->endfilter, MATCH_EXACT, "Event", "QueueStatusComplete");
+    filter_new_condition(info->endfilter, MATCH_EXACT, "ActionID", actionid);
     filter_set_userdata(info->endfilter, (void*)info);
     filter_register(info->endfilter);
 

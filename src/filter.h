@@ -21,12 +21,13 @@
 /**
  * @file filter.h
  * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ *
  * @brief Functions for creating and managin AMI message filters
  *
- * A filter is acts as hooks for applications. When a message from manager
+ * A filter acts as hooks for applications. When a message from manager
  * is received, it will check against all registered filters. If a filter
  * match its conditions with the message format, it will trigger the
- * application callback.
+ * filter callback.
  *
  * There are two ways of trigger a callback: Sync and Async.
  * In Sync mode, the manager thread will block until the callback has
@@ -39,86 +40,290 @@
  * the filter callback, comparing each header and value with the defined in the
  * condition.
  *
- * @warning This include requires manager.h to be previously declared
+ * @todo Implement Async scheduler thread. This will require to add locks to the
+ *       filter structure, to allow accesing filter data from manager and scheduler
+ *       thread.
  */
 
 #ifndef __ISAAC_FILTER_H_
 #define __ISAAC_FILTER_H_
 
-/**
- * This filre requires manager.h declarations to work, it must be included
- * before or it wont compile :)
- */
-#ifndef __ISAAC_MANAGER_H_
-#error Include manager.h before using filter.h
-#endif
-#include <regex.h>
-#include "session.h"
-
-#define DEBUG_MESSAGE session_write(filter->sess, "%s\n", message_to_text(msg));
-#define DUMP_MESSAGES filter_register(filter_create(filter->sess, FILTER_SYNC_CALLBACK, filter_print_message));
+//#define DEBUG_MESSAGE session_write(filter->sess, "%s\n", message_to_text(msg));
+//#define DUMP_MESSAGES filter_register(filter_create(filter->sess, FILTER_SYNC_CALLBACK, filter_print_message));
 
 //! Maximum number of conditions a filter can contain
 #define MAX_CONDS       10
 //! Max length of header and value of conditions
 #define MAX_CONDLEN     512
 
+//! Sorter declaration of isaac_filter struct
 typedef struct isaac_filter filter_t;
+//! Sorter declaration of isaac_condition struct
 typedef struct isaac_condition cond_t;
+
+#include <regex.h>
+#include "manager.h"
+#include "session.h"
 
 /**
  * @brief Determine how to match the filter condition
+ *
+ * Determine how to check if a filter's condition matchs the message.
+ * Mostly used in check_message.
+ *
+ * Technically, all of this types can be implemented by regex type conditions
+ * but are kept to make conditions easier to understand.
+ *
  */
 enum condtype
 {
+    //! Message must contain the condition header and value
     MATCH_EXACT = 0,
+    //! Message must contain the condition header and value (Case Insensitive)
     MATCH_EXACT_CASE,
+    //! Message must contain the condition header and value starting with conds value
     MATCH_START_WITH,
+    //! Message must contain the condition header and value that match cond regexp
     MATCH_REGEX,
-
 };
+
+/**
+ * @brief Filter's Condition structure
+ *
+ * A filter can contain 0-n conditions, that will make restrictions about which
+ * messages match the filter and which not.
+ * All conditions are implemented with 'AND' logic, which means that ALLS filters
+ * condition must match in order to trigger filter's callback.
+ */
 
 struct isaac_condition
 {
-    char hdr[MAX_CONDLEN];
-    char val[MAX_CONDLEN];
-    regex_t regex;
+    //! Condition check type, one of @ref condtype values
     enum condtype type;
+    //! Header to find while checking the condition
+    char hdr[MAX_CONDLEN];
+    //! Desired value or expresion that header should match
+    char val[MAX_CONDLEN];
+    //! For condition types MATCH_REGEX, this is the compiled expresion
+    regex_t regex;
 };
 
-
+/**
+ * @brief Filter's Callback type
+ *
+ * This value determine if the received message from AMI is passed to the filter
+ * async or sync. In Sync mode, the manager thread will stop passing the control to
+ * the callback, allowing the aplication to register new filters for the following events.
+ * In Async mode, the message is passed to the application from a scheduler thread,
+ * which won't block manager thread, but only should be used for filters that don't
+ * have to make further filters.
+ */
 enum callbacktype
 {
+    //! Invoke filters callback from the scheduler thread
     FILTER_ASYNC_CALLBACK = 0,
+    //! Invoke filters callback from the manager thread (will block manager reads from AMI)
     FILTER_SYNC_CALLBACK,
 };
 
+/**
+ * @brief Filter Strucure. Core and Heart of Isaac funcionality
+ *
+ * A filter acts as a callback for Isaac aplications. It can contain 0-n conditions
+ * that will determine which messages are sent back to the applications.
+ */
 struct isaac_filter
 {
+    //! Session that requested the application that registered this filter
     session_t *sess;
+    //! If this flag is on, the filter will be unregisted after triggering once
     int oneshot;
+    //! Filter's conditions that will determine which messages are sent back to the app
     cond_t conds[MAX_CONDS];
+    //! How many conditions must match
     unsigned int condcount;
+    //! How the callback function is invoked
     enum callbacktype cbtype;
-    int (*callback)(filter_t *filter, ami_message_t *msg);
+    //! Pointer to the callback function
+    int
+    (*callback)(filter_t *filter, ami_message_t *msg);
+    //! User pointer for storing application information if required
     void *app_info;
+    //! Pointer for Filters Linked list
     filter_t *next;
 };
 
+/**
+ * @brief Create a new filter structure (This won't add it to the Filter's list)
+ *
+ * This will create a new filter's structure with the minimum required information
+ * This function only allocates memory and set some values, but won't add it to the
+ * Filters list (so it still won't trigger) so a filter_register should be called
+ * when the filter structure is ready to rock.
+ *
+ * @param sess Session that requested the application that registered the filter
+ * @param cbtype How the callback function is invoked
+ * @param callback  Pointer to the callback function
+ * @return The new allocated filter structure or NULL in case of failure
+ */
+extern filter_t *
+filter_create(session_t *sess, enum callbacktype cbtype, int
+(*callback)(filter_t *filter, ami_message_t *msg));
 
-filter_t *filter_create(session_t *sess, enum callbacktype cbtype, int(*callback)(filter_t *filter,
-        ami_message_t *msg));
-int filter_add_condition(filter_t *filter, cond_t cond);
-int filter_new_condition(filter_t *filter, enum condtype type, char *hdr, const char *fmt, ... );
-void filter_remove_conditions(filter_t *filter);
-int filter_register(filter_t *filter);
-int filter_register_oneshot(filter_t *filter);
-int filter_unregister(filter_t *filter);
-int filter_exec_callback(filter_t *filter, ami_message_t *msg);
-void filter_set_userdata(filter_t *filter, void *userdata);
-void *filter_get_userdata(filter_t *filter);
-filter_t *get_session_filter(session_t *sess, filter_t *from);
-int check_message_filters(ami_message_t *msg);
-int filter_print_message(filter_t *filter, ami_message_t *msg);
+/**
+ * @brief Add a cooked condition to the given filter
+ *
+ * Add a new condition to the filters condition list.
+ * This function will not cook the condition for you, what means that
+ * won't compile expresions in regex conditions, nor reserve any kind of
+ * memory. It will only add it to the filters list (if not full)
+ *
+ * @param filter Filter to which add the condition
+ * @param cond Condition to be added to filters condition list
+ * @return 0 in case of success, 1 if the filter does not allow more filters
+ */
+extern int
+filter_new_cooked_condition(filter_t *filter, cond_t cond);
+
+/**
+ * @brief Create a new condition structure and add if to the given filter
+ *
+ * This is the basic function to add conditions to filters from applications.
+ *
+ * @param filter Filter to which add the condition
+ * @param type Condition check type, one of @ref condtype values
+ * @param hdr Header to find while checking the condition
+ * @param fmt Format for the condition value
+ * @param ... Variables to fill the condition format
+ * @return 0 in case of success, 1 if the filter does not allow more filters
+ */
+extern int
+filter_new_condition(filter_t *filter, enum condtype type, char *hdr, const char *fmt, ...);
+
+/**
+ * @brief Remove all conditions from the given filter
+ *
+ * This can be handy if we want to reuse a filter with different conditions.
+ * @warning Do not use this in FILTER_ASYNC_CALLBACK Filters
+ *
+ * @param filter Filter to remove all conditions
+ */
+extern void
+filter_remove_conditions(filter_t *filter);
+
+/**
+ * @brief Add filter to the filters list. This will allow the filter to trigger
+ *
+ * Main function to make the filter active, allowing it to trigger.
+ * This function is moslty used for permanent application filters or filters that
+ * match more than one AMI messages.
+ *
+ * @param filter Filter to be registered
+ */
+extern int
+filter_register(filter_t *filter);
+
+/**
+ * @brief Add filter to the filters list. This will allow the filter to trigger once
+ *
+ * Main function to make the filter active, allowing it to trigger. After one trigger
+ * the filter will be auto-unregistered. This can be useful to capture one single AMI
+ * message without the need of unregistering the filter manually.
+ *
+ * @param filter Filter to be registered
+ */
+extern int
+filter_register_oneshot(filter_t *filter);
+
+/**
+ * @brief Remove a filter from the filters list.
+ *
+ * Main function for destroying a filter and remove it from the filter list.
+ *
+ * @param filter Filter to be removed
+ */
+extern int
+filter_unregister(filter_t *filter);
+
+/**
+ * @brief Excute the filters callback when a AMI message match its conditions
+ *
+ * When an AMI Message match all conditions from a filter, this function will
+ * invoke the filter callback. Depending on the callback type, this will be done
+ * synchronously or will be added to the callback scheduler.
+ *
+ * @param filter Filter that has matched
+ * @param msg Message that matched filter conditions
+ * @return The filter callback return
+ */
+extern int
+filter_exec_callback(filter_t *filter, ami_message_t *msg);
+
+/**
+ * @brief Set userdata pointer to the filter
+ *
+ * In some cases, applications need to store some information, which is divided
+ * in diferent AMI messages. Or maybe action arguments. Or maybe retrieved info.
+ * This is the general pointer to store custom information :)
+ *
+ * @param filter The filter that will contain the custom information
+ * @param userdata Pointer to the custom information
+ */
+extern void
+filter_set_userdata(filter_t *filter, void *userdata);
+
+/**
+ * @brief Get the userdata pointer of the filter
+ *
+ * Getter for the information set by filter_set_userdata.
+ *
+ * @param filter Filter that contains the custom information
+ */
+extern void *
+filter_get_userdata(filter_t *filter);
+
+/**
+ * @brief Get the next filter for the given session
+ *
+ * This is a simple iterator for session filters. It can be used
+ * to start iterating (passing from parameter as NULL) or continue
+ * from a given filter onwards.
+ *
+ * @param sess Session to find filters from
+ * @param from NULL to start searching from the beginning of the filters list
+ *             or a filter to start searching from that filter onwards.
+ * @return The next filter of the session, or NULL if there are no more filters
+ */
+extern filter_t *
+filter_from_session(session_t *sess, filter_t *from);
+
+/**
+ * @brief Dummy callback for debugging purposes
+ *
+ * This can be handy as a general callback that prints the matching messages
+ * of the filter back to the session socket. Mostly used for debugging with
+ * AMI Messages match the filters conditions.
+ *
+ * @note Only for condition debugging purposes
+ *
+ * @param filter Triggered filter
+ * @param msg Triggering AMI message
+ * @return 0 if the message was successfully written to the session, -1 otherwise
+ */
+extern int
+filter_print_message(filter_t *filter, ami_message_t *msg);
+
+/**
+ * @brief Check which of the registered filters match the given message
+ *
+ * This function is invoked from manager thread for each received message to
+ * check if the message match any of the registered filters, invoking its
+ * callback if required.
+ *
+ * @param msg AMI message to be checked
+ * @return 0 in all cases
+ */
+int
+check_filters_for_message(ami_message_t *msg);
 
 #endif /* __ISAAC_FILTER_H_ */

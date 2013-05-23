@@ -150,7 +150,7 @@ get_call_info_from_id(session_t *sess, const char *id)
     filter_t *filter = NULL;
     struct app_call_info *info = NULL;
     // Get session filter and search the one with that id
-    while ((filter = get_session_filter(sess, filter))) {
+    while ((filter = filter_from_session(sess, filter))) {
         info = (struct app_call_info *) filter_get_userdata(filter);
         // We found the requested action!
         if (info && !strcasecmp(id, info->actionid)) {

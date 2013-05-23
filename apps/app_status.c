@@ -17,7 +17,6 @@ struct app_status_info
 
 int
 status_blindxfer(filter_t *filter, ami_message_t *msg){
-    DUMP_MESSAGES;
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
 
     // Construct a Request message (fake Dial)
@@ -29,7 +28,7 @@ status_blindxfer(filter_t *filter, ami_message_t *msg){
     message_add_header(&usermsg, "Destination: %s", message_get_header(msg, "Destination"));
     message_add_header(&usermsg, "CallerIDName: %s", info->plat);
     message_add_header(&usermsg, "CallerIDNum: %s", info->clidnum);
-    check_message_filters(&usermsg);
+    check_filters_for_message(&usermsg);
 
 }
 
@@ -107,7 +106,7 @@ status_attxfer(filter_t *filter, ami_message_t *msg)
             message_add_header(&usermsg, "CallerIDName: %s", info->plat);
             message_add_header(&usermsg, "CallerIDNum: %s", info->clidnum);
             // Pass the readed msg to the H&C logic
-            check_message_filters(&usermsg);
+            check_filters_for_message(&usermsg);
 
             // Construct NewState fake messages
             if (info->xfer_state >= 5) {
@@ -115,14 +114,14 @@ status_attxfer(filter_t *filter, ami_message_t *msg)
                 message_add_header(&usermsg, "Event: Newstate");
                 message_add_header(&usermsg, "Channel: %s", destiny);
                 message_add_header(&usermsg, "ChannelState: 5");
-                check_message_filters(&usermsg);
+                check_filters_for_message(&usermsg);
             }
             if (info->xfer_state >= 6) {
                 memset(&usermsg, 0, sizeof(ami_message_t));
                 message_add_header(&usermsg, "Event: Newstate");
                 message_add_header(&usermsg, "Channel: %s", destiny);
                 message_add_header(&usermsg, "ChannelState: 6");
-                check_message_filters(&usermsg);
+                check_filters_for_message(&usermsg);
             }
         }
     }

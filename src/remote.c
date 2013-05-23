@@ -29,7 +29,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include <sys/syscall.h>
 #include <errno.h>
 #include <signal.h>
 #include <ctype.h>

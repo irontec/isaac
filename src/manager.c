@@ -219,7 +219,7 @@ manager_connect(manager_t *man)
             isaac_log(LOG_WARNING, "Manager: Connect failed, Retrying (%d) :%s [%d]\n", r++,
                     strerror(errno), errno);
             // Create a new socket if transport stands still
-            if (errno == EISCONN || errno == ECONNABORTED|| errno == ECONNREFUSED) {
+            if (errno == EISCONN || errno == ECONNABORTED || errno == ECONNREFUSED) {
                 close(man->fd);
                 man->fd = socket(AF_INET, SOCK_STREAM, 0);
             }
@@ -279,8 +279,8 @@ manager_read_thread(void *man)
 
         // Read the next message from AMI
         if ((res = manager_read_message(manager, &msg)) > 0) {
-            // Pass the readed msg to the H&C logic
-            check_message_filters(&msg);
+            // Pass the readed msg to the Filter&Conditions logic
+            check_filters_for_message(&msg);
         } else if (res < 0) {
             // Something bad has happened with our socket :(
             isaac_log(LOG_WARNING, "Manager read error %s [%d]\n", strerror(errno), errno);

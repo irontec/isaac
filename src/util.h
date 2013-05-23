@@ -71,6 +71,9 @@ isaac_strlen(const char *str);
 //! Wrapper for strcmp with sanity checks
 int
 isaac_strcmp(const char *s1, const char *s2);
+//! Wrapper for strcasecmp with sanity checks
+int
+isaac_strcasecmp(const char *s1, const char *s2);
 //! Wrapper for strncmp with sanity checks
 int
 isaac_strncmp(const char *s1, const char *s2, int len);

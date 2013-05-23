@@ -91,6 +91,13 @@ isaac_strcmp(const char *s1, const char *s2)
 }
 
 int
+isaac_strcasecmp(const char *s1, const char *s2)
+{
+    if (!s1 || !s2) return 1;
+    return strcasecmp(s1, s2);
+}
+
+int
 isaac_strncmp(const char *s1, const char *s2, int len)
 {
     if (!s1 || !s2) return 1;
