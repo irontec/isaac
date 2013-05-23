@@ -72,12 +72,10 @@ session_create(const int fd, const struct sockaddr_in addr)
     memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
 
-
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
     pthread_mutex_init(&sess->lock, &attr);
-
 
     // Increase session count in stats
     stats.sessioncnt++;
@@ -115,7 +113,7 @@ session_destroy(session_t *sess)
     pthread_mutex_unlock(&sessionlock);
 
     // Unregister all this connection filters
-    while ((filter = get_session_filter(sess))) {
+    while ((filter = get_session_filter(sess, NULL))) {
         filter_unregister(filter);
     }
     pthread_mutex_unlock(&sess->lock);
@@ -269,7 +267,7 @@ session_set_variable(session_t *sess, char *varname, char *varvalue)
 /*****************************************************************************/
 // TODO Implement linked lists
 const char *
-session_get_variable(session_t *sess, char *varname)
+session_get_variable(session_t *sess, const char *varname)
 {
     char *varvalue = NULL;
     if (!sess) return NULL;
@@ -330,6 +328,22 @@ session_by_id(const char *id)
     iter = session_iterator_new();
     while ((sess = session_iterator_next(iter))) {
         if (!strcmp(sess->id, id)) break;
+    }
+    session_iterator_destroy(iter);
+    return sess;
+}
+
+session_t *
+session_by_variable(const char *varname, const char *varvalue)
+{
+    session_iter_t *iter;
+    session_t *sess = NULL;
+
+    iter = session_iterator_new();
+    while ((sess = session_iterator_next(iter))) {
+        if (!isaac_strcmp(session_get_variable(sess, varname), varvalue)) {
+            break;
+        }
     }
     session_iterator_destroy(iter);
     return sess;

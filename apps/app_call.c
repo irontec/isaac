@@ -147,10 +147,10 @@ read_call_config(const char *cfile)
 struct app_call_info *
 get_call_info_from_id(session_t *sess, const char *id)
 {
-    filter_t *filter;
+    filter_t *filter = NULL;
     struct app_call_info *info = NULL;
     // Get session filter and search the one with that id
-    while ((filter = get_session_filter(sess))) {
+    while ((filter = get_session_filter(sess, filter))) {
         info = (struct app_call_info *) filter_get_userdata(filter);
         // We found the requested action!
         if (info && !strcasecmp(id, info->actionid)) {
@@ -235,7 +235,7 @@ call_state(filter_t *filter, ami_message_t *msg)
 
             // Register a Filter for the agent statusthe custom manager application PlayDTMF.
             info->ofilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
-            filter_add_condition2(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
+            filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
             filter_set_userdata(info->ofilter, (void*) info);
             filter_register(info->ofilter);
 
@@ -255,7 +255,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         // Register a Filter for the agent status
         info->dfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
         info->dfilter->app_info = info;
-        filter_add_condition2(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
+        filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
         filter_register(info->dfilter);
 
         // Say we have the remote channel
@@ -307,9 +307,9 @@ call_exec(session_t *sess, const char *args)
 
     // Register a Filter to get Generated Channel
     info->callfilter = filter_create(sess, FILTER_SYNC_CALLBACK, call_state);
-    filter_add_condition2(info->callfilter, MATCH_EXACT, "Event", "VarSet");
-    filter_add_condition2(info->callfilter, MATCH_EXACT, "Variable", "ACTIONID");
-    filter_add_condition2(info->callfilter, MATCH_EXACT, "Value", actionid);
+    filter_new_condition(info->callfilter, MATCH_EXACT, "Event", "VarSet");
+    filter_new_condition(info->callfilter, MATCH_EXACT, "Variable", "ACTIONID");
+    filter_new_condition(info->callfilter, MATCH_EXACT, "Value", actionid);
     filter_set_userdata(info->callfilter, (void*) info);
     filter_register(info->callfilter);
 

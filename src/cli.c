@@ -42,6 +42,7 @@
 #include "remote.h"
 #include "app.h"
 #include "manager.h"
+#include "filter.h"
 
 //! Incoming CLI clients linked list
 cli_t *clilist = NULL;
@@ -78,6 +79,7 @@ static cli_entry_t cli_entries[] = {
         AST_CLI_DEFINE(handle_core_show_applications, "Show Isaac registered applications"),
         AST_CLI_DEFINE(handle_core_set_verbose, "Change Isaac log level"),
         AST_CLI_DEFINE(handle_show_connections, "Show connected sessions"),
+        AST_CLI_DEFINE(handle_show_filters, "Show session filters"),
         AST_CLI_DEFINE(handle_kill_connection, "Stops a connected session"),
         AST_CLI_DEFINE(handle_debug_connection, "Mark debug flag to a connected session") };
 
@@ -618,7 +620,6 @@ cli_command_full(cli_t *cli, const char *s)
     return 0;
 }
 
-
 int
 cli_command_multiple_full(cli_t *cli, size_t size, const char *s)
 {
@@ -636,7 +637,6 @@ cli_command_multiple_full(cli_t *cli, size_t size, const char *s)
     }
     return count;
 }
-
 
 /*! \brief if word is a valid prefix for token, returns the pos-th
  * match as a malloced string, or NULL otherwise.
@@ -675,7 +675,6 @@ cli_is_prefix(const char *word, const char *token, int pos, int *actual)
     return NULL;
 }
 
-
 int
 cli_more_words(const char * const *dst)
 {
@@ -685,7 +684,6 @@ cli_more_words(const char * const *dst)
     }
     return 0;
 }
-
 
 /*
  * generate the entry at position 'state'
@@ -768,7 +766,6 @@ cli_generator(const char *text, const char *word, int state)
     return ret;
 }
 
-
 /*! \brief Return the number of unique matches for the generator */
 int
 cli_generatornummatches(const char *text, const char *word)
@@ -784,7 +781,6 @@ cli_generatornummatches(const char *text, const char *word)
     if (oldbuf) isaac_free(oldbuf);
     return matches;
 }
-
 
 char **
 cli_completion_matches(const char *text, const char *word)
@@ -832,7 +828,6 @@ cli_completion_matches(const char *text, const char *word)
 
     return match_list;
 }
-
 
 char *
 cli_complete_session(const char *line, const char *word, int pos, int state, int rpos)
@@ -909,7 +904,6 @@ handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
     return CLI_SUCCESS;
 }
 
-
 char *
 handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
@@ -935,7 +929,6 @@ handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
     return CLI_SUCCESS;
 }
 
-
 char *
 handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
@@ -960,7 +953,6 @@ handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args)
 
     return CLI_SUCCESS;
 }
-
 
 char *
 handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
@@ -996,7 +988,6 @@ handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
     return CLI_SUCCESS;
 
 }
-
 
 char *
 handle_core_show_version(cli_entry_t *entry, int cmd, cli_args_t *args)
@@ -1146,6 +1137,75 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     return CLI_SUCCESS;
 }
 
+char *
+handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
+{
+    filter_t *filter = NULL;
+    session_t *sess;
+    int filter_cnt = 0;
+    int ccnt = 0;
+
+    switch (cmd) {
+    case CLI_INIT:
+        entry->command = "show filters";
+        entry->usage = "Usage: show filters [sessionid]\n"
+            "       Show connected session active filters";
+        return NULL;
+    case CLI_GENERATE:
+        if (args->pos == 2) {
+            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
+        }
+        return NULL;
+    }
+
+    /* Inform all required parameters */
+    if (args->argc != 3) {
+        return CLI_SHOWUSAGE;
+    }
+
+    /* Avoid other output for this cli */
+    pthread_mutex_lock(&clilock);
+
+    /* Get session */
+    if (!(sess = session_by_id(args->argv[2]))) {
+        cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
+    } else {
+        while ((filter = get_session_filter(sess, filter))) {
+            // Print session filters
+            cli_write(args->cli, "------------ Filter %d %s ------------\n", filter_cnt++,
+                    ((filter->oneshot) ? "(OneShot)" : ""));
+            for (ccnt = 0; ccnt < filter->condcount; ccnt++) {
+
+                cli_write(args->cli, " %-10s", filter->conds[ccnt].hdr);
+                switch (filter->conds[ccnt].type) {
+                case MATCH_EXACT:
+                    cli_write(args->cli, "%-5s", "==");
+                    break;
+                case MATCH_EXACT_CASE:
+                    cli_write(args->cli, "%-5s", "i=");
+                    break;
+                case MATCH_START_WITH:
+                    cli_write(args->cli, "%-5s", "^=");
+                    break;
+                case MATCH_REGEX:
+                    cli_write(args->cli, "%-5s", "~");
+                    break;
+                }
+
+                cli_write(args->cli, "%-s\n", filter->conds[ccnt].val);
+            }
+            cli_write(args->cli,"\n");
+        }
+        if (!filter_cnt){
+            cli_write(args->cli, "---------- No active filters ---------\n");
+        }
+    }
+
+    /* Set cli output unlocked */
+    pthread_mutex_unlock(&clilock);
+
+    return CLI_SUCCESS;
+}
 
 char *
 handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
@@ -1179,7 +1239,6 @@ handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 
     return CLI_SUCCESS;
 }
-
 
 char *
 handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)

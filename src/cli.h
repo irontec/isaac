@@ -408,6 +408,9 @@ extern char *
 handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args);
 
 extern char *
+handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args);
+
+extern char *
 handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args);
 
 extern char *

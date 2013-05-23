@@ -218,7 +218,7 @@ session_set_variable(session_t *sess, char *varname, char *varvalue);
  * \brief Get a value of the given variable
  */
 const char *
-session_get_variable(session_t *sess, char *varname);
+session_get_variable(session_t *sess, const char *varname);
 
 extern session_iter_t *
 session_iterator_new();
@@ -227,6 +227,9 @@ session_iterator_next(session_iter_t *iter);
 extern void
 session_iterator_destroy(session_iter_t *iter);
 
-session_t *session_by_id(const char *id);
+extern session_t *
+session_by_id(const char *id);
+extern session_t *
+session_by_variable(const char *varname, const char *varvalue);
 
 #endif

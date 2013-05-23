@@ -68,13 +68,13 @@ isaac_strncpy(char *dst, const char *src, int len);
 //! Wrapper for strlen with sanity checks
 int
 isaac_strlen(const char *str);
-//! Wrapper for strcpy with sanity checks
+//! Wrapper for strcmp with sanity checks
 int
 isaac_strcmp(const char *s1, const char *s2);
-//! Wrapper for strcpy with sanity checks
+//! Wrapper for strncmp with sanity checks
 int
 isaac_strncmp(const char *s1, const char *s2, int len);
-//! Wrapper for strcpy with sanity checks
+//! Wrapper for strip with sanity checks
 char *
 isaac_strip(char *s);
 

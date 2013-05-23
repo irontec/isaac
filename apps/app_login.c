@@ -49,7 +49,8 @@
  * \param args  Application arguments
  * \return 0 in case of login success, 1 otherwise
  */
-int login_exec(session_t *sess, const char *args)
+int
+login_exec(session_t *sess, const char *args)
 {
     SQLHENV env;
     SQLHDBC dbc;
@@ -59,7 +60,7 @@ int login_exec(session_t *sess, const char *args)
     SQLLEN indicator;
     int row = 0;
     int login_num;
-    char agent[100], pass[100];
+    char agent[100], pass[100], interface[100];
 
     /* If session is already authenticated, show an error */
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -80,33 +81,36 @@ int login_exec(session_t *sess, const char *args)
     SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
     /* Connect to the DSN mydsn */
     /* You will need to change mydsn to one you have created and tested */
-    SQLDriverConnect(dbc, NULL, "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
-            SQL_DRIVER_COMPLETE);
+    SQLDriverConnect(dbc, NULL, "DSN=asterisk;", SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
     /* Allocate a statement handle */
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     /* Prepare login query */
-    SQLPrepare(stmt,
-            (SQLCHAR *) "SELECT nombre from karma_usuarios WHERE login_num = ?"
-                " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));",
-            SQL_NTS);
+    SQLPrepare(stmt, (SQLCHAR *) "SELECT interface from karma_usuarios as k"
+        " INNER JOIN shared_agents_interfaces as s"
+        " ON k.login_num = s.agent"
+        " WHERE login_num = ?"
+        " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));", SQL_NTS);
     /* Bind username and password */
-    SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0,
-            &login_num, sizeof(login_num), NULL);
-    SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50,
-            0, pass, sizeof(pass), NULL);
+    SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
+            sizeof(login_num), NULL);
+    SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, pass,
+            sizeof(pass), NULL);
 
     /* Execute the query */
     SQLExecute(stmt);
 
     /* Check if we fetched something */
     if (SQL_SUCCEEDED(ret = SQLFetch(stmt))) {
+        /* Get the agent's interface */
+        SQLGetData(stmt, 1, SQL_C_CHAR, interface, sizeof(interface), &indicator);
+        session_set_variable(sess, "INTERFACE", interface);
         /* Login successful!! Mark this session as authenticated */
         session_set_flag(sess, SESS_FLAG_AUTHENTICATED);
         /* Store the login agent for later use */
         sprintf(agent, "%d", login_num);
         session_set_variable(sess, "AGENT", agent);
         // Send a success message
-        session_write(sess, "LOGINOK Welcome back %s\n", agent);
+        session_write(sess, "LOGINOK Welcome back %s %s\n", agent, interface);
         SQLDisconnect(dbc);
         return 0;
     } else {
@@ -129,7 +133,8 @@ int login_exec(session_t *sess, const char *args)
  * \param args  Application arguments
  * \return 0 in all cases
  */
-int logout_exec(session_t *sess, const char *args)
+int
+logout_exec(session_t *sess, const char *args)
 {
     session_write(sess, "BYE %s\n", "Thanks for all the fish");
     session_finish(sess);
@@ -139,7 +144,8 @@ int logout_exec(session_t *sess, const char *args)
 /**
  * \brief Load the module and register its applications
  */
-int load_module()
+int
+load_module()
 {
     int res = 0;
     res |= application_register("Login", login_exec);
@@ -150,10 +156,11 @@ int load_module()
 /**
  * \brief Unload the module and unregister its applications
  */
-int unload_module()
+int
+unload_module()
 {
     int res = 0;
-     res |= application_unregister("LOGIN");
-     res |= application_unregister("LOGOUT");
+    res |= application_unregister("LOGIN");
+    res |= application_unregister("LOGOUT");
     return res;
 }

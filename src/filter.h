@@ -52,7 +52,11 @@
 #ifndef __ISAAC_MANAGER_H_
 #error Include manager.h before using filter.h
 #endif
+#include <regex.h>
 #include "session.h"
+
+#define DEBUG_MESSAGE session_write(filter->sess, "%s\n", message_to_text(msg));
+#define DUMP_MESSAGES filter_register(filter_create(filter->sess, FILTER_SYNC_CALLBACK, filter_print_message));
 
 //! Maximum number of conditions a filter can contain
 #define MAX_CONDS       10
@@ -78,6 +82,7 @@ struct isaac_condition
 {
     char hdr[MAX_CONDLEN];
     char val[MAX_CONDLEN];
+    regex_t regex;
     enum condtype type;
 };
 
@@ -91,6 +96,7 @@ enum callbacktype
 struct isaac_filter
 {
     session_t *sess;
+    int oneshot;
     cond_t conds[MAX_CONDS];
     unsigned int condcount;
     enum callbacktype cbtype;
@@ -103,14 +109,16 @@ struct isaac_filter
 filter_t *filter_create(session_t *sess, enum callbacktype cbtype, int(*callback)(filter_t *filter,
         ami_message_t *msg));
 int filter_add_condition(filter_t *filter, cond_t cond);
-int filter_add_condition2(filter_t *filter, enum condtype type, char *hdr, const char *val);
+int filter_new_condition(filter_t *filter, enum condtype type, char *hdr, const char *fmt, ... );
 void filter_remove_conditions(filter_t *filter);
 int filter_register(filter_t *filter);
+int filter_register_oneshot(filter_t *filter);
 int filter_unregister(filter_t *filter);
 int filter_exec_callback(filter_t *filter, ami_message_t *msg);
 void filter_set_userdata(filter_t *filter, void *userdata);
 void *filter_get_userdata(filter_t *filter);
-filter_t *get_session_filter(session_t *sess);
+filter_t *get_session_filter(session_t *sess, filter_t *from);
 int check_message_filters(ami_message_t *msg);
+int filter_print_message(filter_t *filter, ami_message_t *msg);
 
 #endif /* __ISAAC_FILTER_H_ */
