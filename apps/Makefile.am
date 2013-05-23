@@ -1,5 +1,5 @@
 appsdir=@isaacmoddir@
-appsCFLAGS=-I@top_srcdir@/src -fPIC
+appsCFLAGS=-I@top_srcdir@/src -fPIC -g -Wall -Werror
 appsLDFLAGS=-shared -Wl
 
 app_login_PROGRAMS = app_login.so

@@ -38,6 +38,7 @@
 #include "manager.h"
 #include "filter.h"
 #include "log.h"
+#include "util.h"
 
 /**
  * @brief Module configuration readed from CALLCONF file
@@ -126,6 +127,8 @@ read_call_config(const char *cfile)
     if (config_lookup_int(&cfg, "originate.autoanswer", &intvalue) == CONFIG_TRUE) {
         call_config.autoanswer = intvalue;
     }
+    // Dealloc libconfig structure
+    config_destroy(&cfg);
 
     isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
     return 0;

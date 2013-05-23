@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <poll.h>
+#include "isaac.h"
 #include "manager.h"
 #include "filter.h"
 #include "log.h"
@@ -35,6 +36,8 @@
 
 //! Manager connection singleton instance
 manager_t *manager;
+//! Manager accept connections thread
+pthread_t manager_thread;
 
 int
 manager_read_header(manager_t *man, char *output)
@@ -263,10 +266,10 @@ manager_read_thread(void *man)
     manager->connected = 0;
 
     // Give some feedback about us
-    isaac_log(LOG_VERBOSE, "Launched manager session thread [ID %ld].\n", TID);
+    isaac_log(LOG_VERBOSE, "Launched manager thread [ID %ld].\n", TID);
 
     // Start reading messages
-    for (;;) {
+    while (config.running) {
         if (!manager->connected) {
             if (manager_connect(manager) != -1) {
                 manager->connected = 1;
@@ -282,6 +285,8 @@ manager_read_thread(void *man)
             // Pass the readed msg to the Filter&Conditions logic
             check_filters_for_message(&msg);
         } else if (res < 0) {
+            // If no error, maybe we are shutting down?
+            if (!errno) break;
             // Something bad has happened with our socket :(
             isaac_log(LOG_WARNING, "Manager read error %s [%d]\n", strerror(errno), errno);
             // Try to connect again
@@ -289,7 +294,11 @@ manager_read_thread(void *man)
         }
     }
 
-    isaac_log(LOG_VERBOSE, "Manager: Leaving thread\n");
+    // Close manager socket
+    close(manager->fd);
+
+    isaac_log(LOG_VERBOSE, "Shutting down manager thread.\n");
+    // Exit manager thread gracefully
     pthread_exit(NULL);
     return NULL;
 }
@@ -297,7 +306,6 @@ manager_read_thread(void *man)
 int
 start_manager(const char* addrstr, const int port, const char* username, const char *secret)
 {
-    pthread_t manager_thread;
     struct in_addr maddr;
 
     // Allocate memory for the manager data
@@ -332,6 +340,18 @@ start_manager(const char* addrstr, const int port, const char* username, const c
         isaac_log(LOG_WARNING, "Error creating manager thread: %s\n", strerror(errno));
         return 1;
     }
+    return 0;
+}
+
+int
+stop_manager()
+{
+    // Disconnect manager socket
+    shutdown(manager->fd, SHUT_RDWR);
+    // Wait for the accept thread to finish
+    pthread_join(manager_thread, NULL);
+    // Free manager memory
+    isaac_free(manager);
 
     return 0;
 }

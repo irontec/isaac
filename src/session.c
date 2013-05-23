@@ -97,6 +97,11 @@ session_destroy(session_t *sess)
     filter_t *filter;
     session_t *cur, *prev = NULL;
     pthread_mutex_lock(&sess->lock);
+    // Unregister all this connection filters
+    while ((filter = filter_from_session(sess, NULL))) {
+        filter_unregister(filter);
+    }
+
     // Remove this session from the list
     pthread_mutex_lock(&sessionlock);
     cur = sessions;
@@ -111,11 +116,6 @@ session_destroy(session_t *sess)
         cur = cur->next;
     }
     pthread_mutex_unlock(&sessionlock);
-
-    // Unregister all this connection filters
-    while ((filter = filter_from_session(sess, NULL))) {
-        filter_unregister(filter);
-    }
     pthread_mutex_unlock(&sess->lock);
     // Destroy the session mutex
     pthread_mutex_destroy(&sess->lock);
@@ -152,12 +152,12 @@ session_write(session_t *sess, const char *fmt, ...)
         return -1;
     }
 
+    pthread_mutex_lock(&sess->lock);
     // Built the message with the given variables
     va_start(ap, fmt);
     vsprintf(msgva, fmt, ap);
     va_end(ap);
 
-    pthread_mutex_lock(&sess->lock);
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {

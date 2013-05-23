@@ -188,7 +188,7 @@ module_destroy(module_t *module)
 
     // If we have an open handler, close it
     if (module->dlhandle) {
-        dlclose(module->dlhandle);
+       dlclose(module->dlhandle);
     }
 
     // Free module filename

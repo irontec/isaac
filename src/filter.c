@@ -43,6 +43,7 @@ filter_create(session_t *sess, enum callbacktype cbtype, int
     // Allocate memory for a new filter
     if ((filter = malloc(sizeof(filter_t)))) {
         // Initialice basic fields
+        memset(filter, 0, sizeof(filter_t));
         filter->sess = sess;
         filter->oneshot = 0;
         filter->condcount = 0;
@@ -124,6 +125,10 @@ filter_unregister(filter_t *filter)
     pthread_mutex_lock(&filters_mutex);
     isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
     filter_t *cur = filters, *prev = NULL;
+    // Sanity check
+    if (!filter) return 1;
+
+    // Remove the filter from the filters list
     while (cur) {
         if (cur == filter) {
             if (!prev) filters = cur->next;
@@ -134,6 +139,19 @@ filter_unregister(filter_t *filter)
         prev = cur;
         cur = cur->next;
     }
+
+    // Check if the info is still being shared by someone
+    void *userdata = filter_get_userdata(filter);
+    if (userdata) {
+        for (cur = filters; cur; cur = cur->next) {
+            if (filter_get_userdata(cur) == userdata) break;
+        }
+        if (!cur) isaac_free(userdata);
+    }
+
+    // Deallocate filter memory
+    isaac_free(filter);
+
     pthread_mutex_unlock(&filters_mutex);
     //@todo remove conditions and filter allocated memory
     return 0;
@@ -142,6 +160,8 @@ filter_unregister(filter_t *filter)
 int
 filter_exec_callback(filter_t *filter, ami_message_t *msg)
 {
+    int oneshot = filter->oneshot;
+
     // Depending on callback type
     switch (filter->cbtype) {
     case FILTER_SYNC_CALLBACK:
@@ -153,6 +173,9 @@ filter_exec_callback(filter_t *filter, ami_message_t *msg)
         /* FILTER_ASYNC_CALLBACK Not yet implemented */
         break;
     }
+
+    // If the filter is marked for only triggering once, unregister it
+    if (oneshot) filter_unregister(filter);
     return 1;
 }
 
@@ -256,8 +279,6 @@ check_filters_for_message(ami_message_t *msg)
         if (matches == cur->condcount) {
             // Exec the filter callback with the current message
             filter_exec_callback(cur, msg);
-            // If the filter is marked for only triggering once, unregister it
-            if (cur->oneshot) filter_unregister(cur);
         }
 
         // Go on with the next message

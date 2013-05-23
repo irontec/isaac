@@ -53,7 +53,7 @@ cli_entry_t *entries = NULL;
 //! Lock for concurrent access to \ref entries "CLI commands list"
 pthread_mutex_t entrieslock;
 //! Thread for accepting new CLI client connections
-pthread_t accept_thread;
+pthread_t cli_accept_thread;
 //! Socket for accepting new CLI client connections
 int cli_sock;
 
@@ -90,7 +90,6 @@ int
 cli_server_start()
 {
     struct sockaddr_un sunaddr;
-    pthread_attr_t attr;
 
     // Create a new Local socket for incoming connections
     if ((cli_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
@@ -115,35 +114,31 @@ cli_server_start()
         isaac_log(LOG_ERROR, "Cannot listen on socket!: %s\n", strerror(errno));
         return -1;
     }
-    isaac_log(LOG_VERBOSE_1, "CLI Server Started.\n");
 
     // Register Core commands
     cli_register_entry_multiple(cli_entries, ARRAY_LEN(cli_entries));
 
     // Start Accept connections thread
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    if (pthread_create(&accept_thread, &attr, (void *) cli_accept, NULL)) {
+    if (pthread_create(&cli_accept_thread, NULL, (void *) cli_accept, NULL)) {
         fprintf(stderr, "Unable to create CLI Thread!\n");
     }
-    pthread_attr_destroy(&attr);
+
     return 0;
 }
 
 void
 cli_server_stop()
 {
-    // Avoid new incoming connections
-    close(cli_sock);
+    // Stop the socket from receiving new connections
+    shutdown(cli_sock, SHUT_RDWR);
+    // Remove the unix socket file
     unlink(CLI_SOCKET);
     //@todo iterate here
     // Destroy all clients in client list
     while (clilist) {
         cli_destroy(clilist);
     }
-    // Destroy Listening thread
-    pthread_cancel(accept_thread);
-    isaac_log(LOG_VERBOSE_1, "CLI Server stoped.\n");
+    pthread_join(cli_accept_thread, NULL);
 }
 
 void
@@ -153,48 +148,42 @@ cli_accept()
     socklen_t sunlen;
     pthread_attr_t attr;
     struct isaac_cli *cli;
-    struct pollfd fds[1];
-    int s;
+    int clifd;
 
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    // Give some feedback about us
+    isaac_log(LOG_VERBOSE, "Launched cli thread [ID %ld].\n", TID);
 
-    for (;;) {
-
-        if (cli_sock < 0) {
-            return;
-        }
-
-        fds[0].fd = cli_sock;
-        fds[0].events = POLLIN;
-        if ((s = poll(fds, 1, -1)) < 0) {
-            if (errno != EINTR) {
-                isaac_log(LOG_WARNING, "Poll returned error: %s\n", strerror(errno));
-            }
-            continue;
-        }
-
+    while (config.running) {
+        // Get the next connection
         sunlen = sizeof(sun);
-        if ((s = accept(cli_sock, (struct sockaddr *) &sun, &sunlen)) < 0) {
-            isaac_log(LOG_ERROR, "Accept returned -1: %s\n", strerror(errno));
-            continue;
+        if ((clifd = accept(cli_sock, (struct sockaddr *) &sun, &sunlen)) < 0) {
+            if (errno != EINVAL) {
+                isaac_log(LOG_WARNING, "Error accepting new connection: %s\n", strerror(errno));
+            }
+            break;
         }
         isaac_log(LOG_VERBOSE, "Remote UNIX connection\n");
         int sckopt = 1;
-        if (setsockopt(s, SOL_SOCKET, SO_PASSCRED, &sckopt, sizeof(sckopt)) < 0) {
+        if (setsockopt(clifd, SOL_SOCKET, SO_PASSCRED, &sckopt, sizeof(sckopt)) < 0) {
             isaac_log(LOG_WARNING, "Unable to turn on socket credentials passing\n");
             continue;
         }
-
-        if (!(cli = cli_create(s, sun))) {
+        // Create a new cli structure for this connection
+        if (!(cli = cli_create(clifd, sun))) {
             continue;
         }
-
+        // Launch cli thread in detached mode
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         if (pthread_create(&cli->thread, &attr, (void *) cli_do, cli) != 0) {
             cli_destroy(cli);
         }
+        pthread_attr_destroy(&attr);
     }
-    pthread_attr_destroy(&attr);
+    isaac_log(LOG_VERBOSE, "Shutting down cli thread...\n");
+
+    // Exit cli thread gracefully
+    pthread_exit(NULL);
     return;
 }
 
@@ -1194,9 +1183,9 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
 
                 cli_write(args->cli, "%-s\n", filter->conds[ccnt].val);
             }
-            cli_write(args->cli,"\n");
+            cli_write(args->cli, "\n");
         }
-        if (!filter_cnt){
+        if (!filter_cnt) {
             cli_write(args->cli, "---------- No active filters ---------\n");
         }
     }

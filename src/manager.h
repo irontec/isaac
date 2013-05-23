@@ -236,6 +236,16 @@ extern int
 start_manager(const char *addrstr, const int port, const char *username, const char *secret);
 
 /**
+ * \brief Disconnect from AMI and stops manager thread
+ *
+ * Cleanup function for manager thread. Close connection to Asterisk and leave
+ *
+ * \return 0 in case of thread exit success, 1 otherwise
+ */
+extern int
+stop_manager();
+
+/**
  * \brief Get AMI message as a preformated string.
  *
  * This function is only for debugging purposes. The returned message

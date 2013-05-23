@@ -81,7 +81,8 @@ read_acd_config(const char *cfile)
     if (config_lookup_string(&cfg, "acd.php_file", &value) == CONFIG_TRUE) {
         strcpy(acd_config.phpfile, value);
     }
-
+    // Dealloc libconfig structure
+    config_destroy(&cfg);
     isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
     return 0;
 }
@@ -148,7 +149,7 @@ int
 acd_exec(session_t *sess, const char * const php_args[])
 {
     int pid;
-    int out;
+    int out = 0;
     FILE *fd;
     char * line = NULL;
     size_t len = 0;
@@ -165,6 +166,8 @@ acd_exec(session_t *sess, const char * const php_args[])
     if (getline(&line, &len, fd) != -1) {
         session_write(sess, "%s", line);
     }
+
+    pcloseRWE(pid, &out);
 
     return 0;
 }

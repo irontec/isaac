@@ -34,18 +34,18 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <errno.h>
+#include "isaac.h"
+#include "util.h"
 #include "log.h"
 #include "server.h"
 #include "session.h"
 #include "app.h"
-#include "util.h"
 
 //! Server socket
 int server_sock = 0;
 //! Server accept connections thread
 pthread_t accept_thread;
 
-/*****************************************************************************/
 int
 start_server(const char *addrstr, const int port)
 {
@@ -98,32 +98,41 @@ start_server(const char *addrstr, const int port)
     return 0;
 }
 
-/*****************************************************************************/
 int
 stop_server()
 {
+    session_iter_t *iter;
+    session_t *sess = NULL;
 
-    // \todo close session socket and wait for their threads
+    iter = session_iterator_new();
+    while ((sess = session_iterator_next(iter))) {
+        session_write(sess, "BYE Isaac has been stoped.\n");
+        session_finish(sess);
+    }
+    session_iterator_destroy(iter);
 
-    // This is a bit hardcore
-    shutdown(server_sock, SHUT_RD);
+    // Stop the socket from receiving new connections
+    shutdown(server_sock, SHUT_RDWR);
     // Wait for the accept thread to finish
     pthread_join(accept_thread, NULL);
+
     return 0;
 }
 
-/*****************************************************************************/
 void *
 accept_connections(void *sock)
 {
-
     int clifd;
     struct sockaddr_in cliaddr;
     socklen_t clilen;
     session_t *sess;
+    pthread_attr_t attr;
+
+    // Give some feedback about us
+    isaac_log(LOG_VERBOSE, "Launched server thread [ID %ld].\n", TID);
 
     // Begin accepting connections
-    for(;;) {
+    while (config.running) {
         // Accept the next connections
         clilen = sizeof(cliaddr);
         if ((clifd = accept(server_sock, (struct sockaddr *) &cliaddr, &clilen)) == -1) {
@@ -140,15 +149,20 @@ accept_connections(void *sock)
         }
 
         // Create a new thread for this client and manage its connection
-        if (pthread_create(&sess->thread, NULL, manage_session, (void*) sess) != 0) {
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        if (pthread_create(&sess->thread, &attr, manage_session, (void*) sess) != 0) {
             isaac_log(LOG_WARNING, "Error creating session thread: %s\n", strerror(errno));
+            pthread_attr_destroy(&attr);
             session_destroy(sess);
             continue;
         }
+        pthread_attr_destroy(&attr);
     }
     // Some goodbye logging
-    isaac_log(LOG_VERBOSE, "Shutting down server thread.\n");
-    // Server ended quite well
+    isaac_log(LOG_VERBOSE, "Shutting down server thread...\n");
+    // Leave the thread gracefully
+    pthread_exit(NULL);
     return 0;
 }
 
@@ -194,7 +208,7 @@ manage_session(void *session)
         }
         // Clean the buffers for the next run
         memset(action, 0, sizeof(action));
-        memset(args,0,sizeof(args));
+        memset(args, 0, sizeof(args));
         memset(msg, 0, sizeof(msg));
     }
 
@@ -203,8 +217,7 @@ manage_session(void *session)
 
     // Deallocate session memory
     session_destroy(sess);
-
-    // Leave the thread
+    // Leave the thread gracefully
     pthread_exit(NULL);
 
     return NULL;

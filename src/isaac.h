@@ -21,6 +21,7 @@
 /**
  * @file isaac.h
  * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ *
  * @brief Main applications functions,  usable from any part of the program.
  *
  * This file will define the functions that manage the configuration and also
@@ -34,6 +35,7 @@
 
 //! Sorter declaration of isaac_cfg struct
 typedef struct isaac_cfg cfg_t;
+//! Sorter declaration of isaac_stats struct
 typedef struct isaac_stats stats_t;
 
 /**
@@ -58,6 +60,7 @@ struct isaac_cfg
     char logtag[20];
     char modules[256][50];
     int modulecnt;
+    int running;
 };
 
 /**

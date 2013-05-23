@@ -52,13 +52,11 @@
 int
 login_exec(session_t *sess, const char *args)
 {
-    SQLHENV env;
-    SQLHDBC dbc;
-    SQLHSTMT stmt;
-    SQLRETURN ret; /* ODBC API return status */
-    SQLSMALLINT columns; /* number of columns in result-set */
-    SQLLEN indicator;
-    int row = 0;
+        SQLHENV env;
+        SQLHDBC dbc;
+        SQLHSTMT stmt;
+        SQLLEN indicator;
+    int ret = 0;
     int login_num;
     char agent[100], pass[100], interface[100];
 
@@ -81,7 +79,8 @@ login_exec(session_t *sess, const char *args)
     SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
     /* Connect to the DSN mydsn */
     /* You will need to change mydsn to one you have created and tested */
-    SQLDriverConnect(dbc, NULL, "DSN=asterisk;", SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
+    SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
+            SQL_DRIVER_COMPLETE);
     /* Allocate a statement handle */
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     /* Prepare login query */
@@ -100,7 +99,7 @@ login_exec(session_t *sess, const char *args)
     SQLExecute(stmt);
 
     /* Check if we fetched something */
-    if (SQL_SUCCEEDED(ret = SQLFetch(stmt))) {
+    if (SQL_SUCCEEDED(SQLFetch(stmt))) {
         /* Get the agent's interface */
         SQLGetData(stmt, 1, SQL_C_CHAR, interface, sizeof(interface), &indicator);
         session_set_variable(sess, "INTERFACE", interface);
@@ -111,17 +110,22 @@ login_exec(session_t *sess, const char *args)
         session_set_variable(sess, "AGENT", agent);
         // Send a success message
         session_write(sess, "LOGINOK Welcome back %s %s\n", agent, interface);
-        SQLDisconnect(dbc);
-        return 0;
+        ret = 0;
     } else {
         /* Login failed. This mark should not be required because we're closing the connection */
         session_clear_flag(sess, SESS_FLAG_AUTHENTICATED);
         /* Send the Login failed message and close connection */
         session_write(sess, "LOGINFAIL\n");
         session_finish(sess);
-        SQLDisconnect(dbc);
-        return 1;
+        ret = 1;
     }
+
+    // Disconnect ODBC driver and cleanup
+    SQLDisconnect(dbc);
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    SQLFreeHandle(SQL_HANDLE_DBC, dbc);
+    SQLFreeHandle(SQL_HANDLE_ENV, env);
+    return ret;
 }
 
 /**

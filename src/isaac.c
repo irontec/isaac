@@ -77,12 +77,16 @@ void
 quit(int exitcode)
 {
     printf("Signal %d received\n", exitcode);
-    /** Notify clients before closing CLI server thread */
-    //if (sig == SIGHUP) isaac_log(LOG_VERBOSE, "\e[1;37m%s will restart now.\e[0m\n", APP_NAME);
+    // Mark Isaac as not running
+    config.running = 0;
     // Stop server thread
     stop_server();
+    // Stop CLI server thread
+    cli_server_stop();
+    // Stop manager thread
+    stop_manager();
     // Remove all loaded modules. They should unregister their apps
-    //unload_modules();
+    unload_modules();
     // Remove pidfile
     remove_pid(PIDFILE);
     // if requested to restart
@@ -175,6 +179,9 @@ read_config(const char *cfile)
         }
     }
 
+    // Dealloc libconfig structure
+    config_destroy(&cfg);
+
     return 0;
 }
 
@@ -256,6 +263,9 @@ main(int argc, char *argv[])
 
     // Write current pid to file.
     write_pid(PIDFILE);
+
+    // We can consider we're up and running :D
+    config.running = 1;
 
     // Read configuration files
     if (read_config(CFILE) != 0) {

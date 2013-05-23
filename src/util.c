@@ -70,6 +70,7 @@ isaac_free(void *mem)
 {
     if (mem)
         free(mem);
+    mem = NULL;
 }
 
 /*! \brief Wrapper for strlen */

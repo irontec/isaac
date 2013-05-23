@@ -53,6 +53,7 @@
 #ifndef __ISAAC_LOG_H_
 #define __ISAAC_LOG_H_
 #include <stdio.h>
+#include <unistd.h>
 #include <stdarg.h>
 #include <syslog.h>
 #include <string.h>

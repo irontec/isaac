@@ -29,7 +29,7 @@ status_blindxfer(filter_t *filter, ami_message_t *msg){
     message_add_header(&usermsg, "CallerIDName: %s", info->plat);
     message_add_header(&usermsg, "CallerIDNum: %s", info->clidnum);
     check_filters_for_message(&usermsg);
-
+    return 0;
 }
 
 int
@@ -125,6 +125,7 @@ status_attxfer(filter_t *filter, ami_message_t *msg)
             }
         }
     }
+    return 0;
 }
 
 int
@@ -196,6 +197,8 @@ status_call(filter_t *filter, ami_message_t *msg)
     filter_new_condition(callfilter, MATCH_EXACT, "Channel", dest);
     filter_set_userdata(callfilter, (void*) info);
     filter_register(callfilter);
+
+    return 0;
 }
 
 int
