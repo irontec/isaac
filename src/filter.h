@@ -48,8 +48,8 @@
 #ifndef __ISAAC_FILTER_H_
 #define __ISAAC_FILTER_H_
 
-//#define DEBUG_MESSAGE session_write(filter->sess, "%s\n", message_to_text(msg));
-//#define DUMP_MESSAGES filter_register(filter_create(filter->sess, FILTER_SYNC_CALLBACK, filter_print_message));
+#define DEBUG_MESSAGE session_write(filter->sess, "%s\n", message_to_text(msg));
+#define DUMP_MESSAGES filter_register(filter_create(filter->sess, FILTER_SYNC_CALLBACK, filter_print_message));
 
 //! Maximum number of conditions a filter can contain
 #define MAX_CONDS       10
