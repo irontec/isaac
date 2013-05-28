@@ -71,7 +71,7 @@ remote_tryconnect();
  * @param command to be executed or NULL for an interactive CLI
  */
 extern void
-remote_control(char* data);
+remote_control(char* command);
 
 /**
  * @brief Callback to write CLI prompt
@@ -103,7 +103,7 @@ remote_complete(EditLine *editline, int ch);
 /**
  * @brief Prints a list of available options
  *
- * When @remote_complete returns more than one matching options
+ * When @ref remote_complete returns more than one matching options
  * to autocomplete, they are printed back to the CLI using this function.
  *
  * @param matches An array of strings with the options

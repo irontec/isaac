@@ -73,7 +73,7 @@ remote_tryconnect()
 }
 
 void
-remote_control(char* data)
+remote_control(char* command)
 {
     int res;
     char *ebuf;
@@ -89,11 +89,11 @@ remote_control(char* data)
     signal(SIGHUP, remote_quit_handler);
 
     // hack to print output then exit if asterisk -rx is used
-    if (data) {
+    if (command) {
         char prefix[] = "cli quit after ";
-        char *tmp = alloca(strlen(data) + strlen(prefix) + 1);
+        char *tmp = alloca(strlen(command) + strlen(prefix) + 1);
         // Add a prefix to tell Isaac that will exit after command
-        sprintf(tmp, "%s%s", prefix, data);
+        sprintf(tmp, "%s%s", prefix, command);
         // Write the command to Isaac
         if (write(remote_cli->fd, tmp, strlen(tmp) + 1) < 0) {
             isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));

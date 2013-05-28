@@ -291,6 +291,7 @@ call_state(filter_t *filter, ami_message_t *msg)
  * DTMF codes) and the number that is wanted to call.\n
  *
  * @param sess Session rnuning this application
+ * @param app The application structure
  * @param args Call action args "ActionID DestNum"
  * @return 0 in call cases
  */
@@ -352,6 +353,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
  * CALL action using the custom manager application PlayDTMF.
  *
  * @param sess Session rnuning this applicationthe custom manager application PlayDTMF.
+ * @param app The application structure
  * @param args Dtmf action args "ActionID DTMFDigit"
  * @return 0 if the call is found, -1 otherwise
  */
@@ -398,6 +400,7 @@ dtmf_exec(session_t *sess, app_t *app, const char *args)
  * the pending filters
  *
  * @param sess Session rnuning this application
+ * @param app The application structure
  * @param args Hangup action args "ActionID"
  * @return 0 if the call is found, -1 otherwise
  */
@@ -440,6 +443,7 @@ hangup_exec(session_t *sess, app_t *app, const char *args)
  * terminals support hold event.
  *
  * @param sess Session rnuning this application
+ * @param app The application structure
  * @param args Hangup action args "ActionID"
  * @return 0 if the call is found, -1 otherwise
  */

@@ -19,16 +19,16 @@
  **
  *****************************************************************************/
 /**
- * \file app_login.c
- * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ * @file app_login.c
+ * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Module for Login and Logout applications of Irontec ivoz-ng
+ * @brief Module for Login and Logout applications of Irontec ivoz-ng
  *
  * This file contains the functions that manage the Isaac authentication methods
  * for ivoz-ng suite.
  *
  * ************************************************************************
- * ** This is not an all purpose module, this is designed to use ivoz-ng **
+ * ** THIS is not an all purpose module. THIS is designed to use ivoz-ng **
  * ** database and tables directly from odbc driver                      **
  * ************************************************************************
  */
@@ -40,14 +40,15 @@
 #include <string.h>
 
 /**
- * \brief Check Login attempt against asterisk database
+ * @brief Check Login attempt against asterisk database
  *
  * ivoz-ng callcenter agents are stored in karma_used using a custom salted
  * password with the password stored in MD5 encryption.
  *
- * \param sess  Session structure running the application
- * \param args  Application arguments
- * \return 0 in case of login success, 1 otherwise
+ * @param sess  Session structure running the application
+ * @param app The application structure
+ * @param args  Application arguments
+ * @return 0 in case of login success, 1 otherwise
  */
 int
 login_exec(session_t *sess, app_t *app, const char *args)
@@ -60,61 +61,61 @@ login_exec(session_t *sess, app_t *app, const char *args)
     int login_num;
     char agent[100], pass[100], interface[100];
 
-    /* If session is already authenticated, show an error */
+    // If session is already authenticated, show an error
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         session_write(sess, "ALREADY LOGGED IN\n");
         return -1;
     }
 
-    /* Get login data from application arguments */
+    // Get login data from application arguments
     if (sscanf(args, "%d %s", &login_num, pass) != 2) {
         return INVALID_ARGUMENTS;
     }
 
-    /* Allocate an environment handle */
+    // Allocate an environment handle
     SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
-    /* We want ODBC 3 support */
+    // We want ODBC 3 support */
     SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
-    /* Allocate a connection handle */
+    // Allocate a connection handle
     SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
-    /* Connect to the DSN mydsn */
-    /* You will need to change mydsn to one you have created and tested */
+    // Connect to the DSN mydsn
+    // You will need to change mydsn to one you have created and tested */
     SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
             SQL_DRIVER_COMPLETE);
-    /* Allocate a statement handle */
+    // Allocate a statement handle
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
-    /* Prepare login query */
+    // Prepare login query
     SQLPrepare(stmt, (SQLCHAR *) "SELECT interface from karma_usuarios as k"
         " INNER JOIN shared_agents_interfaces as s"
         " ON k.login_num = s.agent"
         " WHERE login_num = ?"
         " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));", SQL_NTS);
-    /* Bind username and password */
+    // Bind username and password
     SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
             sizeof(login_num), NULL);
     SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, pass,
             sizeof(pass), NULL);
 
-    /* Execute the query */
+    // Execute the query
     SQLExecute(stmt);
 
-    /* Check if we fetched something */
+    // Check if we fetched something
     if (SQL_SUCCEEDED(SQLFetch(stmt))) {
-        /* Get the agent's interface */
+        // Get the agent's interface
         SQLGetData(stmt, 1, SQL_C_CHAR, interface, sizeof(interface), &indicator);
         session_set_variable(sess, "INTERFACE", interface);
-        /* Login successful!! Mark this session as authenticated */
+        // Login successful!! Mark this session as authenticated
         session_set_flag(sess, SESS_FLAG_AUTHENTICATED);
-        /* Store the login agent for later use */
+        // Store the login agent for later use
         sprintf(agent, "%d", login_num);
         session_set_variable(sess, "AGENT", agent);
         // Send a success message
         session_write(sess, "LOGINOK Welcome back %s %s\n", agent, interface);
         ret = 0;
     } else {
-        /* Login failed. This mark should not be required because we're closing the connection */
+        // Login failed. This mark should not be required because we're closing the connection
         session_clear_flag(sess, SESS_FLAG_AUTHENTICATED);
-        /* Send the Login failed message and close connection */
+        // Send the Login failed message and close connection
         session_write(sess, "LOGINFAIL\n");
         session_finish(sess);
         ret = 1;
@@ -129,13 +130,14 @@ login_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
- * \brief Logout given session
+ * @brief Logout given session
  *
  * Simple function to close the session connection in a gently way,
  * being polite.
- * \param sess  Session structure running the application
- * \param args  Application arguments
- * \return 0 in all cases
+ * @param sess  Session structure running the application
+ * @param app The application structure
+ * @param args  Application arguments
+ * @return 0 in all cases
  */
 int
 logout_exec(session_t *sess, app_t *app, const char *args)
@@ -146,7 +148,12 @@ logout_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
- * \brief Load the module and register its applications
+ * @brief Module load entry point
+ *
+ * Load module configuration and applications
+ *
+ * @retval 0 if all applications and configuration has been loaded
+ * @retval -1 if any application fails to register or configuration can not be readed
  */
 int
 load_module()
@@ -158,7 +165,11 @@ load_module()
 }
 
 /**
- * \brief Unload the module and unregister its applications
+ * @brief Module unload entry point
+ *
+ * Unload module applications
+ *
+ * @return 0 if all applications are unloaded, -1 otherwise
  */
 int
 unload_module()

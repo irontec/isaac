@@ -94,7 +94,7 @@ read_acd_config(const char *cfile)
  *
  * bidirectional popen() call
  *
- * @param rwepipe - int array of size three
+ * @param rwepipe - int array of sockets
  * @param exe - program to run
  * @param argv - argument list
  * @return pid or -1 on error
@@ -136,6 +136,14 @@ popenRWE(int *rwepipe, const char *exe, const char * const argv[])
     return pid;
 }
 
+/**
+ * Copyright 2009-2010 Bart Trojanowski <bart@jukie.net>
+ * Licensed under GPLv2, or later, at your choosing.
+ *
+ * @brief Stops a process opened with popenRWE
+ *
+ * @param pid The pid of the child process
+ */
 static int
 pcloseRWE(int pid, int *rwepipe)
 {
@@ -187,13 +195,12 @@ acd_exec(session_t *sess, app_t *app, const char *args)
     // Open the requested file, load I/O file descriptors
     pid = popenRWE(&out, php_args[0], php_args);
 
-    // Open file input descriptor
+    // Open file input descriptor and read the php script output
     fd = fdopen(out, "r");
-
     if (getline(&line, &len, fd) != -1) {
         session_write(sess, "%s", line);
     }
-
+    // Stops spawned php
     pcloseRWE(pid, &out);
 
     return 0;

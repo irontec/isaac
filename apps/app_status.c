@@ -7,14 +7,35 @@
 #include "util.h"
 #include "log.h"
 
+/**
+ * @brief Status application custom structure
+ *
+ * This structure contains the information of a Queue incoming call
+ * to print EXTERNALCALLSTATUS messages
+ */
 struct app_status_info
 {
+    //! Platform of the Queue receiving the call
     char plat[20];
+    //! CallerID num of the incoming call
     char clidnum[20];
+    //! Attended transfer State (See Asterisk Call states)
     int  xfer_state;
+    //! Agent to which this call is being transfered
     char xfer_agent[20];
 };
 
+/**
+ * @brief Callback for blind transfer
+ *
+ * When the agents transfer its call using an blind transfer, this callback
+ * will be executed. This function will create a FAKE AMI message for the agent
+ * that is receiving the transfered call.
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
 int
 status_blindxfer(filter_t *filter, ami_message_t *msg){
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
@@ -32,6 +53,18 @@ status_blindxfer(filter_t *filter, ami_message_t *msg){
     return 0;
 }
 
+/**
+ * @brief Callback for attended transfer
+ *
+ * When the agents transfer its call using an attended transfer, this callback
+ * will be executed. We can get the original call status (Attended or Semi-Attended)
+ * and the target agent. This function will generate FAKE AMI messages for the agent
+ * who is receiving the transfered call.
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
 int
 status_attxfer(filter_t *filter, ami_message_t *msg)
 {
@@ -128,6 +161,18 @@ status_attxfer(filter_t *filter, ami_message_t *msg)
     return 0;
 }
 
+
+/**
+ * @brief Agent's Call state changes filter callback.
+ *
+ * When the agents's call leg status changes, this callback will be triggered.
+ * It will also check if the remote call is being transfered to another agent
+ * creating filters to get all required messages.
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
 int
 status_print(filter_t *filter, ami_message_t *msg)
 {
@@ -179,6 +224,17 @@ status_print(filter_t *filter, ami_message_t *msg)
     return 0;
 }
 
+/**
+ * @brief Status filter callback.
+ *
+ * When a call is being placed to the logged agent, Isaac F&C logic will callback here.
+ * This function will store in filter's info the Dial information for future CALLEVENT
+ * messages and register a new filter to monitoring agent's leg status
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
 int
 status_call(filter_t *filter, ami_message_t *msg)
 {
@@ -201,6 +257,18 @@ status_call(filter_t *filter, ami_message_t *msg)
     return 0;
 }
 
+/**
+ * @brief Status command callback
+ *
+ * When a session request the Status command, this callback is executed.\n
+ * This action basically creates a filter to monitoring the logged agents
+ * Queue calls. Those calls info will be sent to status_call function
+ *
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
 int
 status_exec(session_t *sess, app_t *app, const char *args)
 {
@@ -231,12 +299,26 @@ status_exec(session_t *sess, app_t *app, const char *args)
     return 0;
 }
 
+/**
+ * @brief Module load entry point
+ *
+ * Load module applications
+ *
+ * @retval 0 if all applications been loaded, -1 otherwise
+ */
 int
 load_module()
 {
     return application_register("Status", status_exec);
 }
 
+/**
+ * @brief Module unload entry point
+ *
+ * Unload module applications
+ *
+ * @return 0 if all applications are unloaded, -1 otherwise
+ */
 int
 unload_module()
 {

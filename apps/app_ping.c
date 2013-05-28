@@ -37,6 +37,7 @@
  * Writes a message to session if authenticated.
  *
  * @param sess Session rnuning this application
+ * @param app The application structure
  * @param args Not used
  * @return 0 in call cases
  */

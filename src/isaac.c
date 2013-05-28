@@ -22,7 +22,7 @@
  * @file isaac.c
  * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * @brief Main Initialization and shutdown functions
+ * @brief Source code for funtions defined in isaac.h
  *
  * Isaac is a small application that serves as interface and translator for
  * Asterisk Manager Interface (aka AMI). It runs applications that can send
