@@ -1143,7 +1143,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     case CLI_INIT:
         entry->command = "show filters";
         entry->usage = "Usage: show filters [sessionid]\n"
-            "       Show connected session active filters";
+            "       Show connected session active filters\n";
         return NULL;
     case CLI_GENERATE:
         if (args->pos == 2) {

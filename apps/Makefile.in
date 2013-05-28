@@ -53,8 +53,7 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(app_acddir)" "$(DESTDIR)$(app_calldir)" \
 	"$(DESTDIR)$(app_helpdir)" "$(DESTDIR)$(app_logindir)" \
 	"$(DESTDIR)$(app_pingdir)" "$(DESTDIR)$(app_statusdir)" \
-	"$(DESTDIR)$(res_luadir)" "$(DESTDIR)$(app_acd_sodir)" \
-	"$(DESTDIR)$(res_lua_sodir)"
+	"$(DESTDIR)$(res_luadir)" "$(DESTDIR)$(app_acd_sodir)"
 PROGRAMS = $(app_acd_PROGRAMS) $(app_call_PROGRAMS) \
 	$(app_help_PROGRAMS) $(app_login_PROGRAMS) \
 	$(app_ping_PROGRAMS) $(app_status_PROGRAMS) \
@@ -131,7 +130,7 @@ am__nobase_list = $(am__nobase_strip_setup); \
 am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
-DATA = $(app_acd_so_DATA) $(res_lua_so_DATA)
+DATA = $(app_acd_so_DATA)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -264,8 +263,8 @@ app_calldir = $(appsdir)
 res_lua_so_SOURCES = res_lua.c
 res_lua_so_CFLAGS = $(appsCFLAGS) -I/usr/include/lua5.1 -DMODDIR=\"@isaacmoddir@\" 
 res_lua_so_LDFLAGS = $(appsLDFLAGS) -llua5.1
-res_lua_so_DATA = test.lua 
-res_lua_sodir = $(appsdir)
+#res_lua_so_DATA = test.lua 
+#res_lua_sodir = $(appsdir)
 res_luadir = $(appsdir)
 all: all-am
 
@@ -729,26 +728,6 @@ uninstall-app_acd_soDATA:
 	test -n "$$files" || exit 0; \
 	echo " ( cd '$(DESTDIR)$(app_acd_sodir)' && rm -f" $$files ")"; \
 	cd "$(DESTDIR)$(app_acd_sodir)" && rm -f $$files
-install-res_lua_soDATA: $(res_lua_so_DATA)
-	@$(NORMAL_INSTALL)
-	test -z "$(res_lua_sodir)" || $(MKDIR_P) "$(DESTDIR)$(res_lua_sodir)"
-	@list='$(res_lua_so_DATA)'; test -n "$(res_lua_sodir)" || list=; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(res_lua_sodir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(res_lua_sodir)" || exit $$?; \
-	done
-
-uninstall-res_lua_soDATA:
-	@$(NORMAL_UNINSTALL)
-	@list='$(res_lua_so_DATA)'; test -n "$(res_lua_sodir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	test -n "$$files" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(res_lua_sodir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(res_lua_sodir)" && rm -f $$files
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -836,7 +815,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(PROGRAMS) $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(app_acddir)" "$(DESTDIR)$(app_calldir)" "$(DESTDIR)$(app_helpdir)" "$(DESTDIR)$(app_logindir)" "$(DESTDIR)$(app_pingdir)" "$(DESTDIR)$(app_statusdir)" "$(DESTDIR)$(res_luadir)" "$(DESTDIR)$(app_acd_sodir)" "$(DESTDIR)$(res_lua_sodir)"; do \
+	for dir in "$(DESTDIR)$(app_acddir)" "$(DESTDIR)$(app_calldir)" "$(DESTDIR)$(app_helpdir)" "$(DESTDIR)$(app_logindir)" "$(DESTDIR)$(app_pingdir)" "$(DESTDIR)$(app_statusdir)" "$(DESTDIR)$(res_luadir)" "$(DESTDIR)$(app_acd_sodir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -892,8 +871,7 @@ info-am:
 install-data-am: install-app_acdPROGRAMS install-app_acd_soDATA \
 	install-app_callPROGRAMS install-app_helpPROGRAMS \
 	install-app_loginPROGRAMS install-app_pingPROGRAMS \
-	install-app_statusPROGRAMS install-res_luaPROGRAMS \
-	install-res_lua_soDATA
+	install-app_statusPROGRAMS install-res_luaPROGRAMS
 
 install-dvi: install-dvi-am
 
@@ -941,8 +919,7 @@ ps-am:
 uninstall-am: uninstall-app_acdPROGRAMS uninstall-app_acd_soDATA \
 	uninstall-app_callPROGRAMS uninstall-app_helpPROGRAMS \
 	uninstall-app_loginPROGRAMS uninstall-app_pingPROGRAMS \
-	uninstall-app_statusPROGRAMS uninstall-res_luaPROGRAMS \
-	uninstall-res_lua_soDATA
+	uninstall-app_statusPROGRAMS uninstall-res_luaPROGRAMS
 
 .MAKE: install-am install-strip
 
@@ -960,15 +937,15 @@ uninstall-am: uninstall-app_acdPROGRAMS uninstall-app_acd_soDATA \
 	install-dvi install-dvi-am install-exec install-exec-am \
 	install-html install-html-am install-info install-info-am \
 	install-man install-pdf install-pdf-am install-ps \
-	install-ps-am install-res_luaPROGRAMS install-res_lua_soDATA \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-app_acdPROGRAMS \
+	install-ps-am install-res_luaPROGRAMS install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
+	uninstall-am uninstall-app_acdPROGRAMS \
 	uninstall-app_acd_soDATA uninstall-app_callPROGRAMS \
 	uninstall-app_helpPROGRAMS uninstall-app_loginPROGRAMS \
 	uninstall-app_pingPROGRAMS uninstall-app_statusPROGRAMS \
-	uninstall-res_luaPROGRAMS uninstall-res_lua_soDATA
+	uninstall-res_luaPROGRAMS
 
 
 #app_debug_PROGRAMS = app_debug.so

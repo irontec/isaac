@@ -50,6 +50,7 @@ int
 remote_tryconnect()
 {
     struct sockaddr_un sunaddr;
+    // Create an UNIX local socket
     int clisocket = socket(PF_LOCAL, SOCK_STREAM, 0);
     if (clisocket < 0) {
         fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
@@ -58,10 +59,12 @@ remote_tryconnect()
     memset(&sunaddr, 0, sizeof(sunaddr));
     sunaddr.sun_family = AF_LOCAL;
     strcpy(sunaddr.sun_path, CLI_SOCKET);
+    // Try to connect to CLI server socket
     if (connect(clisocket, (struct sockaddr *) &sunaddr, sizeof(sunaddr))) {
         fprintf(stderr, "Unable to connect CLI socket %d: %s\n", errno, strerror(errno));
         return 1;
     }
+    // Create a cli structure for this connection
     if (!(remote_cli = cli_create(clisocket, sunaddr))) {
         fprintf(stderr, "Failed to create remote CLI session\n");
         return 1;
@@ -69,46 +72,139 @@ remote_tryconnect()
     return 0;
 }
 
-int
-remote_display_match_list(char **matches, int len, int max)
+void
+remote_control(char* data)
 {
-    int i, idx, limit, count;
-    int numoutput = 0, numoutputline = 0;
+    int res;
+    char *ebuf;
+    int num = 0;
+    char filename[80] = "";
+    struct pollfd fds;
 
-    /* find out how many entries can be put on one line, with two spaces between strings */
-    limit = 10;
-    if (limit == 0) limit = 1;
 
-    /* how many lines of output */
-    count = len / limit;
-    if (count * limit < len) count++;
+    // Handle client signals
+    memset(&sig_flags, 0, sizeof(sig_flags));
+    signal(SIGINT, remote_quit_handler);
+    signal(SIGTERM, remote_quit_handler);
+    signal(SIGHUP, remote_quit_handler);
 
-    idx = 1;
+    // hack to print output then exit if asterisk -rx is used
+    if (data) {
+        char prefix[] = "cli quit after ";
+        char *tmp = alloca(strlen(data) + strlen(prefix) + 1);
+        // Add a prefix to tell Isaac that will exit after command
+        sprintf(tmp, "%s%s", prefix, data);
+        // Write the command to Isaac
+        if (write(remote_cli->fd, tmp, strlen(tmp) + 1) < 0) {
+            isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
+            if (sig_flags.need_quit) {
+                return;
+            }
+        }
+        // Wait for the answer
+        fds.fd = remote_cli->fd;
+        fds.events = POLLIN;
+        fds.revents = 0;
+        while (poll(&fds, 1, 60000) > 0) {
+            char buffer[512] = "", *curline = buffer, *nextline;
+            int not_written = 1;
 
-    qsort(&matches[0], (size_t)(len), sizeof(char *), remote_el_sort_compare);
-
-    for (; count > 0; count--) {
-        numoutputline = 0;
-        for (i = 0; i < limit && matches[idx]; i++, idx++) {
-
-            /* Don't print dupes */
-            if ((matches[idx + 1] != NULL && strcmp(matches[idx], matches[idx + 1]) == 0)) {
-                i--;
-                isaac_free(matches[idx]);
-                matches[idx] = NULL;
-                continue;
+            if (sig_flags.need_quit) {
+                break;
+            }
+            // Read the answer from Isaac
+            if (read(remote_cli->fd, buffer, sizeof(buffer) - 1) <= 0) {
+                break;
             }
 
-            numoutput++;
-            numoutputline++;
-            fprintf(stdout, "%-*s  ", max, matches[idx]);
-            isaac_free(matches[idx]);
-            matches[idx] = NULL;
+            do {
+                if ((nextline = strchr(curline, '\n'))) {
+                    nextline++;
+                } else {
+                    nextline = strchr(curline, '\0');
+                }
+                // Skip verbose lines and two first lines
+                if (*curline != 127) {
+                    not_written = 0;
+                    if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
+                        isaac_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+                    }
+                }
+                curline = nextline;
+            } while (!isaac_strlen_zero(curline));
+
+            // No non-verbose output in 60 seconds.
+            if (not_written) {
+                break;
+            }
         }
-        if (numoutputline > 0) fprintf(stdout, "\n");
+        // We've done here
+        return;
     }
 
-    return numoutput;
+    // Get running version
+    if (write(remote_cli->fd, "core show version", 18) < 0) {
+        isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
+        if (sig_flags.need_quit) {
+            return;
+        }
+    }
+
+    // Get history file from user's homedir
+    if (getenv("HOME")) {
+        snprintf(filename, sizeof(filename), "%s/.isaac_history", getenv("HOME"));
+        remote_el_read_history(filename);
+    }
+
+    // Initialize linedit module
+    if (el_hist == NULL || el == NULL) {
+        remote_el_initialize();
+    }
+
+    // Add the character input handler
+    el_set(el, EL_GETCFN, remote_el_read_char);
+
+    // Start reading commands
+    for (;;) {
+        ebuf = (char *) el_gets(el, &num);
+
+        if (sig_flags.need_quit) {
+            break;
+        }
+
+        if (!ebuf && write(1, "", 1) < 0) break;
+
+        if (!isaac_strlen_zero(ebuf)) {
+            if (ebuf[strlen(ebuf) - 1] == '\n') ebuf[strlen(ebuf) - 1] = '\0';
+            if (!remote_consolehandler(ebuf)) {
+                /* Strip preamble from output */
+                char *temp;
+                for (temp = ebuf; *temp; temp++) {
+                    if (*temp == 127) {
+                        memmove(temp, temp + 1, strlen(temp));
+                        temp--;
+                    }
+                }
+
+                res = write(remote_cli->fd, ebuf, strlen(ebuf) + 1);
+                if (res < 1) {
+                    isaac_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
+                    break;
+                }
+            }
+        }
+    }
+
+    // Write commands to history
+    if (isaac_strlen(filename)) {
+        remote_el_write_history(filename);
+    }
+
+    // Clean up our memory
+    history_end(el_hist);
+    el_end(el);
+    printf("\nDisconnected from Isaac CLI.\n");
+
 }
 
 char *
@@ -160,14 +256,14 @@ remote_complete(EditLine *editline, int ch)
         mbuf[0] = '\0';
         while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
             if (mlen + 1024 > maxmbuf) {
-                /* Every step increment buffer 1024 bytes */
+                // Every step increment buffer 1024 bytes
                 maxmbuf += 1024;
                 if (!(mbuf = realloc(mbuf, maxmbuf))) {
                     //FIXME lf->cursor[0] = savechr;
                     return (char *) (CC_ERROR);
                 }
             }
-            /* Only read 1024 bytes at a time */
+            // Only read 1024 bytes at a time
             res = read(remote_cli->fd, mbuf + mlen, 1024);
             if (res > 0) mlen += res;
         }
@@ -189,11 +285,11 @@ remote_complete(EditLine *editline, int ch)
         }
 
         if (nummatches == 1) {
-            /* Found an exact match */
+            // Found an exact match
             el_insertstr(editline, " ");
             retval = CC_REFRESH;
         } else {
-            /* Must be more than one match */
+            // Must be more than one match
             for (i = 1, maxlen = 0; matches[i]; i++) {
                 match_len = strlen(matches[i]);
                 if (match_len > maxlen) maxlen = match_len;
@@ -220,13 +316,57 @@ remote_complete(EditLine *editline, int ch)
 }
 
 int
+remote_display_match_list(char **matches, int len, int max)
+{
+    int i, idx, limit, count;
+    int numoutput = 0, numoutputline = 0;
+
+    // Find out how many entries can be put on one line, with two spaces between strings
+    limit = 10;
+    if (limit == 0) limit = 1;
+
+    // How many lines of output
+    count = len / limit;
+    if (count * limit < len) count++;
+
+    idx = 1;
+
+    qsort(&matches[0], (size_t)(len), sizeof(char *), remote_el_sort_compare);
+
+    for (; count > 0; count--) {
+        numoutputline = 0;
+        for (i = 0; i < limit && matches[idx]; i++, idx++) {
+
+            /* Don't print dupes */
+            if ((matches[idx + 1] != NULL && strcmp(matches[idx], matches[idx + 1]) == 0)) {
+                i--;
+                isaac_free(matches[idx]);
+                matches[idx] = NULL;
+                continue;
+            }
+
+            numoutput++;
+            numoutputline++;
+            fprintf(stdout, "%-*s  ", max, matches[idx]);
+            isaac_free(matches[idx]);
+            matches[idx] = NULL;
+        }
+        if (numoutputline > 0) fprintf(stdout, "\n");
+    }
+
+    return numoutput;
+}
+
+int
 remote_consolehandler(char *s)
 {
     HistEvent ev;
     int ret = 0;
 
-    /* Add command to history */
-    if (isaac_strlen(s)) history(el_hist, &ev, H_ENTER, isaac_strip(strdup(s)));
+    // Add command to history
+    if (isaac_strlen(s)) {
+        history(el_hist, &ev, H_ENTER, isaac_strip(strdup(s)));
+    }
 
     if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) && (s[4] == '\0'
             || isspace(s[4]))) {
@@ -236,134 +376,11 @@ remote_consolehandler(char *s)
     return ret;
 }
 
-void
-remote_control(char* data)
-{
-    int res;
-    char *ebuf;
-    int num = 0;
-    char filename[80] = "";
-
-    memset(&sig_flags, 0, sizeof(sig_flags));
-    signal(SIGINT, remote_quit_handler);
-    signal(SIGTERM, remote_quit_handler);
-    signal(SIGHUP, remote_quit_handler);
-
-    if (data) {
-        char prefix[] = "cli quit after ";
-        char *tmp = alloca(strlen(data) + strlen(prefix) + 1);
-        sprintf(tmp, "%s%s", prefix, data);
-        if (write(remote_cli->fd, tmp, strlen(tmp) + 1) < 0) {
-            isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
-            if (sig_flags.need_quit || sig_flags.need_quit_handler) {
-                return;
-            }
-        }
-    } else {
-        /* Get running version */
-        if (write(remote_cli->fd, "core show version", 18) < 0) {
-            isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
-            if (sig_flags.need_quit || sig_flags.need_quit_handler) {
-                return;
-            }
-        }
-    }
-
-    if (data) { /* hack to print output then exit if asterisk -rx is used */
-        struct pollfd fds;
-        fds.fd = remote_cli->fd;
-        fds.events = POLLIN;
-        fds.revents = 0;
-        while (poll(&fds, 1, 60000) > 0) {
-            char buffer[512] = "", *curline = buffer, *nextline;
-            int not_written = 1;
-
-            if (sig_flags.need_quit || sig_flags.need_quit_handler) {
-                break;
-            }
-
-            if (read(remote_cli->fd, buffer, sizeof(buffer) - 1) <= 0) {
-                break;
-            }
-
-            do {
-                if ((nextline = strchr(curline, '\n'))) {
-                    nextline++;
-                } else {
-                    nextline = strchr(curline, '\0');
-                }
-
-                /* Skip verbose lines and two first lines*/
-                if (*curline != 127) {
-                    not_written = 0;
-                    if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
-                        isaac_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
-                    }
-                }
-                curline = nextline;
-            } while (!isaac_strlen_zero(curline));
-
-            /* No non-verbose output in 60 seconds. */
-            if (not_written) {
-                break;
-            }
-        }
-        return;
-    }
-
-    if (getenv("HOME")) snprintf(filename, sizeof(filename), "%s/.isaac_history", getenv("HOME"));
-
-    if (el_hist == NULL || el == NULL) remote_el_initialize();
-
-    el_set(el, EL_GETCFN, remote_el_read_char);
-
-    if (!isaac_strlen_zero(filename)) remote_el_read_history(filename);
-
-    for (;;) {
-        ebuf = (char *) el_gets(el, &num);
-
-        if (sig_flags.need_quit || sig_flags.need_quit_handler) {
-            break;
-        }
-
-        if (!ebuf && write(1, "", 1) < 0) break;
-
-        if (!isaac_strlen_zero(ebuf)) {
-            if (ebuf[strlen(ebuf) - 1] == '\n') ebuf[strlen(ebuf) - 1] = '\0';
-            if (!remote_consolehandler(ebuf)) {
-                /* Strip preamble from output */
-                char *temp;
-                for (temp = ebuf; *temp; temp++) {
-                    if (*temp == 127) {
-                        memmove(temp, temp + 1, strlen(temp));
-                        temp--;
-                    }
-                }
-
-                res = write(remote_cli->fd, ebuf, strlen(ebuf) + 1);
-                if (res < 1) {
-                    isaac_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
-                    break;
-                }
-            }
-        }
-    }
-
-    if (isaac_strlen(filename)) {
-        remote_el_write_history(filename);
-    }
-
-    /* Clean up our memory */
-    history_end(el_hist);
-    el_end(el);
-    printf("\nDisconnected from Isaac CLI.\n");
-
-}
-
 char *
 remote_prompt(EditLine *e)
 {
     char cli_promt[50];
+    // Write application name into the prompt. Be proud!
     sprintf(cli_promt, "%s*CLI> ", APP_NAME);
     return strdup(cli_promt);
 }
@@ -371,6 +388,7 @@ remote_prompt(EditLine *e)
 void
 remote_quit_handler(int num)
 {
+    // Mark this CLI as leaving
     sig_flags.need_quit = 1;
 }
 
@@ -423,26 +441,6 @@ remote_el_initialize(void)
 }
 
 int
-remote_el_write_history(char *filename)
-{
-    HistEvent ev;
-
-    if (el_hist == NULL || el == NULL) remote_el_initialize();
-
-    return (history(el_hist, &ev, H_SAVE, filename));
-}
-
-int
-remote_el_read_history(char *filename)
-{
-    HistEvent ev = {
-            0 };
-
-    if (el_hist == NULL || el == NULL) remote_el_initialize();
-    return (history(el_hist, &ev, H_LOAD, filename));
-}
-
-int
 remote_el_read_char(EditLine *editline, char *cp)
 {
     int num_read = 0;
@@ -453,7 +451,9 @@ remote_el_read_char(EditLine *editline, char *cp)
     char buf[EL_BUF_SIZE];
 
     for (;;) {
-        if (sig_flags.need_quit || sig_flags.need_quit_handler) break;
+        if (sig_flags.need_quit) {
+            break;
+        }
 
         max = 1;
         fds[0].fd = remote_cli->fd;
@@ -475,19 +475,19 @@ remote_el_read_char(EditLine *editline, char *cp)
             if (num_read < 1) {
                 break;
             } else
-                return (num_read);
+                return num_read;
         }
         if (fds[0].revents) {
             char *tmp;
             res = read(remote_cli->fd, buf, sizeof(buf) - 1);
-            /* if the remote side disappears exit */
+            // if the remote side disappears exit
             if (res < 1) {
                 remote_quit_handler(0);
                 continue;
             }
             buf[res] = '\0';
 
-            /* Strip preamble from asynchronous events, too */
+            // Strip preamble from asynchronous events, too
             for (tmp = buf; *tmp; tmp++) {
                 if (*tmp == 127) {
                     memmove(tmp, tmp + 1, strlen(tmp));
@@ -496,7 +496,7 @@ remote_el_read_char(EditLine *editline, char *cp)
                 }
             }
 
-            /* Write over the CLI prompt */
+            // Write over the CLI prompt */
             if (!lastpos) {
                 // REALLY FIXME if (write(STDOUT_FILENO, "\r^[[0K", 5) < 0) {
                 int i;
@@ -513,14 +513,14 @@ remote_el_read_char(EditLine *editline, char *cp)
             }
             if ((res < EL_BUF_SIZE - 1) && ((buf[res - 1] == '\n') || (buf[res - 2] == '\n'))) {
                 *cp = CC_REFRESH;
-                return (1);
+                return 1;
             } else
                 lastpos = 1;
         }
     }
 
     *cp = '\0';
-    return (0);
+    return 0;
 }
 
 char **
@@ -573,4 +573,30 @@ remote_el_sort_compare(const void *i1, const void *i2)
 
     return strcasecmp(s1, s2);
 }
+
+int
+remote_el_write_history(char *filename)
+{
+    HistEvent ev;
+
+    if (el_hist == NULL || el == NULL) {
+        remote_el_initialize();
+    }
+    // Save session commands into Isaac cli history file
+    return (history(el_hist, &ev, H_SAVE, filename));
+}
+
+int
+remote_el_read_history(char *filename)
+{
+    HistEvent ev = {
+            0 };
+
+    if (el_hist == NULL || el == NULL) {
+        remote_el_initialize();
+    }
+    // Load session commands from Isaac cli history file
+    return (history(el_hist, &ev, H_LOAD, filename));
+}
+
 
