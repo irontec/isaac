@@ -18,24 +18,78 @@
  ** along with this program.  If not, see <http://www.gnu.org/licenses/>.
  **
  *****************************************************************************/
-
-#ifndef REMOTE_H_
-#define REMOTE_H_
+/**
+ * @file remote.h
+ * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
+ *
+ * @brief Functions declaration to manage client connection with Isaac CLI
+ *
+ * Most of this functions are copied or adapted from Asterisk or Astmanproxy
+ * code (or at least the idea).
+ *
+ */
+#ifndef __ISAAC_REMOTE_H_
+#define __ISAAC_REMOTE_H_
 #include <histedit.h>
 
+//! End of client completion
 #define AST_CLI_COMPLETE_EOF	"_EOF_"
+#define MAX_HISTORY_COMMAND_LENGTH 256
+#define EL_BUF_SIZE 512
 
-int
-cli_tryconnect();
-void
-cli_remotecontrol(char *exec);
-char *
-prompt(EditLine *e);
-char **
-isaac_el_strtoarr(char *buf);
-void
-__remote_quit_handler(int num);
-int
-isaac_el_sort_compare(const void *i1, const void *i2);
+struct remote_sig_flags
+{
+    unsigned int need_reload :1;
+    unsigned int need_quit :1;
+    unsigned int need_quit_handler :1;
+};
 
-#endif /* REMOTE_H_ */
+
+/**
+ * @brief Try to connect to CLI socket
+ *
+ * This function is used when isaac is invoked with -x parameter.
+ * It will check if the unix socket for CLIs exists and can connnect to it
+ *
+ * @return 0 on connect success, 1 otherwise
+ */
+extern int
+remote_tryconnect();
+
+extern int
+remote_display_match_list(char **matches, int len, int max);
+
+extern char *
+remote_complete(EditLine *editline, int ch);
+
+extern int
+remote_consolehandler(char *s);
+
+extern void
+remote_control(char* data);
+
+extern char *
+remote_prompt(EditLine *e);
+
+extern void
+remote_quit_handler(int num);
+
+extern int
+remote_el_initialize(void);
+
+extern int
+remote_el_read_char(EditLine *editline, char *cp);
+
+extern char **
+remote_el_strtoarr(char *buf);
+
+extern int
+remote_el_sort_compare(const void *i1, const void *i2);
+
+extern int
+remote_el_write_history(char *filename);
+
+extern int
+remote_el_read_history(char *filename);
+
+#endif /* __ISAAC_REMOTE_H_ */

@@ -221,8 +221,13 @@ cli_create(int fd, struct sockaddr_un sun)
     // Copy all required data to this client
     memset(cli, 0, sizeof(cli_t));
     memcpy(&cli->sun, &sun, sizeof(sun));
-    pthread_mutex_init(&cli->lock, NULL);
     cli->fd = fd;
+
+    // Initialize cli lock
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
+    pthread_mutex_init(&cli->lock, &attr);
 
     // Add client to the client list
     pthread_mutex_lock(&clilock);
@@ -1178,6 +1183,9 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
                     break;
                 case MATCH_REGEX:
                     cli_write(args->cli, "%-5s", "~");
+                    break;
+                case MATCH_REGEX_NOT:
+                    cli_write(args->cli, "%-5s", "!~");
                     break;
                 }
 

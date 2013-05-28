@@ -98,25 +98,10 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 am__mv = mv -f
-AM_V_lt = $(am__v_lt_$(V))
-am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
-am__v_lt_0 = --silent
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-AM_V_CC = $(am__v_CC_$(V))
-am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
-am__v_CC_0 = @echo "  CC    " $@;
-AM_V_at = $(am__v_at_$(V))
-am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
-am__v_at_0 = @
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-AM_V_CCLD = $(am__v_CCLD_$(V))
-am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
-am__v_CCLD_0 = @echo "  CCLD  " $@;
-AM_V_GEN = $(am__v_GEN_$(V))
-am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
-am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(app_acd_so_SOURCES) $(app_call_so_SOURCES) \
 	$(app_help_so_SOURCES) $(app_login_so_SOURCES) \
 	$(app_ping_so_SOURCES) $(app_status_so_SOURCES) \
@@ -152,7 +137,6 @@ CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
-AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
@@ -250,7 +234,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 appsdir = @isaacmoddir@
 appsCFLAGS = -I@top_srcdir@/include -fPIC -g -Wall -Werror
-appsLDFLAGS = -shared -Wl
+appsLDFLAGS = -shared -Wl,-E
 app_login_so_SOURCES = app_login.c
 app_login_so_CFLAGS = $(appsCFLAGS) 
 app_login_so_LDFLAGS = $(appsLDFLAGS) -lodbc
@@ -578,25 +562,25 @@ clean-res_luaPROGRAMS:
 	-test -z "$(res_lua_PROGRAMS)" || rm -f $(res_lua_PROGRAMS)
 app_acd.so$(EXEEXT): $(app_acd_so_OBJECTS) $(app_acd_so_DEPENDENCIES) 
 	@rm -f app_acd.so$(EXEEXT)
-	$(AM_V_CCLD)$(app_acd_so_LINK) $(app_acd_so_OBJECTS) $(app_acd_so_LDADD) $(LIBS)
+	$(app_acd_so_LINK) $(app_acd_so_OBJECTS) $(app_acd_so_LDADD) $(LIBS)
 app_call.so$(EXEEXT): $(app_call_so_OBJECTS) $(app_call_so_DEPENDENCIES) 
 	@rm -f app_call.so$(EXEEXT)
-	$(AM_V_CCLD)$(app_call_so_LINK) $(app_call_so_OBJECTS) $(app_call_so_LDADD) $(LIBS)
+	$(app_call_so_LINK) $(app_call_so_OBJECTS) $(app_call_so_LDADD) $(LIBS)
 app_help.so$(EXEEXT): $(app_help_so_OBJECTS) $(app_help_so_DEPENDENCIES) 
 	@rm -f app_help.so$(EXEEXT)
-	$(AM_V_CCLD)$(app_help_so_LINK) $(app_help_so_OBJECTS) $(app_help_so_LDADD) $(LIBS)
+	$(app_help_so_LINK) $(app_help_so_OBJECTS) $(app_help_so_LDADD) $(LIBS)
 app_login.so$(EXEEXT): $(app_login_so_OBJECTS) $(app_login_so_DEPENDENCIES) 
 	@rm -f app_login.so$(EXEEXT)
-	$(AM_V_CCLD)$(app_login_so_LINK) $(app_login_so_OBJECTS) $(app_login_so_LDADD) $(LIBS)
+	$(app_login_so_LINK) $(app_login_so_OBJECTS) $(app_login_so_LDADD) $(LIBS)
 app_ping.so$(EXEEXT): $(app_ping_so_OBJECTS) $(app_ping_so_DEPENDENCIES) 
 	@rm -f app_ping.so$(EXEEXT)
-	$(AM_V_CCLD)$(app_ping_so_LINK) $(app_ping_so_OBJECTS) $(app_ping_so_LDADD) $(LIBS)
+	$(app_ping_so_LINK) $(app_ping_so_OBJECTS) $(app_ping_so_LDADD) $(LIBS)
 app_status.so$(EXEEXT): $(app_status_so_OBJECTS) $(app_status_so_DEPENDENCIES) 
 	@rm -f app_status.so$(EXEEXT)
-	$(AM_V_CCLD)$(app_status_so_LINK) $(app_status_so_OBJECTS) $(app_status_so_LDADD) $(LIBS)
+	$(app_status_so_LINK) $(app_status_so_OBJECTS) $(app_status_so_LDADD) $(LIBS)
 res_lua.so$(EXEEXT): $(res_lua_so_OBJECTS) $(res_lua_so_DEPENDENCIES) 
 	@rm -f res_lua.so$(EXEEXT)
-	$(AM_V_CCLD)$(res_lua_so_LINK) $(res_lua_so_OBJECTS) $(res_lua_so_LDADD) $(LIBS)
+	$(res_lua_so_LINK) $(res_lua_so_OBJECTS) $(res_lua_so_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -613,131 +597,115 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/res_lua_so-res_lua.Po@am__quote@
 
 .c.o:
-@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
 @am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ $<
 
 .c.obj:
-@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
 @am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 app_acd_so-app_acd.o: app_acd.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -MT app_acd_so-app_acd.o -MD -MP -MF $(DEPDIR)/app_acd_so-app_acd.Tpo -c -o app_acd_so-app_acd.o `test -f 'app_acd.c' || echo '$(srcdir)/'`app_acd.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_acd_so-app_acd.Tpo $(DEPDIR)/app_acd_so-app_acd.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -MT app_acd_so-app_acd.o -MD -MP -MF $(DEPDIR)/app_acd_so-app_acd.Tpo -c -o app_acd_so-app_acd.o `test -f 'app_acd.c' || echo '$(srcdir)/'`app_acd.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_acd_so-app_acd.Tpo $(DEPDIR)/app_acd_so-app_acd.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_acd.c' object='app_acd_so-app_acd.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -c -o app_acd_so-app_acd.o `test -f 'app_acd.c' || echo '$(srcdir)/'`app_acd.c
 
 app_acd_so-app_acd.obj: app_acd.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -MT app_acd_so-app_acd.obj -MD -MP -MF $(DEPDIR)/app_acd_so-app_acd.Tpo -c -o app_acd_so-app_acd.obj `if test -f 'app_acd.c'; then $(CYGPATH_W) 'app_acd.c'; else $(CYGPATH_W) '$(srcdir)/app_acd.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_acd_so-app_acd.Tpo $(DEPDIR)/app_acd_so-app_acd.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -MT app_acd_so-app_acd.obj -MD -MP -MF $(DEPDIR)/app_acd_so-app_acd.Tpo -c -o app_acd_so-app_acd.obj `if test -f 'app_acd.c'; then $(CYGPATH_W) 'app_acd.c'; else $(CYGPATH_W) '$(srcdir)/app_acd.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_acd_so-app_acd.Tpo $(DEPDIR)/app_acd_so-app_acd.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_acd.c' object='app_acd_so-app_acd.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -c -o app_acd_so-app_acd.obj `if test -f 'app_acd.c'; then $(CYGPATH_W) 'app_acd.c'; else $(CYGPATH_W) '$(srcdir)/app_acd.c'; fi`
 
 app_call_so-app_call.o: app_call.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.o -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.o `test -f 'app_call.c' || echo '$(srcdir)/'`app_call.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.o -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.o `test -f 'app_call.c' || echo '$(srcdir)/'`app_call.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_call.c' object='app_call_so-app_call.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -c -o app_call_so-app_call.o `test -f 'app_call.c' || echo '$(srcdir)/'`app_call.c
 
 app_call_so-app_call.obj: app_call.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.obj -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.obj `if test -f 'app_call.c'; then $(CYGPATH_W) 'app_call.c'; else $(CYGPATH_W) '$(srcdir)/app_call.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.obj -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.obj `if test -f 'app_call.c'; then $(CYGPATH_W) 'app_call.c'; else $(CYGPATH_W) '$(srcdir)/app_call.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_call.c' object='app_call_so-app_call.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -c -o app_call_so-app_call.obj `if test -f 'app_call.c'; then $(CYGPATH_W) 'app_call.c'; else $(CYGPATH_W) '$(srcdir)/app_call.c'; fi`
 
 app_help_so-app_help.o: app_help.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -MT app_help_so-app_help.o -MD -MP -MF $(DEPDIR)/app_help_so-app_help.Tpo -c -o app_help_so-app_help.o `test -f 'app_help.c' || echo '$(srcdir)/'`app_help.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_help_so-app_help.Tpo $(DEPDIR)/app_help_so-app_help.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -MT app_help_so-app_help.o -MD -MP -MF $(DEPDIR)/app_help_so-app_help.Tpo -c -o app_help_so-app_help.o `test -f 'app_help.c' || echo '$(srcdir)/'`app_help.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_help_so-app_help.Tpo $(DEPDIR)/app_help_so-app_help.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_help.c' object='app_help_so-app_help.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -c -o app_help_so-app_help.o `test -f 'app_help.c' || echo '$(srcdir)/'`app_help.c
 
 app_help_so-app_help.obj: app_help.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -MT app_help_so-app_help.obj -MD -MP -MF $(DEPDIR)/app_help_so-app_help.Tpo -c -o app_help_so-app_help.obj `if test -f 'app_help.c'; then $(CYGPATH_W) 'app_help.c'; else $(CYGPATH_W) '$(srcdir)/app_help.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_help_so-app_help.Tpo $(DEPDIR)/app_help_so-app_help.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -MT app_help_so-app_help.obj -MD -MP -MF $(DEPDIR)/app_help_so-app_help.Tpo -c -o app_help_so-app_help.obj `if test -f 'app_help.c'; then $(CYGPATH_W) 'app_help.c'; else $(CYGPATH_W) '$(srcdir)/app_help.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_help_so-app_help.Tpo $(DEPDIR)/app_help_so-app_help.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_help.c' object='app_help_so-app_help.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_help_so_CFLAGS) $(CFLAGS) -c -o app_help_so-app_help.obj `if test -f 'app_help.c'; then $(CYGPATH_W) 'app_help.c'; else $(CYGPATH_W) '$(srcdir)/app_help.c'; fi`
 
 app_login_so-app_login.o: app_login.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -MT app_login_so-app_login.o -MD -MP -MF $(DEPDIR)/app_login_so-app_login.Tpo -c -o app_login_so-app_login.o `test -f 'app_login.c' || echo '$(srcdir)/'`app_login.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_login_so-app_login.Tpo $(DEPDIR)/app_login_so-app_login.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -MT app_login_so-app_login.o -MD -MP -MF $(DEPDIR)/app_login_so-app_login.Tpo -c -o app_login_so-app_login.o `test -f 'app_login.c' || echo '$(srcdir)/'`app_login.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_login_so-app_login.Tpo $(DEPDIR)/app_login_so-app_login.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_login.c' object='app_login_so-app_login.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -c -o app_login_so-app_login.o `test -f 'app_login.c' || echo '$(srcdir)/'`app_login.c
 
 app_login_so-app_login.obj: app_login.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -MT app_login_so-app_login.obj -MD -MP -MF $(DEPDIR)/app_login_so-app_login.Tpo -c -o app_login_so-app_login.obj `if test -f 'app_login.c'; then $(CYGPATH_W) 'app_login.c'; else $(CYGPATH_W) '$(srcdir)/app_login.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_login_so-app_login.Tpo $(DEPDIR)/app_login_so-app_login.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -MT app_login_so-app_login.obj -MD -MP -MF $(DEPDIR)/app_login_so-app_login.Tpo -c -o app_login_so-app_login.obj `if test -f 'app_login.c'; then $(CYGPATH_W) 'app_login.c'; else $(CYGPATH_W) '$(srcdir)/app_login.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_login_so-app_login.Tpo $(DEPDIR)/app_login_so-app_login.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_login.c' object='app_login_so-app_login.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -c -o app_login_so-app_login.obj `if test -f 'app_login.c'; then $(CYGPATH_W) 'app_login.c'; else $(CYGPATH_W) '$(srcdir)/app_login.c'; fi`
 
 app_ping_so-app_ping.o: app_ping.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -MT app_ping_so-app_ping.o -MD -MP -MF $(DEPDIR)/app_ping_so-app_ping.Tpo -c -o app_ping_so-app_ping.o `test -f 'app_ping.c' || echo '$(srcdir)/'`app_ping.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_ping_so-app_ping.Tpo $(DEPDIR)/app_ping_so-app_ping.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -MT app_ping_so-app_ping.o -MD -MP -MF $(DEPDIR)/app_ping_so-app_ping.Tpo -c -o app_ping_so-app_ping.o `test -f 'app_ping.c' || echo '$(srcdir)/'`app_ping.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_ping_so-app_ping.Tpo $(DEPDIR)/app_ping_so-app_ping.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_ping.c' object='app_ping_so-app_ping.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -c -o app_ping_so-app_ping.o `test -f 'app_ping.c' || echo '$(srcdir)/'`app_ping.c
 
 app_ping_so-app_ping.obj: app_ping.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -MT app_ping_so-app_ping.obj -MD -MP -MF $(DEPDIR)/app_ping_so-app_ping.Tpo -c -o app_ping_so-app_ping.obj `if test -f 'app_ping.c'; then $(CYGPATH_W) 'app_ping.c'; else $(CYGPATH_W) '$(srcdir)/app_ping.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_ping_so-app_ping.Tpo $(DEPDIR)/app_ping_so-app_ping.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -MT app_ping_so-app_ping.obj -MD -MP -MF $(DEPDIR)/app_ping_so-app_ping.Tpo -c -o app_ping_so-app_ping.obj `if test -f 'app_ping.c'; then $(CYGPATH_W) 'app_ping.c'; else $(CYGPATH_W) '$(srcdir)/app_ping.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_ping_so-app_ping.Tpo $(DEPDIR)/app_ping_so-app_ping.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_ping.c' object='app_ping_so-app_ping.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -c -o app_ping_so-app_ping.obj `if test -f 'app_ping.c'; then $(CYGPATH_W) 'app_ping.c'; else $(CYGPATH_W) '$(srcdir)/app_ping.c'; fi`
 
 app_status_so-app_status.o: app_status.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -MT app_status_so-app_status.o -MD -MP -MF $(DEPDIR)/app_status_so-app_status.Tpo -c -o app_status_so-app_status.o `test -f 'app_status.c' || echo '$(srcdir)/'`app_status.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_status_so-app_status.Tpo $(DEPDIR)/app_status_so-app_status.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -MT app_status_so-app_status.o -MD -MP -MF $(DEPDIR)/app_status_so-app_status.Tpo -c -o app_status_so-app_status.o `test -f 'app_status.c' || echo '$(srcdir)/'`app_status.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_status_so-app_status.Tpo $(DEPDIR)/app_status_so-app_status.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_status.c' object='app_status_so-app_status.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -c -o app_status_so-app_status.o `test -f 'app_status.c' || echo '$(srcdir)/'`app_status.c
 
 app_status_so-app_status.obj: app_status.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -MT app_status_so-app_status.obj -MD -MP -MF $(DEPDIR)/app_status_so-app_status.Tpo -c -o app_status_so-app_status.obj `if test -f 'app_status.c'; then $(CYGPATH_W) 'app_status.c'; else $(CYGPATH_W) '$(srcdir)/app_status.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/app_status_so-app_status.Tpo $(DEPDIR)/app_status_so-app_status.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -MT app_status_so-app_status.obj -MD -MP -MF $(DEPDIR)/app_status_so-app_status.Tpo -c -o app_status_so-app_status.obj `if test -f 'app_status.c'; then $(CYGPATH_W) 'app_status.c'; else $(CYGPATH_W) '$(srcdir)/app_status.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_status_so-app_status.Tpo $(DEPDIR)/app_status_so-app_status.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_status.c' object='app_status_so-app_status.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -c -o app_status_so-app_status.obj `if test -f 'app_status.c'; then $(CYGPATH_W) 'app_status.c'; else $(CYGPATH_W) '$(srcdir)/app_status.c'; fi`
 
 res_lua_so-res_lua.o: res_lua.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -MT res_lua_so-res_lua.o -MD -MP -MF $(DEPDIR)/res_lua_so-res_lua.Tpo -c -o res_lua_so-res_lua.o `test -f 'res_lua.c' || echo '$(srcdir)/'`res_lua.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/res_lua_so-res_lua.Tpo $(DEPDIR)/res_lua_so-res_lua.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -MT res_lua_so-res_lua.o -MD -MP -MF $(DEPDIR)/res_lua_so-res_lua.Tpo -c -o res_lua_so-res_lua.o `test -f 'res_lua.c' || echo '$(srcdir)/'`res_lua.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/res_lua_so-res_lua.Tpo $(DEPDIR)/res_lua_so-res_lua.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='res_lua.c' object='res_lua_so-res_lua.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -c -o res_lua_so-res_lua.o `test -f 'res_lua.c' || echo '$(srcdir)/'`res_lua.c
 
 res_lua_so-res_lua.obj: res_lua.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -MT res_lua_so-res_lua.obj -MD -MP -MF $(DEPDIR)/res_lua_so-res_lua.Tpo -c -o res_lua_so-res_lua.obj `if test -f 'res_lua.c'; then $(CYGPATH_W) 'res_lua.c'; else $(CYGPATH_W) '$(srcdir)/res_lua.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/res_lua_so-res_lua.Tpo $(DEPDIR)/res_lua_so-res_lua.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -MT res_lua_so-res_lua.obj -MD -MP -MF $(DEPDIR)/res_lua_so-res_lua.Tpo -c -o res_lua_so-res_lua.obj `if test -f 'res_lua.c'; then $(CYGPATH_W) 'res_lua.c'; else $(CYGPATH_W) '$(srcdir)/res_lua.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/res_lua_so-res_lua.Tpo $(DEPDIR)/res_lua_so-res_lua.Po
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='res_lua.c' object='res_lua_so-res_lua.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -c -o res_lua_so-res_lua.obj `if test -f 'res_lua.c'; then $(CYGPATH_W) 'res_lua.c'; else $(CYGPATH_W) '$(srcdir)/res_lua.c'; fi`

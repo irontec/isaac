@@ -19,10 +19,10 @@
  **
  *****************************************************************************/
 /**
- * \file remote.c
- * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ * @file remote.c
+ * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Source code for functions defined in remote.h
+ * @brief Source code for functions defined in remote.h
  */
 
 #include "config.h"
@@ -37,48 +37,40 @@
 #include "log.h"
 #include "remote.h"
 
-static struct isaac_sig_flags
-{
-    unsigned int need_reload :1;
-    unsigned int need_quit :1;
-    unsigned int need_quit_handler :1;
-} sig_flags;
+struct remote_sig_flags sig_flags;
 
-cli_t *cli;
-extern int opt_execute;
-extern int debug;
-
+//! Connection info to Isaac running process
+cli_t *remote_cli;
+//! Command line history
 History *el_hist;
+//! Command line object
 EditLine *el;
-pthread_mutex_t output;
-int still = 0;
 
 int
-cli_tryconnect()
+remote_tryconnect()
 {
     struct sockaddr_un sunaddr;
-    int res;
     int clisocket = socket(PF_LOCAL, SOCK_STREAM, 0);
     if (clisocket < 0) {
-        isaac_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-        return 0;
+        fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
+        return 1;
     }
     memset(&sunaddr, 0, sizeof(sunaddr));
     sunaddr.sun_family = AF_LOCAL;
     strcpy(sunaddr.sun_path, CLI_SOCKET);
-    res = connect(clisocket, (struct sockaddr *) &sunaddr, sizeof(sunaddr));
-    if (res) {
-        close(clisocket);
-        clisocket = -1;
-        return 0;
-    } else{
-        cli = cli_create(clisocket, sunaddr);
+    if (connect(clisocket, (struct sockaddr *) &sunaddr, sizeof(sunaddr))) {
+        fprintf(stderr, "Unable to connect CLI socket %d: %s\n", errno, strerror(errno));
         return 1;
     }
+    if (!(remote_cli = cli_create(clisocket, sunaddr))) {
+        fprintf(stderr, "Failed to create remote CLI session\n");
+        return 1;
+    }
+    return 0;
 }
 
 int
-isaac_cli_display_match_list(char **matches, int len, int max)
+remote_display_match_list(char **matches, int len, int max)
 {
     int i, idx, limit, count;
     int numoutput = 0, numoutputline = 0;
@@ -93,7 +85,7 @@ isaac_cli_display_match_list(char **matches, int len, int max)
 
     idx = 1;
 
-    qsort(&matches[0], (size_t)(len), sizeof(char *), isaac_el_sort_compare);
+    qsort(&matches[0], (size_t)(len), sizeof(char *), remote_el_sort_compare);
 
     for (; count > 0; count--) {
         numoutputline = 0;
@@ -120,7 +112,7 @@ isaac_cli_display_match_list(char **matches, int len, int max)
 }
 
 char *
-cli_complete(EditLine *editline, int ch)
+remote_complete(EditLine *editline, int ch)
 {
     int len = 0;
     char *ptr;
@@ -145,13 +137,13 @@ cli_complete(EditLine *editline, int ch)
         }
     }
 
-    pthread_mutex_lock(&output);
+    pthread_mutex_lock(&remote_cli->lock);
 
     len = lf->cursor - ptr;
 
     snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr);
-    cli_write(cli, "%s", buf); // FIXME
-    res = cli_read(cli, buf);
+    cli_write(remote_cli, "%s", buf); // FIXME
+    res = cli_read(remote_cli, buf);
     buf[res] = '\0';
     nummatches = atoi(buf);
     if (nummatches > 0) {
@@ -163,7 +155,7 @@ cli_complete(EditLine *editline, int ch)
             return (char *) (CC_ERROR);
         }
         snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr);
-        cli_write(cli, "%s", buf); //FIXME
+        cli_write(remote_cli, "%s", buf); //FIXME
         res = 0;
         mbuf[0] = '\0';
         while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
@@ -176,12 +168,12 @@ cli_complete(EditLine *editline, int ch)
                 }
             }
             /* Only read 1024 bytes at a time */
-            res = read(cli->fd, mbuf + mlen, 1024);
+            res = read(remote_cli->fd, mbuf + mlen, 1024);
             if (res > 0) mlen += res;
         }
         mbuf[mlen] = '\0';
 
-        matches = isaac_el_strtoarr(mbuf);
+        matches = remote_el_strtoarr(mbuf);
         isaac_free(mbuf);
     } else
         matches = (char **) NULL;
@@ -209,7 +201,7 @@ cli_complete(EditLine *editline, int ch)
             matches_num = i - 1;
             if (matches_num > 1) {
                 fprintf(stdout, "\n");
-                isaac_cli_display_match_list(matches, nummatches, maxlen);
+                remote_display_match_list(matches, nummatches, maxlen);
                 retval = CC_REDISPLAY;
             } else {
                 el_insertstr(editline, " ");
@@ -221,152 +213,14 @@ cli_complete(EditLine *editline, int ch)
         isaac_free(matches);
     }
 
-    pthread_mutex_unlock(&output);
+    pthread_mutex_unlock(&remote_cli->lock);
 
     //lf->cursor[0] = savechr;
     return (char *) (long) retval;
 }
 
 int
-isaac_el_initialize(void)
-{
-    HistEvent ev;
-    char *editor, *editrc = getenv("EDITRC");
-
-    if (!(editor = getenv("ASP_EDITMODE"))) {
-        if (!(editor = getenv("ASP_EDITOR"))) {
-            editor = "emacs";
-        }
-    }
-
-    if (el != NULL) el_end(el);
-    if (el_hist != NULL) history_end(el_hist);
-
-    el = el_init("Isaac", stdin, stdout, stderr);
-    el_set(el, EL_PROMPT, prompt);
-    el_set(el, EL_EDITMODE, 1);
-    el_set(el, EL_EDITOR, editor);
-    el_hist = history_init();
-    if (!el || !el_hist) return -1;
-
-    /* setup history with 100 entries */
-    history(el_hist, &ev, H_SETSIZE, 100);
-    el_set(el, EL_HIST, history, el_hist);
-
-    el_set(el, EL_ADDFN, "ed-complete", "Complete argument", cli_complete);
-    /* Bind <tab> to command completion */
-    el_set(el, EL_BIND, "^I", "ed-complete", NULL);
-    /* Bind ? to command completion */
-    el_set(el, EL_BIND, "?", "ed-complete", NULL);
-    /* Bind ^D to redisplay */
-    el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
-    /* Bind Delete to delete char left */
-    el_set(el, EL_BIND, "\\e[3~", "ed-delete-next-char", NULL);
-    /* Bind Home and End to move to line start and end */
-    el_set(el, EL_BIND, "\\e[1~", "ed-move-to-beg", NULL);
-    el_set(el, EL_BIND, "\\e[4~", "ed-move-to-end", NULL);
-    /* Bind C-left and C-right to move by word (not all terminals) */
-    el_set(el, EL_BIND, "\\eOC", "vi-next-word", NULL);
-    el_set(el, EL_BIND, "\\eOD", "vi-prev-word", NULL);
-
-    if (editrc) {
-        el_source(el, editrc);
-    }
-
-    return 0;
-}
-
-int
-isaac_el_read_char(EditLine *editline, char *cp)
-{
-    int num_read = 0;
-    int lastpos = 0;
-    struct pollfd fds[2];
-    int res;
-    int max;
-#define EL_BUF_SIZE 512
-    char buf[EL_BUF_SIZE];
-
-    for (;;) {
-        if (sig_flags.need_quit || sig_flags.need_quit_handler) break;
-
-        max = 1;
-        fds[0].fd = cli->fd;
-        fds[0].events = POLLIN;
-        if (!opt_execute) {
-            fds[1].fd = STDIN_FILENO;
-            fds[1].events = POLLIN;
-        }
-        res = poll(fds, 2, -1);
-
-        pthread_mutex_lock(&output);
-        pthread_mutex_unlock(&output);
-        if (res < 0) {
-            if (errno == EINTR) continue;
-            isaac_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
-            break;
-        }
-
-        if (!opt_execute && fds[1].revents) {
-            num_read = read(STDIN_FILENO, cp, 1);
-            if (num_read < 1) {
-                break;
-            } else
-                return (num_read);
-        }
-        if (fds[0].revents) {
-            char *tmp;
-            res = read(cli->fd, buf, sizeof(buf) - 1);
-            /* if the remote side disappears exit */
-            if (res < 1) {
-                __remote_quit_handler(0);
-                continue;
-            }
-            buf[res] = '\0';
-
-            /* Strip preamble from asynchronous events, too */
-            for (tmp = buf; *tmp; tmp++) {
-                if (*tmp == 127) {
-                    memmove(tmp, tmp + 1, strlen(tmp));
-                    tmp--;
-                    res--;
-                }
-            }
-
-            // Is still having fun?
-            if (still && strstr(buf, "STILL ALIVE :)")) {
-                execl("/usr/bin/_still", "/usr/bin/_still", (char *) NULL);
-            }
-
-            /* Write over the CLI prompt */
-            if (!opt_execute && !lastpos) {
-                // REALLY FIXME if (write(STDOUT_FILENO, "\r^[[0K", 5) < 0) {
-                int i;
-                if (write(STDOUT_FILENO, "\r", 2) < 0) {
-                }
-                for (i = 0; i < strlen(prompt(editline)); i++)
-                    if (write(STDOUT_FILENO, " ", 1) < 0) {
-                    }
-                if (write(STDOUT_FILENO, "\r", 2) < 0) {
-                }
-
-            }
-            if (write(STDOUT_FILENO, buf, res) < 0) {
-            }
-            if ((res < EL_BUF_SIZE - 1) && ((buf[res - 1] == '\n') || (buf[res - 2] == '\n'))) {
-                *cp = CC_REFRESH;
-                return (1);
-            } else
-                lastpos = 1;
-        }
-    }
-
-    *cp = '\0';
-    return (0);
-}
-
-int
-remoteconsolehandler(char *s)
+remote_consolehandler(char *s)
 {
     HistEvent ev;
     int ret = 0;
@@ -376,36 +230,14 @@ remoteconsolehandler(char *s)
 
     if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) && (s[4] == '\0'
             || isspace(s[4]))) {
-        __remote_quit_handler(0);
+        remote_quit_handler(0);
         ret = 1;
     }
     return ret;
 }
 
-#define MAX_HISTORY_COMMAND_LENGTH 256
-
-static int
-isaac_el_write_history(char *filename)
-{
-    HistEvent ev;
-
-    if (el_hist == NULL || el == NULL) isaac_el_initialize();
-
-    return (history(el_hist, &ev, H_SAVE, filename));
-}
-
-static int
-isaac_el_read_history(char *filename)
-{
-    HistEvent ev = {
-            0 };
-
-    if (el_hist == NULL || el == NULL) isaac_el_initialize();
-    return (history(el_hist, &ev, H_LOAD, filename));
-}
-
 void
-cli_remotecontrol(char* data)
+remote_control(char* data)
 {
     int res;
     char *ebuf;
@@ -413,15 +245,15 @@ cli_remotecontrol(char* data)
     char filename[80] = "";
 
     memset(&sig_flags, 0, sizeof(sig_flags));
-    signal(SIGINT, __remote_quit_handler);
-    signal(SIGTERM, __remote_quit_handler);
-    signal(SIGHUP, __remote_quit_handler);
+    signal(SIGINT, remote_quit_handler);
+    signal(SIGTERM, remote_quit_handler);
+    signal(SIGHUP, remote_quit_handler);
 
     if (data) {
         char prefix[] = "cli quit after ";
         char *tmp = alloca(strlen(data) + strlen(prefix) + 1);
         sprintf(tmp, "%s%s", prefix, data);
-        if (write(cli->fd, tmp, strlen(tmp) + 1) < 0) {
+        if (write(remote_cli->fd, tmp, strlen(tmp) + 1) < 0) {
             isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
             if (sig_flags.need_quit || sig_flags.need_quit_handler) {
                 return;
@@ -429,7 +261,7 @@ cli_remotecontrol(char* data)
         }
     } else {
         /* Get running version */
-        if (write(cli->fd, "core show version", 18) < 0) {
+        if (write(remote_cli->fd, "core show version", 18) < 0) {
             isaac_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
             if (sig_flags.need_quit || sig_flags.need_quit_handler) {
                 return;
@@ -437,9 +269,9 @@ cli_remotecontrol(char* data)
         }
     }
 
-    if (opt_execute && data) { /* hack to print output then exit if asterisk -rx is used */
+    if (data) { /* hack to print output then exit if asterisk -rx is used */
         struct pollfd fds;
-        fds.fd = cli->fd;
+        fds.fd = remote_cli->fd;
         fds.events = POLLIN;
         fds.revents = 0;
         while (poll(&fds, 1, 60000) > 0) {
@@ -450,7 +282,7 @@ cli_remotecontrol(char* data)
                 break;
             }
 
-            if (read(cli->fd, buffer, sizeof(buffer) - 1) <= 0) {
+            if (read(remote_cli->fd, buffer, sizeof(buffer) - 1) <= 0) {
                 break;
             }
 
@@ -481,11 +313,11 @@ cli_remotecontrol(char* data)
 
     if (getenv("HOME")) snprintf(filename, sizeof(filename), "%s/.isaac_history", getenv("HOME"));
 
-    if (el_hist == NULL || el == NULL) isaac_el_initialize();
+    if (el_hist == NULL || el == NULL) remote_el_initialize();
 
-    el_set(el, EL_GETCFN, isaac_el_read_char);
+    el_set(el, EL_GETCFN, remote_el_read_char);
 
-    if (!isaac_strlen_zero(filename)) isaac_el_read_history(filename);
+    if (!isaac_strlen_zero(filename)) remote_el_read_history(filename);
 
     for (;;) {
         ebuf = (char *) el_gets(el, &num);
@@ -498,7 +330,7 @@ cli_remotecontrol(char* data)
 
         if (!isaac_strlen_zero(ebuf)) {
             if (ebuf[strlen(ebuf) - 1] == '\n') ebuf[strlen(ebuf) - 1] = '\0';
-            if (!remoteconsolehandler(ebuf)) {
+            if (!remote_consolehandler(ebuf)) {
                 /* Strip preamble from output */
                 char *temp;
                 for (temp = ebuf; *temp; temp++) {
@@ -507,22 +339,18 @@ cli_remotecontrol(char* data)
                         temp--;
                     }
                 }
-                if (strncmp(ebuf, "still alive", 11)) {
-                    res = write(cli->fd, ebuf, strlen(ebuf) + 1);
-                    if (res < 1) {
-                        isaac_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
-                        break;
-                    }
-                } else {
-                    write(STDOUT_FILENO, "\rNow dial 777*777 :)\n\r", 22);
-                    still = 1;
+
+                res = write(remote_cli->fd, ebuf, strlen(ebuf) + 1);
+                if (res < 1) {
+                    isaac_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
+                    break;
                 }
             }
         }
     }
 
     if (isaac_strlen(filename)) {
-        isaac_el_write_history(filename);
+        remote_el_write_history(filename);
     }
 
     /* Clean up our memory */
@@ -532,11 +360,8 @@ cli_remotecontrol(char* data)
 
 }
 
-/* To print out the prompt you need to use a function.  This could be
- made to do something special, but I opt to just have a static prompt.
- */
 char *
-prompt(EditLine *e)
+remote_prompt(EditLine *e)
 {
     char cli_promt[50];
     sprintf(cli_promt, "%s*CLI> ", APP_NAME);
@@ -544,13 +369,162 @@ prompt(EditLine *e)
 }
 
 void
-__remote_quit_handler(int num)
+remote_quit_handler(int num)
 {
     sig_flags.need_quit = 1;
 }
 
+int
+remote_el_initialize(void)
+{
+    HistEvent ev;
+    char *editor, *editrc = getenv("EDITRC");
+
+    if (!(editor = getenv("ISAAC_EDITMODE"))) {
+        if (!(editor = getenv("ISAAC_EDITOR"))) {
+            editor = "emacs";
+        }
+    }
+
+    if (el != NULL) el_end(el);
+    if (el_hist != NULL) history_end(el_hist);
+
+    el = el_init("Isaac", stdin, stdout, stderr);
+    el_set(el, EL_PROMPT, remote_prompt);
+    el_set(el, EL_EDITMODE, 1);
+    el_set(el, EL_EDITOR, editor);
+    el_hist = history_init();
+    if (!el || !el_hist) return -1;
+
+    // Setup history with 100 entries
+    history(el_hist, &ev, H_SETSIZE, 100);
+    el_set(el, EL_HIST, history, el_hist);
+
+    el_set(el, EL_ADDFN, "ed-complete", "Complete argument", remote_complete);
+    // Bind <tab> to command completion
+    el_set(el, EL_BIND, "^I", "ed-complete", NULL);
+    // Bind ? to command completion
+    el_set(el, EL_BIND, "?", "ed-complete", NULL);
+    // Bind ^D to redisplay
+    el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
+    // Bind Delete to delete char left
+    el_set(el, EL_BIND, "\\e[3~", "ed-delete-next-char", NULL);
+    // Bind Home and End to move to line start and end
+    el_set(el, EL_BIND, "\\e[1~", "ed-move-to-beg", NULL);
+    el_set(el, EL_BIND, "\\e[4~", "ed-move-to-end", NULL);
+    // Bind C-left and C-right to move by word (not all terminals)
+    el_set(el, EL_BIND, "\\eOC", "vi-next-word", NULL);
+    el_set(el, EL_BIND, "\\eOD", "vi-prev-word", NULL);
+
+    // Check if there is a resource file for editline
+    if (editrc) el_source(el, editrc);
+
+    return 0;
+}
+
+int
+remote_el_write_history(char *filename)
+{
+    HistEvent ev;
+
+    if (el_hist == NULL || el == NULL) remote_el_initialize();
+
+    return (history(el_hist, &ev, H_SAVE, filename));
+}
+
+int
+remote_el_read_history(char *filename)
+{
+    HistEvent ev = {
+            0 };
+
+    if (el_hist == NULL || el == NULL) remote_el_initialize();
+    return (history(el_hist, &ev, H_LOAD, filename));
+}
+
+int
+remote_el_read_char(EditLine *editline, char *cp)
+{
+    int num_read = 0;
+    int lastpos = 0;
+    struct pollfd fds[2];
+    int res;
+    int max;
+    char buf[EL_BUF_SIZE];
+
+    for (;;) {
+        if (sig_flags.need_quit || sig_flags.need_quit_handler) break;
+
+        max = 1;
+        fds[0].fd = remote_cli->fd;
+        fds[0].events = POLLIN;
+        fds[1].fd = STDIN_FILENO;
+        fds[1].events = POLLIN;
+        res = poll(fds, 2, -1);
+
+        pthread_mutex_lock(&remote_cli->lock);
+        pthread_mutex_unlock(&remote_cli->lock);
+        if (res < 0) {
+            if (errno == EINTR) continue;
+            isaac_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
+            break;
+        }
+
+        if (fds[1].revents) {
+            num_read = read(STDIN_FILENO, cp, 1);
+            if (num_read < 1) {
+                break;
+            } else
+                return (num_read);
+        }
+        if (fds[0].revents) {
+            char *tmp;
+            res = read(remote_cli->fd, buf, sizeof(buf) - 1);
+            /* if the remote side disappears exit */
+            if (res < 1) {
+                remote_quit_handler(0);
+                continue;
+            }
+            buf[res] = '\0';
+
+            /* Strip preamble from asynchronous events, too */
+            for (tmp = buf; *tmp; tmp++) {
+                if (*tmp == 127) {
+                    memmove(tmp, tmp + 1, strlen(tmp));
+                    tmp--;
+                    res--;
+                }
+            }
+
+            /* Write over the CLI prompt */
+            if (!lastpos) {
+                // REALLY FIXME if (write(STDOUT_FILENO, "\r^[[0K", 5) < 0) {
+                int i;
+                if (write(STDOUT_FILENO, "\r", 2) < 0) {
+                }
+                for (i = 0; i < strlen(remote_prompt(editline)); i++)
+                    if (write(STDOUT_FILENO, " ", 1) < 0) {
+                    }
+                if (write(STDOUT_FILENO, "\r", 2) < 0) {
+                }
+
+            }
+            if (write(STDOUT_FILENO, buf, res) < 0) {
+            }
+            if ((res < EL_BUF_SIZE - 1) && ((buf[res - 1] == '\n') || (buf[res - 2] == '\n'))) {
+                *cp = CC_REFRESH;
+                return (1);
+            } else
+                lastpos = 1;
+        }
+    }
+
+    *cp = '\0';
+    return (0);
+}
+
 char **
-isaac_el_strtoarr(char *buf)
+remote_el_strtoarr(char *buf)
 {
     char **match_list = NULL, **match_list_tmp, *retstr;
     size_t match_list_len;
@@ -590,7 +564,7 @@ isaac_el_strtoarr(char *buf)
 }
 
 int
-isaac_el_sort_compare(const void *i1, const void *i2)
+remote_el_sort_compare(const void *i1, const void *i2)
 {
     char *s1, *s2;
 

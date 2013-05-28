@@ -80,9 +80,11 @@ filter_new_condition(filter_t *filter, enum condtype type, const char *hdr, cons
     va_end(ap);
 
     // Compile given values for Regex conditions
-    if (type == MATCH_REGEX && regcomp(&cond.regex, condva, REG_EXTENDED)) {
-        isaac_log(LOG_WARNING, "Unable to compile regex %s for filter\n", condva);
-        return 1;
+    if (type == MATCH_REGEX || type == MATCH_REGEX_NOT) {
+        if (regcomp(&cond.regex, condva, REG_EXTENDED | REG_NOSUB)) {
+            isaac_log(LOG_WARNING, "Unable to compile regex %s for filter\n", condva);
+            return 1;
+        }
     }
 
     // Copy condition data
@@ -263,6 +265,11 @@ check_filters_for_message(ami_message_t *msg)
                 break;
             case MATCH_REGEX:
                 if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                    matches++;
+                }
+                break;
+            case MATCH_REGEX_NOT:
+                if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
                     matches++;
                 }
                 break;

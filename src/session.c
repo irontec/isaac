@@ -325,8 +325,6 @@ session_by_id(const char *id)
     session_iter_t *iter;
     session_t *sess = NULL;
 
-    isaac_log(LOG_DEBUG, "Requested searching session id = %s\n", id);
-
     iter = session_iterator_new();
     while ((sess = session_iterator_next(iter))) {
         if (!strcmp(sess->id, id)) break;

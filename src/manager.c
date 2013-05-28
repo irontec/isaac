@@ -219,13 +219,13 @@ manager_connect(manager_t *man)
     for (;;) {
         // Try to connect to AMI
         if (connect(man->fd, (const struct sockaddr *) &man->addr, sizeof(man->addr)) == -1) {
-            isaac_log(LOG_WARNING, "Manager: Connect failed, Retrying (%d) :%s [%d]\n", r++,
-                    strerror(errno), errno);
             // Create a new socket if transport stands still
             if (errno == EISCONN || errno == ECONNABORTED || errno == ECONNREFUSED) {
                 close(man->fd);
                 man->fd = socket(AF_INET, SOCK_STREAM, 0);
             }
+            isaac_log(LOG_WARNING, "Manager: Connect failed, Retrying (%d) :%s [%d]\n", r++,
+                    strerror(errno), errno);
             sleep(1);
         } else {
             // Send login message
@@ -286,7 +286,7 @@ manager_read_thread(void *man)
             check_filters_for_message(&msg);
         } else if (res < 0) {
             // If no error, maybe we are shutting down?
-            if (!errno) break;
+            if (!config.running) break;
             // Something bad has happened with our socket :(
             isaac_log(LOG_WARNING, "Manager read error %s [%d]\n", strerror(errno), errno);
             // Try to connect again

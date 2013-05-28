@@ -43,7 +43,6 @@
 #include "remote.h"
 #include "util.h"
 
-
 //! Determines CLI behaviour
 int opt_execute = 0;
 //! Status structure, for information in some commands
@@ -71,7 +70,6 @@ usage(const char* progname)
     printf(" -v : Displays version information\n");
     printf("Start with no options to run as daemon\n");
 }
-
 
 void
 quit(int exitcode)
@@ -229,21 +227,19 @@ main(int argc, char *argv[])
     }
 
     // Check if there is an Isaac is already running
-    if (cli_tryconnect()) {
-        if (opt_remote && !opt_execute) {
-            cli_remotecontrol(NULL);
-            return 0;
-        } else if (opt_remote && opt_execute) {
-            cli_remotecontrol(xarg);
-            return 0;
+    if (opt_remote) {
+        if (remote_tryconnect() == 0) {
+            if (!opt_execute) {
+                remote_control(NULL);
+                return 0;
+            } else {
+                remote_control(xarg);
+                return 0;
+            }
         } else {
-            fprintf(stderr, "Isaac already running on %s.  Use '%s -r' to connect.\n", CLI_SOCKET,
-                    argv[0]);
-            return 1;
+            fprintf(stderr, "Unable to connect to remote Isaac (does %s exist?)\n", CLI_SOCKET);
+            exit(1);
         }
-    } else if (opt_remote) {
-        fprintf(stderr, "Unable to connect to remote Isaac (does %s exist?)\n", CLI_SOCKET);
-        exit(1);
     }
 
     // If we are not in debug mode, then fork to background
@@ -290,7 +286,7 @@ main(int argc, char *argv[])
     }
 
     // Start cli service
-    if (cli_server_start() != 0){
+    if (cli_server_start() != 0) {
         quit(EXIT_FAILURE);
     }
 

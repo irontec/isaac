@@ -94,7 +94,7 @@ struct isaac_application
  * @param execute Application entry point function
  * @return 0 in case of success, -1 if app could not be registered
  */
-int
+extern int
 application_register(const char *name, int
 (*execute)(session_t *sess, app_t *app, const char *args));
 
@@ -108,7 +108,7 @@ application_register(const char *name, int
  * @param name Application name
  * @return 0 in case of success, -1 otherwise
  */
-int
+extern int
 application_unregister(const char *name);
 
 /**
@@ -120,7 +120,7 @@ application_unregister(const char *name);
  * @param name Name of the application to serach
  * @return Application structure pointer or NULL if not found
  */
-app_t *
+extern app_t *
 application_find(const char *name);
 
 /**
@@ -129,7 +129,7 @@ application_find(const char *name);
  * Gives the number of applications registered in @ref apps list
  * @return  number of applications registered
  */
-int
+extern int
 application_count();
 
 /**
@@ -143,7 +143,7 @@ application_count();
  * @param args Extra arguments for the application
  * @return application execute function return code
  */
-int
+extern int
 application_run(app_t *app, session_t *sess, const char *args);
 
 /**
@@ -155,7 +155,7 @@ application_run(app_t *app, session_t *sess, const char *args);
  * @param apperr Generic error code
  * @return A string with the text corresponding to apper
  **/
-const char *
+extern const char *
 apperr2str(int apperr);
 
 #endif /* _ISAAC_APP_H */

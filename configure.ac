@@ -1,7 +1,7 @@
 AC_PREREQ([2.6])
 AC_INIT([Isaac], [0.1], [kaian@irontec.com])
 AM_INIT_AUTOMAKE([-Werror foreign])
-AM_SILENT_RULES([yes])
+#AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([subdir-objects])
 

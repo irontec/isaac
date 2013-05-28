@@ -85,6 +85,8 @@ enum condtype
     MATCH_START_WITH,
     //! Message must contain the condition header and value that match cond regexp
     MATCH_REGEX,
+    //! Message must not contain the condition header and value that match cond regexp
+    MATCH_REGEX_NOT,
 };
 
 /**
