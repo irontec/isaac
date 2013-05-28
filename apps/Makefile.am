@@ -44,8 +44,8 @@ res_lua_PROGRAMS = res_lua.so
 res_lua_so_SOURCES = res_lua.c
 res_lua_so_CFLAGS = $(appsCFLAGS) -I/usr/include/lua5.1 -DMODDIR=\"@isaacmoddir@\" 
 res_lua_so_LDFLAGS = $(appsLDFLAGS) -llua5.1
-res_lua_so_DATA = test.lua 
-res_lua_sodir = $(appsdir)
+#res_lua_so_DATA = test.lua 
+#res_lua_sodir = $(appsdir)
 res_luadir = $(appsdir)
 
 #app_debug_PROGRAMS = app_debug.so
