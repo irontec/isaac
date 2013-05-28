@@ -19,7 +19,7 @@
  **
  *****************************************************************************/
 /**
- * @file app_call.c
+ * @file app_help.c
  * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
  * @brief Small application that will print to the session the available actions
