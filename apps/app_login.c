@@ -50,7 +50,7 @@
  * \return 0 in case of login success, 1 otherwise
  */
 int
-login_exec(session_t *sess, const char *args)
+login_exec(session_t *sess, app_t *app, const char *args)
 {
         SQLHENV env;
         SQLHDBC dbc;
@@ -138,7 +138,7 @@ login_exec(session_t *sess, const char *args)
  * \return 0 in all cases
  */
 int
-logout_exec(session_t *sess, const char *args)
+logout_exec(session_t *sess, app_t *app, const char *args)
 {
     session_write(sess, "BYE %s\n", "Thanks for all the fish");
     session_finish(sess);

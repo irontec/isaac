@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include "app.h"
 #include "log.h"
+#include "util.h"
 
 /**
  * @brief Module configuration readed from ACDCONF file
@@ -146,13 +147,39 @@ pcloseRWE(int pid, int *rwepipe)
 }
 
 int
-acd_exec(session_t *sess, const char * const php_args[])
+acd_exec(session_t *sess, app_t *app, const char *args)
 {
     int pid;
     int out = 0;
     FILE *fd;
     char * line = NULL;
     size_t len = 0;
+    char interface[40], action[20];
+
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Get the ACD Action
+    isaac_strcpy(action, app->name);
+    sscanf(action, "ACD%s", action);
+
+    if (!strcasecmp(action, "LOGIN")) {
+        // Get Login parameteres
+        if (sscanf(args, "%s", interface) != 1) {
+            return INVALID_ARGUMENTS;
+        }
+    } else {
+        memset(interface, 0, sizeof(interface));
+    }
+
+    const char * const php_args[] = {
+            "php",
+            acd_config.phpfile,
+            interface,
+            session_get_variable(sess, "AGENT"),
+            action,
+            NULL };
 
     // Some logging
     isaac_log(LOG_DEBUG, "Spawing PHP: %s\n", php_args[1]);
@@ -171,103 +198,6 @@ acd_exec(session_t *sess, const char * const php_args[])
 
     return 0;
 }
-int
-acd_status_exec(session_t *sess, const char *args)
-{
-    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
-        return NOT_AUTHENTICATED;
-    }
-
-    const char * const php_args[] = {
-            "php",
-            acd_config.phpfile,
-            "",
-            session_get_variable(sess, "AGENT"),
-            "STATUS",
-            NULL };
-
-    return acd_exec(sess, php_args);
-}
-
-
-int
-acd_login_exec(session_t *sess, const char *args)
-{
-    char interface[40];
-
-    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
-        return NOT_AUTHENTICATED;
-    }
-
-    // Get Login parameteres
-    if (sscanf(args, "%s", interface) != 1) {
-        return INVALID_ARGUMENTS;
-    }
-
-    const char * const php_args[] = {
-            "php",
-            acd_config.phpfile,
-            interface,
-            session_get_variable(sess, "AGENT"),
-            "LOGIN",
-            NULL };
-
-    return acd_exec(sess, php_args);
-}
-
-int
-acd_logout_exec(session_t *sess, const char *args)
-{
-    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
-        return NOT_AUTHENTICATED;
-    }
-
-    const char * const php_args[] = {
-            "php",
-            acd_config.phpfile,
-            "",
-            session_get_variable(sess, "AGENT"),
-            "LOGOUT",
-            NULL };
-
-    return acd_exec(sess, php_args);
-}
-
-int
-acd_pause_exec(session_t *sess, const char *args)
-{
-    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
-        return NOT_AUTHENTICATED;
-    }
-
-    const char * const php_args[] = {
-            "php",
-            acd_config.phpfile,
-            "",
-            session_get_variable(sess, "AGENT"),
-            "PAUSE",
-            NULL };
-
-    return acd_exec(sess, php_args);
-}
-
-int
-acd_unpause_exec(session_t *sess, const char *args)
-{
-    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
-        return NOT_AUTHENTICATED;
-    }
-
-    const char * const php_args[] = {
-            "php",
-            acd_config.phpfile,
-            "",
-            session_get_variable(sess, "AGENT"),
-            "UNPAUSE",
-            NULL };
-
-    return acd_exec(sess, php_args);
-}
 
 /**
  * @brief Module load entry point
@@ -285,11 +215,11 @@ load_module()
         isaac_log(LOG_ERROR, "Failed to read app_acd config file %s\n", ACDCONF);
         return -1;
     }
-    res |= application_register("ACDStatus", acd_status_exec);
-    res |= application_register("ACDLogin", acd_login_exec);
-    res |= application_register("ACDLogout", acd_logout_exec);
-    res |= application_register("ACDPause", acd_pause_exec);
-    res |= application_register("ACDUnpause", acd_unpause_exec);
+    res |= application_register("ACDStatus", acd_exec);
+    res |= application_register("ACDLogin", acd_exec);
+    res |= application_register("ACDLogout", acd_exec);
+    res |= application_register("ACDPause", acd_exec);
+    res |= application_register("ACDUnpause", acd_exec);
     return res;
 }
 

@@ -7,7 +7,7 @@ extern app_t *apps;
 /* Application List Mutex */
 extern pthread_mutex_t apps_lock;
 
-int help_exec(session_t *sess, const char *args)
+int help_exec(session_t *sess, app_t *app, const char *args)
 {
     session_write(sess, "Available applications: ");
     pthread_mutex_lock(&apps_lock);

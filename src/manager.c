@@ -333,6 +333,7 @@ start_manager(const char* addrstr, const int port, const char* username, const c
     manager->addr.sin_port = htons(port);
     manager->username = username;
     manager->secret = secret;
+    pthread_mutex_init(&manager->lock, NULL);
 
     // Create the manager thread to do the rest of the process (Connection, Authentication,
     // and message reading)

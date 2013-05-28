@@ -202,7 +202,7 @@ status_call(filter_t *filter, ami_message_t *msg)
 }
 
 int
-status_exec(session_t *sess, const char *args)
+status_exec(session_t *sess, app_t *app, const char *args)
 {
     const char *agent = session_get_variable(sess, "AGENT");
     const char *interface = session_get_variable(sess, "INTERFACE");

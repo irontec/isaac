@@ -33,6 +33,7 @@
  * in asterisk.
  *
  */
+#include <ctype.h>
 #include <libconfig.h>
 #include "app.h"
 #include "manager.h"
@@ -294,7 +295,7 @@ call_state(filter_t *filter, ami_message_t *msg)
  * @return 0 in call cases
  */
 int
-call_exec(session_t *sess, const char *args)
+call_exec(session_t *sess, app_t *app, const char *args)
 {
     char actionid[20];
     char exten[20];
@@ -355,7 +356,7 @@ call_exec(session_t *sess, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-dtmf_exec(session_t *sess, const char *args)
+dtmf_exec(session_t *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[20];
@@ -401,7 +402,7 @@ dtmf_exec(session_t *sess, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-hangup_exec(session_t *sess, const char *args)
+hangup_exec(session_t *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[20];
@@ -443,10 +444,12 @@ hangup_exec(session_t *sess, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-hold_exec(session_t *sess, const char *args)
+hold_unhold_exec(session_t *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[20];
+    char action[10];
+    int i;
 
     // This can only be done after authentication
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -458,17 +461,23 @@ hold_exec(session_t *sess, const char *args)
         return INVALID_ARGUMENTS;
     }
 
+    // Convert action to uppercase
+    isaac_strcpy(action, app->name);
+    for (i=0; action[i]; i++){
+        action[i] = (char) toupper(action[i]);
+    }
+
     // Try to find the action info of the given actionid
     if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: SIPNotifyChan");
         message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Event: hold");
+        message_add_header(&msg, "Event: %s", ((!strcasecmp(app->name, "Hold"))?"hold":"talk"));
         manager_write_message(manager, &msg);
-        session_write(sess, "HOLDOK\n");
+        session_write(sess, "%sOK\n", action);
     } else {
-        session_write(sess, "HOLDFAILED ID NOT FOUND\n");
+        session_write(sess, "%sFAILED ID NOT FOUND\n", action);
         return -1;
     }
     return 0;
@@ -493,7 +502,8 @@ load_module()
     res |= application_register("Call", call_exec);
     res |= application_register("Hangup", hangup_exec);
     res |= application_register("Dtmf", dtmf_exec);
-    res |= application_register("Hold", hold_exec);
+    res |= application_register("Hold", hold_unhold_exec);
+    res |= application_register("Unhold", hold_unhold_exec);
     return res;
 }
 
@@ -512,5 +522,6 @@ unload_module()
     res |= application_unregister("Hangup");
     res |= application_unregister("Dtmf");
     res |= application_unregister("Hold");
+    res |= application_unregister("Unhold");
     return res;
 }

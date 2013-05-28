@@ -36,7 +36,7 @@ pthread_mutex_t apps_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 int
 application_register(const char *name, int
-(*execute)(session_t *sess, const char *args))
+(*execute)(session_t *sess, app_t *app, const char *args))
 {
     // Check if another application is registered with the same name 
     if (application_find(name)) {
@@ -122,11 +122,11 @@ application_run(app_t *app, session_t *sess, const char *args)
         return -1;
     }
     // Some debug logging
-    isaac_log(LOG_NOTICE, "[Session %s] Requested application %s [args: %s]\n", sess->id, app->name,
+    isaac_log(LOG_NOTICE, "[Session %s] Requested application %s -> args: %s\n", sess->id, app->name,
             args);
 
     // Run the application entry point
-    return app->execute(sess, args);
+    return app->execute(sess, app, args);
 }
 
 const char *

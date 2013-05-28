@@ -198,7 +198,7 @@ filter_new_cooked_condition(filter_t *filter, cond_t cond);
  * @return 0 in case of success, 1 if the filter does not allow more filters
  */
 extern int
-filter_new_condition(filter_t *filter, enum condtype type, char *hdr, const char *fmt, ...);
+filter_new_condition(filter_t *filter, enum condtype type, const char *hdr, const char *fmt, ...);
 
 /**
  * @brief Remove all conditions from the given filter

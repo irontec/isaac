@@ -74,7 +74,7 @@ struct isaac_application
     char *name;
     //! Application exec function
     int
-    (*execute)(session_t *sess, const char *args);
+    (*execute)(session_t *sess, app_t *app, const char *args);
     //! Next application in the linked list @ref apps
     app_t *next;
 };
@@ -96,7 +96,7 @@ struct isaac_application
  */
 int
 application_register(const char *name, int
-(*execute)(session_t *sess, const char *args));
+(*execute)(session_t *sess, app_t *app, const char *args));
 
 /**
  * @brief Free an application memory and remove from applications list

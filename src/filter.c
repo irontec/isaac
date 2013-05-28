@@ -68,7 +68,7 @@ filter_new_cooked_condition(filter_t *filter, cond_t cond)
 }
 
 int
-filter_new_condition(filter_t *filter, enum condtype type, char *hdr, const char *fmt, ...)
+filter_new_condition(filter_t *filter, enum condtype type, const char *hdr, const char *fmt, ...)
 {
     cond_t cond;
     char condva[MAX_CONDLEN];
