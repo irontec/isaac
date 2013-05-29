@@ -48,9 +48,8 @@ res_lua_so_LDFLAGS = $(appsLDFLAGS) -llua5.1
 #res_lua_sodir = $(appsdir)
 res_luadir = $(appsdir)
 
-#app_debug_PROGRAMS = app_debug.so
-#app_debug_so_SOURCES = app_debug.c
-#app_debug_so_CFLAGS = $(appsCFLAGS)
-#app_debug_so_LDFLAGS = $(appsLDFLAGS)
-#app_debugdir = $(appsdir)
-
+app_classic_PROGRAMS = app_classic.so
+app_classic_so_SOURCES = app_classic.c
+app_classic_so_CFLAGS = $(appsCFLAGS)
+app_classic_so_LDFLAGS = $(appsLDFLAGS)
+app_classicdir = $(appsdir)
