@@ -98,19 +98,19 @@ classic_exec(session_t *sess, app_t *app, const char *args)
     // Check the action of the message
     if (!strcasecmp(action, "Login")) {
         // Send a fake response
-        pthread_mutex_lock(&filter->sess->lock);
+        pthread_mutex_lock(&sess->lock);
         session_write(sess, "Response: Success\r\n");
         session_write(sess, "Message: Authentication accepted\r\n");
         session_write(sess, "\r\n");
-        pthread_mutex_unlock(&filter->sess->lock);
+        pthread_mutex_unlock(&sess->lock);
         filter_t *filter = filter_create(sess, FILTER_SYNC_CALLBACK, classic_print);
         filter_register(filter);
     } else if (!strcasecmp(action, "Logoff")) {
-        pthread_mutex_lock(&filter->sess->lock);
+        pthread_mutex_lock(&sess->lock);
         session_write(sess, "Response: Goodbye\r\n");
         session_write(sess, "Message: Thanks for all the fish.\r\n");
         session_write(sess, "\r\n");
-        pthread_mutex_unlock(&filter->sess->lock);
+        pthread_mutex_unlock(&sess->lock);
         session_finish(sess);
     } else {
         // Send this command directly to the manager
