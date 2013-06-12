@@ -77,6 +77,8 @@ session_create(const int fd, const struct sockaddr_in addr)
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
     pthread_mutex_init(&sess->lock, &attr);
 
+    //session_set_flag(sess, SESS_FLAG_DEBUG);
+
     // Increase session count in stats
     stats.sessioncnt++;
 

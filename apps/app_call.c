@@ -340,6 +340,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
     message_add_header(&msg, "Variable: ACTIONID=%s", actionid);
     message_add_header(&msg, "Variable: ROL=%s", call_config.rol);
     message_add_header(&msg, "Variable: CALLERID=%s", agent);
+    message_add_header(&msg, "Variable: DESTINO=%s", exten);
     message_add_header(&msg, "Variable: AUTOANSWER=%d", call_config.autoanswer);
     manager_write_message(manager, &msg);
 
