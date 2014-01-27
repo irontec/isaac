@@ -284,8 +284,12 @@ check_filters_for_message(ami_message_t *msg)
 
         // All condition matched! We have a winner!
         if (matches == cur->condcount) {
+            // We don't need to hold this lock while exec'ing the filter callback
+            pthread_mutex_unlock(&filters_mutex);
             // Exec the filter callback with the current message
             filter_exec_callback(cur, msg);
+            // Lock the filters before going on                
+            pthread_mutex_lock(&filters_mutex);
         }
 
         // Go on with the next message
