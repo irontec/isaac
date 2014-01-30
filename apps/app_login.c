@@ -33,11 +33,111 @@
  * ************************************************************************
  */
 
+#include "isaac.h"
 #include "app.h"
+#include "log.h"
 #include <stdio.h>
 #include <sql.h>
 #include <sqlext.h>
 #include <string.h>
+#include <pthread.h>
+#include <errno.h>
+
+// Share the connection between all threads. This seems to be thread-safe
+static SQLHENV env;
+static SQLHDBC dbc;
+pthread_t odbc_thread;
+int odbc_reconnect = 1;
+
+/**
+ * @brief Test if odbc connection is Up
+ * 
+ * Do a simple query to test the connection
+ * @return 1 if connection is Up, 0 otherwise
+ *
+ */
+int
+odbc_test()
+{
+    int res = 0;
+    SQLHSTMT stmt;
+    // Execute simple statement to test if 'conn' is still OK
+    SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    SQLExecDirect(stmt, (SQLCHAR*)"SELECT 1;", SQL_NTS);
+    res = SQL_SUCCEEDED(SQLFetch(stmt));
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    if (res == 0) 
+        isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
+    return res; 
+}
+
+/**
+ * @brief Connect to mysql through odbc
+ * 
+ * Initialize static connection to ivozng database
+ *
+ * @return 1 if the connection was successfully initializated,
+ *         0 otherwise
+ */
+int
+odbc_connect()
+{
+    
+    // Dont connect if we're already connected
+    if (odbc_test()) { return 1; }
+    // Allocate an environment handle
+    SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
+    // We want ODBC 3 support */
+    SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
+    // Allocate a connection handle
+    SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
+    // Connect to the DSN mydsn
+    // You will need to change mydsn to one you have created and tested */
+    SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
+            SQL_DRIVER_COMPLETE);
+    
+    // Check the connection is working
+    return odbc_test();
+}
+
+/**
+ * @brief Disconnects from odbc and free resources
+ *
+ * Free the global obdc connection structures
+ *
+ * @return 1 in all cases
+ */
+int
+odbc_disconnect()
+{
+
+    // Disconnect ODBC driver and cleanup
+    SQLDisconnect(dbc);
+    SQLFreeHandle(SQL_HANDLE_DBC, dbc);
+    SQLFreeHandle(SQL_HANDLE_ENV, env);
+    return 1;   
+}
+
+/**
+ * @brief Check ODBC connection periodically
+ *
+ * Reconnect to database if requested.
+ *
+ */
+void *
+odbc_watchdog(void *args)
+{
+    while(config.running) { 
+        if (odbc_reconnect) {
+            odbc_disconnect();
+            odbc_connect();
+            odbc_reconnect = 0;
+        }
+        usleep(400 * 1000);
+    } 
+    return NULL;
+}
+
 
 /**
  * @brief Check Login attempt against asterisk database
@@ -53,10 +153,8 @@
 int
 login_exec(session_t *sess, app_t *app, const char *args)
 {
-        SQLHENV env;
-        SQLHDBC dbc;
-        SQLHSTMT stmt;
-        SQLLEN indicator;
+    SQLHSTMT stmt;
+    SQLLEN indicator;
     int ret = 0;
     int login_num;
     char agent[100], pass[100], interface[100];
@@ -72,16 +170,6 @@ login_exec(session_t *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
 
-    // Allocate an environment handle
-    SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
-    // We want ODBC 3 support */
-    SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
-    // Allocate a connection handle
-    SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
-    // Connect to the DSN mydsn
-    // You will need to change mydsn to one you have created and tested */
-    SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
-            SQL_DRIVER_COMPLETE);
     // Allocate a statement handle
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     // Prepare login query
@@ -119,14 +207,11 @@ login_exec(session_t *sess, app_t *app, const char *args)
         session_write(sess, "LOGINFAIL\n");
         session_finish(sess);
         ret = 1;
+        if (!odbc_test()) odbc_reconnect = 1;
     }
 
-    // Disconnect ODBC driver and cleanup
-    SQLDisconnect(dbc);
-    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-    SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-    SQLFreeHandle(SQL_HANDLE_ENV, env);
-    return ret;
+   SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+   return ret;
 }
 
 /**
@@ -147,6 +232,7 @@ logout_exec(session_t *sess, app_t *app, const char *args)
     return 0;
 }
 
+
 /**
  * @brief Module load entry point
  *
@@ -161,6 +247,11 @@ load_module()
     int res = 0;
     res |= application_register("Login", login_exec);
     res |= application_register("Logout", logout_exec);
+    // Create a new thread for odbc connection
+    if (pthread_create(&odbc_thread, NULL, odbc_watchdog, NULL) != 0) {
+        isaac_log(LOG_WARNING, "Error creating odbc thread: %s\n", strerror(errno));
+        res = 0;
+    }
     return res;
 }
 
@@ -177,5 +268,6 @@ unload_module()
     int res = 0;
     res |= application_unregister("LOGIN");
     res |= application_unregister("LOGOUT");
+    res |= pthread_join(odbc_thread, NULL);
     return res;
 }
