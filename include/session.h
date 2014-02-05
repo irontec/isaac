@@ -100,6 +100,8 @@ enum session_flag
     SESS_FLAG_AUTHENTICATED = (1 << 1),
     //! Session messages will be written to CLI
     SESS_FLAG_DEBUG = (1 << 2),
+    //! Session is leaving
+    SESS_FLAG_LEAVING = (1 << 3),
 };
 
 /**

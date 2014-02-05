@@ -217,6 +217,7 @@ manage_session(void *session)
 
     // Deallocate session memory
     session_destroy(sess);
+
     // Leave the thread gracefully
     pthread_exit(NULL);
 

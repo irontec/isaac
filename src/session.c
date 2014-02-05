@@ -98,7 +98,6 @@ session_destroy(session_t *sess)
 {
     filter_t *filter;
     session_t *cur, *prev = NULL;
-    pthread_mutex_lock(&sess->lock);
     // Unregister all this connection filters
     while ((filter = filter_from_session(sess, NULL))) {
         filter_unregister(filter);
@@ -118,11 +117,9 @@ session_destroy(session_t *sess)
         cur = cur->next;
     }
     pthread_mutex_unlock(&sessionlock);
-    pthread_mutex_unlock(&sess->lock);
-    // Destroy the session mutex
-    pthread_mutex_destroy(&sess->lock);
-    // Free the session allocated memory
-    isaac_free(sess);
+
+    // Mark this session as leaving
+    session_set_flag(sess, SESS_FLAG_LEAVING);
 }
 
 /*****************************************************************************/
@@ -189,6 +186,10 @@ session_read(session_t *sess, char *msg)
         isaac_log(LOG_WARNING, "Trying to read from non-existant session. Bug!?\n");
         return -1;
     }
+
+    // If session is being shutdown, we're done
+    if (session_test_flag(sess, SESS_FLAG_LEAVING)) 
+        return -1;
 
     // Initialize the buffer
     memset(buffer, 0, sizeof(buffer));
