@@ -158,10 +158,10 @@ get_call_info_from_id(session_t *sess, const char *id)
         info = (struct app_call_info *) filter_get_userdata(filter);
         // We found the requested action!
         if (info && !strcasecmp(id, info->actionid)) {
-            break;
+            return info;
         }
     }
-    return info;
+    return NULL;
 }
 
 /**
