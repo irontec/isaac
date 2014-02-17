@@ -2,7 +2,13 @@
 
 grep isaac /etc/mon/mon.cf > /dev/null
 if [ $? -ne 0 ]; then
+    echo
     echo "Si quieres habilitar el servicio isaac en mon puedes emplear el fichero plantilla en /etc/isaac/mon.cf"
+    echo
 fi
+
+chmod +x /usr/lib/mon/mon.d/isaac.monitor  
+chmod +x /usr/lib/mon/alert.d/isaac.alert 
+chmod +x /usr/lib/mon/alert.d/isaac.upalert
 
 :
