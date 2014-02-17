@@ -601,6 +601,8 @@ am__EXEEXT_TRUE
 LTLIBOBJS
 isaacsock
 isaacpid
+isaacmonalertdir
+isaacmondir
 isaacmoddir
 isaacinitdir
 isaaccfile
@@ -6384,6 +6386,10 @@ isaacinitdir=${sysconfdir}/init.d/
 
 isaacmoddir=${libdir}/isaac
 
+isaacmondir=${libdir}/mon/mon.d
+
+isaacmonalertdir=${libdir}/mon/alert.d
+
 isaacpid=${localstatedir}/run/isaac.pid
 
 isaacsock=${localstatedir}/run/isaac.sock
@@ -6451,6 +6457,8 @@ ac_config_files="$ac_config_files src/Makefile"
 ac_config_files="$ac_config_files apps/Makefile"
 
 ac_config_files="$ac_config_files conf/Makefile"
+
+ac_config_files="$ac_config_files mon/Makefile"
 
 
 cat >confcache <<\_ACEOF
@@ -7204,6 +7212,7 @@ do
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "apps/Makefile") CONFIG_FILES="$CONFIG_FILES apps/Makefile" ;;
     "conf/Makefile") CONFIG_FILES="$CONFIG_FILES conf/Makefile" ;;
+    "mon/Makefile") CONFIG_FILES="$CONFIG_FILES mon/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5 ;;
   esac

@@ -63,6 +63,8 @@ AC_SUBST([isaacconfdir],[${sysconfdir}/isaac])
 AC_SUBST([isaaccfile],[${isaacconfdir}/isaac.conf])
 AC_SUBST([isaacinitdir],[${sysconfdir}/init.d/])
 AC_SUBST([isaacmoddir],[${libdir}/isaac])
+AC_SUBST([isaacmondir],[${libdir}/mon/mon.d])
+AC_SUBST([isaacmonalertdir],[${libdir}/mon/alert.d])
 AC_SUBST([isaacpid],[${localstatedir}/run/isaac.pid])
 AC_SUBST([isaacsock],[${localstatedir}/run/isaac.sock])
 
@@ -119,5 +121,6 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
 AC_CONFIG_FILES([apps/Makefile])
 AC_CONFIG_FILES([conf/Makefile])
+AC_CONFIG_FILES([mon/Makefile])
 
 AC_OUTPUT

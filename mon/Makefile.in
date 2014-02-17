@@ -32,7 +32,7 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-subdir = conf
+subdir = mon
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -65,8 +65,9 @@ am__nobase_list = $(am__nobase_strip_setup); \
 am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
-am__installdirs = "$(DESTDIR)$(sysconfdir)"
-DATA = $(sysconf_DATA)
+am__installdirs = "$(DESTDIR)$(alertdir)" "$(DESTDIR)$(mondir)" \
+	"$(DESTDIR)$(monconfdir)"
+DATA = $(alert_DATA) $(mon_DATA) $(monconf_DATA)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -162,12 +163,17 @@ psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
-sysconfdir = @isaacconfdir@
+sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-sysconf_DATA = isaac.conf call.conf acd.conf
+mondir = @isaacmondir@
+mon_DATA = mon.d/isaac.monitor 
+alertdir = @isaacmonalertdir@
+alert_DATA = alert.d/isaac.alert alert.d/isaac.upalert
+monconfdir = @isaacconfdir@
+monconf_DATA = mon.cf
 all: all-am
 
 .SUFFIXES:
@@ -180,9 +186,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign conf/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign mon/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign conf/Makefile
+	  $(AUTOMAKE) --foreign mon/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -201,26 +207,66 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
-install-sysconfDATA: $(sysconf_DATA)
+install-alertDATA: $(alert_DATA)
 	@$(NORMAL_INSTALL)
-	test -z "$(sysconfdir)" || $(MKDIR_P) "$(DESTDIR)$(sysconfdir)"
-	@list='$(sysconf_DATA)'; test -n "$(sysconfdir)" || list=; \
+	test -z "$(alertdir)" || $(MKDIR_P) "$(DESTDIR)$(alertdir)"
+	@list='$(alert_DATA)'; test -n "$(alertdir)" || list=; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(sysconfdir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(sysconfdir)" || exit $$?; \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(alertdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(alertdir)" || exit $$?; \
 	done
 
-uninstall-sysconfDATA:
+uninstall-alertDATA:
 	@$(NORMAL_UNINSTALL)
-	@list='$(sysconf_DATA)'; test -n "$(sysconfdir)" || list=; \
+	@list='$(alert_DATA)'; test -n "$(alertdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	test -n "$$files" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(sysconfdir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(sysconfdir)" && rm -f $$files
+	echo " ( cd '$(DESTDIR)$(alertdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(alertdir)" && rm -f $$files
+install-monDATA: $(mon_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(mondir)" || $(MKDIR_P) "$(DESTDIR)$(mondir)"
+	@list='$(mon_DATA)'; test -n "$(mondir)" || list=; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(mondir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(mondir)" || exit $$?; \
+	done
+
+uninstall-monDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(mon_DATA)'; test -n "$(mondir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	test -n "$$files" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(mondir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(mondir)" && rm -f $$files
+install-monconfDATA: $(monconf_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(monconfdir)" || $(MKDIR_P) "$(DESTDIR)$(monconfdir)"
+	@list='$(monconf_DATA)'; test -n "$(monconfdir)" || list=; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(monconfdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(monconfdir)" || exit $$?; \
+	done
+
+uninstall-monconfDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(monconf_DATA)'; test -n "$(monconfdir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	test -n "$$files" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(monconfdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(monconfdir)" && rm -f $$files
 tags: TAGS
 TAGS:
 
@@ -262,7 +308,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(sysconfdir)"; do \
+	for dir in "$(DESTDIR)$(alertdir)" "$(DESTDIR)$(mondir)" "$(DESTDIR)$(monconfdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -310,13 +356,13 @@ info: info-am
 
 info-am:
 
-install-data-am:
+install-data-am: install-alertDATA install-monDATA install-monconfDATA
 
 install-dvi: install-dvi-am
 
 install-dvi-am:
 
-install-exec-am: install-sysconfDATA
+install-exec-am:
 
 install-html: install-html-am
 
@@ -354,20 +400,23 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-sysconfDATA
+uninstall-am: uninstall-alertDATA uninstall-monDATA \
+	uninstall-monconfDATA
 
 .MAKE: install-am install-strip
 
 .PHONY: all all-am check check-am clean clean-generic distclean \
 	distclean-generic distdir dvi dvi-am html html-am info info-am \
-	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip install-sysconfDATA installcheck installcheck-am \
+	install install-alertDATA install-am install-data \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-man install-monDATA \
+	install-monconfDATA install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
 	installdirs maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-generic pdf pdf-am ps ps-am uninstall \
-	uninstall-am uninstall-sysconfDATA
+	uninstall-alertDATA uninstall-am uninstall-monDATA \
+	uninstall-monconfDATA
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

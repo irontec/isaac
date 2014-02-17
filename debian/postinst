@@ -1,0 +1,9 @@
+#!/bin/bash
+
+grep isaac /etc/mon/mon.cf > /dev/null
+if [ $? -ne 0 ]; then
+    echo "Si quieres habilitar el servicio isaac en mon puedes emplear"
+    echo "el fichero plantilla en /etc/isaac/mon.cf"
+fi
+
+:

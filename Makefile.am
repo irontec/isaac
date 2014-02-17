@@ -1,1 +1,1 @@
-SUBDIRS = src apps conf
+SUBDIRS = src apps conf mon
