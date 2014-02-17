@@ -37,6 +37,9 @@
 #define _ISAAC_APP_H
 #include "session.h"
 
+/* Define the actionid Length */
+#define ACTIONID_LEN  128
+
 /** 
  * @brief Common exit codes for applications.
  *

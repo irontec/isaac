@@ -40,7 +40,7 @@ int print_queue_end(filter_t *filter, ami_message_t *msg)
 
 int queuestatus_exec(session_t *sess, const char *args)
 {
-    char actionid[20];
+    char actionid[ACTIONID_LEN];
 
     // Generate a random Hash
     srand(time(NULL));

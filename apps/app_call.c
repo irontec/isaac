@@ -67,7 +67,7 @@ struct app_call_config
 struct app_call_info
 {
     //! Unique ID supplied during CALL action
-    char actionid[20];
+    char actionid[ACTIONID_LEN];
     //! Filter for capturing the events of Dialed channels
     filter_t *callfilter;
     //! Filter for capturing the events of agent channel
@@ -298,7 +298,7 @@ call_state(filter_t *filter, ami_message_t *msg)
 int
 call_exec(session_t *sess, app_t *app, const char *args)
 {
-    char actionid[20];
+    char actionid[ACTIONID_LEN];
     char exten[20];
 
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -362,7 +362,7 @@ int
 dtmf_exec(session_t *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
-    char actionid[20];
+    char actionid[ACTIONID_LEN];
     char digit[20];
 
     // This can only be done after authentication
@@ -409,7 +409,7 @@ int
 hangup_exec(session_t *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
-    char actionid[20];
+    char actionid[ACTIONID_LEN];
 
     // This can only be done after authentication
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -452,7 +452,7 @@ int
 hold_unhold_exec(session_t *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
-    char actionid[20];
+    char actionid[ACTIONID_LEN];
     char action[10];
     int i;
 
