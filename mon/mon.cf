@@ -1,0 +1,10 @@
+#isaac
+        service isaac
+        interval 45s
+        monitor isaac.monitor
+        period wd {Mon-Sun}
+        alertevery 1m
+        alertafter 2
+        alert isaac.alert
+        upalert isaac.upalert
+        numalerts 10

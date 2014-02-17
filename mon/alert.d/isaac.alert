@@ -1,0 +1,26 @@
+#!/bin/bash 
+
+logger -t mon.isaac -p local7.error "[MON] Ejecutando isaac.alert"
+
+AHORA=$(date +"%Y-%m-%d %H:%M:%S")
+LOGFILE=$(date +"%Y-%m-%d-%H%M%S")
+LOGPATH="/var/log/mon"
+PGREP="isaac"
+
+top -Sbcn 1 -p `pgrep $PGREP -d ','` > $LOGPATH/isaac-$LOGFILE.alert
+echo "" >> $LOGPATH/isaac-$LOGFILE.alert
+
+# El reinicio en si:
+/usr/bin/sudo -u root killall -11 isaac   
+/usr/bin/sudo -u root /etc/init.d/isaac stop
+sleep 1
+/usr/bin/sudo -u root /etc/init.d/isaac start
+
+
+# Alerta via MAIL:
+echo "WARNING: $(hostname) CORE isaac Dead $AHORA - Restarteado" | mail -s "Mon ALERT en $(hostname)" striketeam@irontec.com
+
+# LOGUEAR:
+logger -t mon.isaac -p local7.error "[MON][`basename $0`] Finalizando isaac-core.alert"
+exit 0
+

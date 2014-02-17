@@ -1,0 +1,92 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+"""
+Isaac monitor script for Mon. It does the following checks:
+    * Check if Isaac process exists
+    * Check if we can connect to 6238 TCP port 
+    * Check if we get a response for a PING request
+"""
+
+# Script Imports
+import sys
+import os
+import commands
+import socket
+import syslog
+import ConfigParser as cfgparser
+
+isaac_bind_addr = "127.0.0.1"
+isaac_bind_port = 6238
+
+isaac_config = "/etc/isaac/isaac.conf"        # Asterisk config file
+
+"""*************************************************************************
+"  log() - Logs messages to Syslog
+"      severity - syslog level 
+"    msg      - message to log
+"
+*************************************************************************"""
+def log(severity, msg):
+    syslog.openlog("mon.isaac", syslog.LOG_NDELAY, syslog.LOG_LOCAL7)
+    syslog.syslog(severity, msg)
+    syslog.closelog()
+
+
+"""*************************************************************************
+"  main() - Do isaac checks
+"
+*************************************************************************"""
+def main():
+    ## Check if Isaac process is running
+    try:
+        ast_pid = commands.getoutput("pgrep -x isaac")            # Match isaac exactly
+    except os.error:
+        log(syslog.LOG_ERR, "[MON] Isaac process not found")
+        ast_pid = ''            
+    except:
+        log(syslog.LOG_ERR, "[MON] Uncaught exception checking  proccess %s" % sys.exc_info()[0])
+    
+    if ast_pid == '':
+        log(syslog.LOG_ERR, "[MON] Isaac process is not running")
+        sys.exit(1)
+    
+
+    ## Check if Isaac can handle PING request
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((isaac_bind_addr, isaac_bind_port ))
+        sock.settimeout(20)
+        # Receive the welcome banner 
+        sock.recv(256)
+        # Send OPTIONS message
+        sock.send("PING\n")
+        # Expect response (An error probably)
+        sock.recv(256)
+        # If no expcetion has been found by now, we assume everything
+        # is fine, so, close socket and leave
+    except socket.error:
+        log(syslog.LOG_ERR, "[MON] Couldn't connect to Isaac port")
+        sys.exit(1)
+    except socket.timeout, msg:
+        log(syslog.LOG_ERR, "[MON] Timeout to our PING request")
+        sys.exit(1)
+    except:
+        log(syslog.LOG_ERR, "[MON] Uncaught exception sending PING request: %s" % sys.exc_info()[0])
+        sys.exit(1)
+    finally:
+        sock.close()
+
+    # Just tell everyone you've been working
+    log(syslog.LOG_NOTICE, "[MON] All core checks done.")
+    sys.exit(0)
+
+"""*************************************************************************
+" init_point - wrapper for main() function
+"
+*************************************************************************"""
+if __name__ == "__main__":
+    main()
+
+
+
