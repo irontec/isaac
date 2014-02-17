@@ -1,4 +1,5 @@
 #!/bin/bash
+
 logger -t mon.isaac -p local7.info "[MON] Starting isaac.upalert"
 AHORA=$(date +"%Y-%m-%d %H:%M:%S")
 echo "OK: El servicio de isaac ha sido restablecido a las $AHORA en el servidor $(hostname)." |mail -s "Mon ALERT OK en $(hostname)" striketeam@irontec.com

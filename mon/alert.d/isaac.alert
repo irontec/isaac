@@ -1,5 +1,6 @@
 #!/bin/bash 
 
+
 logger -t mon.isaac -p local7.error "[MON] Ejecutando isaac.alert"
 
 AHORA=$(date +"%Y-%m-%d %H:%M:%S")

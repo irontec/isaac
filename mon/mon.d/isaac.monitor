@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+
 """
 Isaac monitor script for Mon. It does the following checks:
     * Check if Isaac process exists
