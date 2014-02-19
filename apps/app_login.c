@@ -47,7 +47,6 @@
 static SQLHENV env;
 static SQLHDBC dbc;
 pthread_t odbc_thread;
-int odbc_reconnect = 1;
 
 /**
  * @brief Test if odbc connection is Up
@@ -66,8 +65,6 @@ odbc_test()
     SQLExecDirect(stmt, (SQLCHAR*)"SELECT 1;", SQL_NTS);
     res = SQL_SUCCEEDED(SQLFetch(stmt));
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-    if (res == 0) 
-        isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
     return res; 
 }
 
@@ -97,7 +94,11 @@ odbc_connect()
             SQL_DRIVER_COMPLETE);
     
     // Check the connection is working
-    return odbc_test();
+    if(odbc_test()) {
+        isaac_log(LOG_NOTICE, "Successfully connected to 'asterisk' database through ODBC\n");
+        return 1;
+    }
+    return 0;
 }
 
 /**
@@ -127,14 +128,17 @@ odbc_disconnect()
 void *
 odbc_watchdog(void *args)
 {
+
+    odbc_connect();
     while(config.running) { 
-        if (odbc_reconnect) {
+        if (!odbc_test()) {
+            isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
             odbc_disconnect();
             odbc_connect();
-            odbc_reconnect = 0;
         }
-        usleep(400 * 1000);
+        sleep(3);
     } 
+    odbc_disconnect();
     return NULL;
 }
 
@@ -207,7 +211,6 @@ login_exec(session_t *sess, app_t *app, const char *args)
         session_write(sess, "LOGINFAIL\n");
         session_finish(sess);
         ret = 1;
-        if (!odbc_test()) odbc_reconnect = 1;
     }
 
    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
