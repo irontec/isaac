@@ -102,6 +102,8 @@ enum session_flag
     SESS_FLAG_DEBUG = (1 << 2),
     //! Session is leaving
     SESS_FLAG_LEAVING = (1 << 3),
+    //! Session has been started from localhost
+    SESS_FLAG_LOCAL = (1 << 4),
 };
 
 /**

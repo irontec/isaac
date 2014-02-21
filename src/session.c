@@ -64,7 +64,17 @@ session_create(const int fd, const struct sockaddr_in addr)
     }
 
     // Initialize session fields
-    sprintf(sess->id, "%d", last_sess_id++);
+    if (addr.sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
+        // Local session, this does not count as a session
+        session_set_flag(sess, SESS_FLAG_LOCAL);
+        // Special ID for this sessions
+        sprintf(sess->id, "%s", "local");
+    } else {
+        // Create a new session id 
+        sprintf(sess->id, "%d", last_sess_id++);
+        // Increase session count in stats
+        stats.sessioncnt++;
+    }
     sess->fd = fd;
     sess->addr = addr;
     sess->flags = 0x00;
@@ -78,9 +88,6 @@ session_create(const int fd, const struct sockaddr_in addr)
     pthread_mutex_init(&sess->lock, &attr);
 
     //session_set_flag(sess, SESS_FLAG_DEBUG);
-
-    // Increase session count in stats
-    stats.sessioncnt++;
 
     // Add it to the begining of session list
     pthread_mutex_lock(&sessionlock);
