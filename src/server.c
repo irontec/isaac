@@ -179,7 +179,9 @@ manage_session(void *session)
     // Store the connection time
     sess->last_cmd_time = isaac_tvnow();
 
-    isaac_log(LOG_VERBOSE, "[Session %s] Received connection from %s [ID %ld].\n", sess->id, sess->addrstr, TID);
+    if (!session_test_flag(session, SESS_FLAG_LOCAL)) 
+        isaac_log(LOG_DEBUG, "[Session %s] Received connection from %s [ID %ld].\n", sess->id, sess->addrstr, TID);
+
     // Write the welcome banner
     if (session_write(sess, "%s/%s\n", APP_LNAME, APP_VERSION) == -1) {
         isaac_log(LOG_ERROR, "Error sending welcome banner.");
@@ -213,7 +215,8 @@ manage_session(void *session)
     }
 
     // Connection closed, Thanks all for the fish
-    isaac_log(LOG_VERBOSE, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
+    if (!session_test_flag(session, SESS_FLAG_LOCAL)) 
+        isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
 
     // Deallocate session memory
     session_destroy(sess);

@@ -63,6 +63,13 @@ session_create(const int fd, const struct sockaddr_in addr)
         return NULL;
     }
 
+    sess->fd = fd;
+    sess->addr = addr;
+    sess->flags = 0x00;
+    sess->varcount = 0;
+    memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
+    sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
+
     // Initialize session fields
     if (addr.sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
         // Local session, this does not count as a session
@@ -75,12 +82,6 @@ session_create(const int fd, const struct sockaddr_in addr)
         // Increase session count in stats
         stats.sessioncnt++;
     }
-    sess->fd = fd;
-    sess->addr = addr;
-    sess->flags = 0x00;
-    sess->varcount = 0;
-    memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
-    sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
 
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);

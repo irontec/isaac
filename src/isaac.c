@@ -143,6 +143,8 @@ read_config(const char *cfile)
                     isaac_strcpy(config.listenaddr, config_setting_get_string(sett));
                 } else if (!strcasecmp(settname, "port")) {
                     config.listenport = config_setting_get_int(sett);
+                } else if (!strcasecmp(settname, "hidelocal")) {
+                    config.hidelocal = config_setting_get_int(sett);
                 }
             }
         } else if (!strcasecmp(catname, "log")) {
