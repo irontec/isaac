@@ -127,6 +127,7 @@ accept_connections(void *sock)
     socklen_t clilen;
     session_t *sess;
     pthread_attr_t attr;
+    int keepalive = 1;
 
     // Give some feedback about us
     isaac_log(LOG_VERBOSE, "Launched server thread [ID %ld].\n", TID);
@@ -146,6 +147,13 @@ accept_connections(void *sock)
         if ((sess = session_create(clifd, cliaddr)) == NULL) {
             isaac_log(LOG_WARNING, "Unable to create a new session\n");
             continue;
+        }
+
+        if (config.keepalive) {
+            // Set keepalive in this client socket
+            if(setsockopt(clifd, SOL_SOCKET, SO_KEEPALIVE, &keepalive , sizeof(keepalive)) == -1) {
+                isaac_log(LOG_ERROR, "Error setting keepalive on socket %d: %s\n", clifd, strerror(errno));
+            }
         }
 
         // Create a new thread for this client and manage its connection

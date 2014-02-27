@@ -1038,6 +1038,7 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
     cli_write(args->cli, "\nServer settings\n----------------------\n");
     cli_write(args->cli, "   %-20s: %s\n", "Address", config.listenaddr);
     cli_write(args->cli, "   %-20s: %d\n", "Port", config.listenport);
+    cli_write(args->cli, "   %-20s: %d\n", "Keep-Alive", config.keepalive);
     cli_write(args->cli, "   %-20s: %d\n", "Processed sessions", stats.sessioncnt);
     cli_write(args->cli, "   %-20s: %d\n", "Hide local sessions", config.hidelocal);
     cli_write(args->cli, "\n\n");

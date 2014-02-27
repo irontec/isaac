@@ -55,6 +55,7 @@ struct isaac_cfg
     char listenaddr[18];
     int listenport;
     int hidelocal;
+    int keepalive;
     int logtype;
     int loglevel;
     char logfile[256];

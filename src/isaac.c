@@ -145,6 +145,8 @@ read_config(const char *cfile)
                     config.listenport = config_setting_get_int(sett);
                 } else if (!strcasecmp(settname, "hidelocal")) {
                     config.hidelocal = config_setting_get_int(sett);
+                } else if (!strcasecmp(settname, "keepalive")) {
+                    config.keepalive = config_setting_get_int(sett);
                 }
             }
         } else if (!strcasecmp(catname, "log")) {
