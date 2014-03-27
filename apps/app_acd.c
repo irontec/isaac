@@ -147,10 +147,10 @@ popenRWE(int *rwepipe, const char *exe, const char * const argv[])
 static int
 pcloseRWE(int pid, int *rwepipe)
 {
-    int rc, status;
+    int status;
     close(*rwepipe);
     kill(pid, SIGQUIT);
-    rc = waitpid(pid, &status, 0);
+    waitpid(pid, &status, 0);
     return status;
 }
 

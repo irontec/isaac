@@ -163,12 +163,17 @@ int
 filter_exec_callback(filter_t *filter, ami_message_t *msg)
 {
     int oneshot = filter->oneshot;
+    int ret = 1;
 
     // Depending on callback type
     switch (filter->cbtype) {
     case FILTER_SYNC_CALLBACK:
         // Invoke callback right now!
-        if (filter->callback) return filter->callback(filter, msg);
+        if (filter->callback) {
+            isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n", 
+                filter->sess->id, filter, (oneshot)?"(oneshot)":"");
+            ret = filter->callback(filter, msg);
+        }
         break;
     default:
         // Add the callback to the scheduller
@@ -178,7 +183,7 @@ filter_exec_callback(filter_t *filter, ami_message_t *msg)
 
     // If the filter is marked for only triggering once, unregister it
     if (oneshot) filter_unregister(filter);
-    return 1;
+    return ret;
 }
 
 void

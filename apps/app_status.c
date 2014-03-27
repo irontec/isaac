@@ -53,6 +53,8 @@ struct app_status_info
     char plat[20];
     //! CallerID num of the incoming call
     char clidnum[20];
+    //! UniqueID from incoming call
+    char uniqueid[20];
     //! Attended transfer State (See Asterisk Call states)
     int  xfer_state;
     //! Agent to which this call is being transfered
@@ -214,22 +216,33 @@ status_print(filter_t *filter, ami_message_t *msg)
     session_t *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
 
+
+    // CallStatus response
+    if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "UserEvent") ||
+        !isaac_strcmp(event, "Hangup") || !isaac_strcmp(event, "Transfer")) {
+        session_write(sess, "EXTERNALCALLSTATUS ");
+        if (session_get_variable(sess, "STATUSWUID")) 
+            session_write(sess, "%s ", info->uniqueid);
+        session_write(sess, "%s ", info->plat);
+        session_write(sess, "%s ", info->clidnum);
+    }
+
     // Send ExternalCallStatus message depending on received event
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "UserEvent")) {
         // Print status message depending on Channel Status
         if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "5")) {
-            session_write(sess, "EXTERNALCALLSTATUS %s %s RINGING\n", info->plat, info->clidnum);
+            session_write(sess, "RINGING\n");
         } else if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "6")) {
-            session_write(sess, "EXTERNALCALLSTATUS %s %s ANSWERED\n", info->plat, info->clidnum);
+            session_write(sess, "ANSWERED\n");
         }
     } else if (!isaac_strcmp(event, "Hangup")) {
         // Queue call has finished for this agent
-        session_write(sess, "EXTERNALCALLSTATUS %s %s HANGUP\n", info->plat, info->clidnum);
+        session_write(sess, "HANGUP\n");
         // We dont expect more info about this filter, it's safe to unregister it here
         filter_unregister(filter);
     } else if (!isaac_strcmp(event, "Transfer")) {
         // Queue call has been transfered
-        session_write(sess, "EXTERNALCALLSTATUS %s %s TRANSFERED\n", info->plat, info->clidnum);
+        session_write(sess, "TRANSFERED\n");
         if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Attended")) {
             // At this point, we know the agent is transfering the call to another agent
             // But we still dont have the target channel nor even the transfer state (Att, SemiAtt..)
@@ -272,14 +285,11 @@ status_print(filter_t *filter, ami_message_t *msg)
 int
 status_call(filter_t *filter, ami_message_t *msg)
 {
+    struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
+
     // Get the interesting channel name, we will fetch the rest of the messages
     // that match that ID
     const char *dest = message_get_header(msg, "Destination");
-
-    // Initialize application info
-    struct app_status_info *info = malloc(sizeof(struct app_status_info));
-    isaac_strcpy(info->plat, message_get_header(msg, "CallerIDName"));
-    isaac_strcpy(info->clidnum, message_get_header(msg, "CallerIDNum"));
 
     // Register a Filter for notifying this call
     filter_t *callfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_print);
@@ -290,6 +300,38 @@ status_call(filter_t *filter, ami_message_t *msg)
 
     return 0;
 }
+
+/**
+ * @brief Get Incoming call UniqueID from __TOUCH_MONITOR variable
+ *
+ */
+int
+status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
+    char value[100]; 
+    char plat[20], clidnum[20], agent[20], uniqueid[20];
+
+    // Copy __TOUCH_MONITOR value
+    isaac_strcpy(value, message_get_header(msg, "Value"));
+
+    if(sscanf(value, "\"%[^-]-%[^-]-%[^-]-%[^-\"]\"", plat, clidnum, agent, uniqueid)) {
+        // Initialize application info
+        struct app_status_info *info = malloc(sizeof(struct app_status_info));
+        isaac_strcpy(info->plat, plat);
+        isaac_strcpy(info->clidnum, clidnum);
+        isaac_strcpy(info->uniqueid, uniqueid);
+
+        filter_t *channelfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_call);
+        filter_new_condition(channelfilter, MATCH_EXACT , "Event", "Dial");
+        filter_new_condition(channelfilter, MATCH_EXACT , "SubEvent", "Begin");
+        filter_new_condition(channelfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Channel"));
+        filter_set_userdata(channelfilter, (void*) info);
+        filter_register_oneshot(channelfilter);
+    }
+    return 0;
+}
+
+
+
 
 /**
  * @brief Status command callback
@@ -321,12 +363,20 @@ status_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Register a Filter to get All generated channels for
-    filter_t *channelfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_call);
-    filter_new_condition(channelfilter, MATCH_EXACT, "Event", "Dial");
-    filter_new_condition(channelfilter, MATCH_EXACT, "SubEvent", "Begin");
+    filter_t *channelfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_incoming_uniqueid);
+    filter_new_condition(channelfilter, MATCH_EXACT , "Event", "VarSet");
+    filter_new_condition(channelfilter, MATCH_EXACT , "Variable", "__TOUCH_MONITOR");
     filter_new_condition(channelfilter, MATCH_START_WITH, "Channel", "Local/%s@agentes", agent, interface);
     filter_register(channelfilter);
-    session_write(sess, "STATUSOK Agent %s status will be printed.\n", agent);
+
+    // Check with uniqueid mode
+    if (args && !strncasecmp(args, "WUID", 4)) {
+        session_set_variable(sess, "STATUSWUID", "1");        
+        session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID info).\n", agent);
+    } else {
+        session_write(sess, "STATUSOK Agent %s status will be printed.\n", agent);
+    }
+
 
     session_set_variable(sess, "APPSTATUS", "1");
 

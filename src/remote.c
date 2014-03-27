@@ -215,12 +215,11 @@ remote_complete(EditLine *editline, int ch)
     int nummatches = 0;
     char **matches;
     int retval = CC_ERROR;
-    char buf[2048], savechr;
+    char buf[2048];
     int res;
 
     LineInfo *lf = (LineInfo *) el_line(editline);
 
-    savechr = *(char *) lf->cursor;
     *(char *) lf->cursor = '\0';
     ptr = (char *) lf->cursor;
     if (ptr) {
@@ -247,7 +246,6 @@ remote_complete(EditLine *editline, int ch)
         int mlen = 0, maxmbuf = 2048;
         /* Start with a 2048 byte buffer */
         if (!(mbuf = (char*) malloc(maxmbuf))) {
-            //lf->cursor[0] = savechr;
             return (char *) (CC_ERROR);
         }
         snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr);
@@ -259,7 +257,6 @@ remote_complete(EditLine *editline, int ch)
                 // Every step increment buffer 1024 bytes
                 maxmbuf += 1024;
                 if (!(mbuf = realloc(mbuf, maxmbuf))) {
-                    //FIXME lf->cursor[0] = savechr;
                     return (char *) (CC_ERROR);
                 }
             }
@@ -311,7 +308,6 @@ remote_complete(EditLine *editline, int ch)
 
     pthread_mutex_unlock(&remote_cli->lock);
 
-    //lf->cursor[0] = savechr;
     return (char *) (long) retval;
 }
 
@@ -447,7 +443,6 @@ remote_el_read_char(EditLine *editline, char *cp)
     int lastpos = 0;
     struct pollfd fds[2];
     int res;
-    int max;
     char buf[EL_BUF_SIZE];
 
     for (;;) {
@@ -455,7 +450,6 @@ remote_el_read_char(EditLine *editline, char *cp)
             break;
         }
 
-        max = 1;
         fds[0].fd = remote_cli->fd;
         fds[0].events = POLLIN;
         fds[1].fd = STDIN_FILENO;

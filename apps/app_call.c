@@ -34,6 +34,7 @@
  *
  */
 #include <ctype.h>
+#include <time.h>
 #include <libconfig.h>
 #include "app.h"
 #include "manager.h"
@@ -56,6 +57,8 @@ struct app_call_config
     char rol[20];
     //! Autoanswer flag. Does not work in all terminals.
     int autoanswer;
+    //! File recorded path
+    char record_path[512];
 } call_config;
 
 /**
@@ -74,6 +77,8 @@ struct app_call_info
     filter_t *ofilter;
     //! Filter for capturing the events of remote channel
     filter_t *dfilter;
+    //! Original call destiny
+    char destiny[50];
     //! Agent Channel UniqueID
     char ouid[50];
     //! Remote Channel UniqueID
@@ -99,7 +104,7 @@ read_call_config(const char *cfile)
 {
     config_t cfg;
     const char *value;
-    long int intvalue;
+    int intvalue;
 
     // Initialize configuration
     config_init(&cfg);
@@ -128,6 +133,12 @@ read_call_config(const char *cfile)
     if (config_lookup_int(&cfg, "originate.autoanswer", &intvalue) == CONFIG_TRUE) {
         call_config.autoanswer = intvalue;
     }
+
+    // Filepat to store the recordings
+    if (config_lookup_string(&cfg, "record.filepath", &value) == CONFIG_TRUE) {
+        strcpy(call_config.record_path, value);
+    }
+
     // Dealloc libconfig structure
     config_destroy(&cfg);
 
@@ -313,7 +324,8 @@ call_exec(session_t *sess, app_t *app, const char *args)
     // Initialize application info
     struct app_call_info *info = malloc(sizeof(struct app_call_info));
     memset(info, 0, sizeof(struct app_call_info));
-    strcpy(info->actionid, actionid);
+    isaac_strcpy(info->actionid, actionid);
+    isaac_strcpy(info->destiny, exten);
 
     // Register a Filter to get Generated Channel
     info->callfilter = filter_create(sess, FILTER_SYNC_CALLBACK, call_state);
@@ -489,6 +501,107 @@ hold_unhold_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
+ * @brief Record action entry point
+ *
+ * Record action will start MixMonitor on given channel and will
+ * set some variables for record post processing (in h extension).
+ *
+ * @param sess Session rnuning this application
+ * @param app The application structure
+ * @param args Hangup action args "ActionID" and "UniqueID"
+ * @return 0 if the call is found, -1 otherwise
+ */
+int
+record_exec(session_t *sess, app_t *app, const char *args)
+{
+    struct app_call_info *info;
+    char actionid[ACTIONID_LEN];
+    char filename[128];
+    time_t timer;
+    char timestr[25];
+    struct tm* tm_info;
+
+    // This can only be done after authentication
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Get Hangup parameteres
+    if (sscanf(args, "%s %s", actionid, filename) != 2) {
+        return INVALID_ARGUMENTS;
+    }
+
+    // Try to find the action info of the given actionid
+    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: MixMonitor");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "File: %s/%s.wav", call_config.record_path, filename);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->ouid);
+        message_add_header(&msg, "Value: CC");
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->ouid);
+        message_add_header(&msg, "Value: on-demand_ISAAC");
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->ouid);
+        message_add_header(&msg, "Value: %s", session_get_variable(sess, "AGENT"));
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->ouid);
+        message_add_header(&msg, "Value: %s", info->destiny);
+        manager_write_message(manager, &msg);
+
+        time(&timer);
+        tm_info = localtime(&timer);
+        strftime(timestr, 25, "%Y:%m:%d_%H:%M:%S", tm_info);
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->ouid);
+        message_add_header(&msg, "Value: %s", timestr);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->ouid);
+        message_add_header(&msg, "Value: %s", call_config.record_path);
+        manager_write_message(manager, &msg);
+        
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->ouid);
+        message_add_header(&msg, "Value: %s.wav", filename);
+        manager_write_message(manager, &msg);
+
+        session_write(sess, "RECORDOK\n");
+    } else {
+        session_write(sess, "RECORDFAILED ID NOT FOUND\n");
+        return -1;
+    }
+    return 0;
+}
+
+
+/**
  * @brief Module load entry point
  *
  * Load module configuration and applications
@@ -509,6 +622,7 @@ load_module()
     res |= application_register("Dtmf", dtmf_exec);
     res |= application_register("Hold", hold_unhold_exec);
     res |= application_register("Unhold", hold_unhold_exec);
+    res |= application_register("Record", record_exec);
     return res;
 }
 
@@ -528,5 +642,6 @@ unload_module()
     res |= application_unregister("Dtmf");
     res |= application_unregister("Hold");
     res |= application_unregister("Unhold");
+    res |= application_unregister("Record");
     return res;
 }
