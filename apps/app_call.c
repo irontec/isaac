@@ -104,7 +104,7 @@ read_call_config(const char *cfile)
 {
     config_t cfg;
     const char *value;
-    int intvalue;
+    long int intvalue;
 
     // Initialize configuration
     config_init(&cfg);
