@@ -234,18 +234,18 @@ status_print(filter_t *filter, ami_message_t *msg)
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "UserEvent")) {
         // Print status message depending on Channel Status
         if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "5")) {
-            sprintf(statusevent + strlen(statusevent), "RINGING\n");
+            sprintf(statusevent + strlen(statusevent), "RINGING\r\n");
         } else if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "6")) {
-            sprintf(statusevent + strlen(statusevent), "ANSWERED\n");
+            sprintf(statusevent + strlen(statusevent), "ANSWERED\r\n");
         }
     } else if (!isaac_strcmp(event, "Hangup")) {
         // Queue call has finished for this agent
-        sprintf(statusevent + strlen(statusevent), "HANGUP\n");
+        sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
         // We dont expect more info about this filter, it's safe to unregister it here
         filter_unregister(filter);
     } else if (!isaac_strcmp(event, "Transfer")) {
         // Queue call has been transfered
-        sprintf(statusevent + strlen(statusevent), "TRANSFERED\n");
+        sprintf(statusevent + strlen(statusevent), "TRANSFERED\r\n");
         if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Attended")) {
             // At this point, we know the agent is transfering the call to another agent
             // But we still dont have the target channel nor even the transfer state (Att, SemiAtt..)
@@ -366,7 +366,7 @@ status_exec(session_t *sess, app_t *app, const char *args)
 
     // Check we havent run this application before
     if (session_get_variable(sess, "APPSTATUS")) {
-        session_write(sess, "STATUSOK Already showing status for this agent.\n");
+        session_write(sess, "STATUSOK Already showing status for this agent.\r\n");
         return 0;
     }
 
@@ -380,9 +380,9 @@ status_exec(session_t *sess, app_t *app, const char *args)
     // Check with uniqueid mode
     if (args && !strncasecmp(args, "WUID", 4)) {
         session_set_variable(sess, "STATUSWUID", "1");        
-        session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID info).\n", agent);
+        session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID info).\r\n", agent);
     } else {
-        session_write(sess, "STATUSOK Agent %s status will be printed.\n", agent);
+        session_write(sess, "STATUSOK Agent %s status will be printed.\r\n", agent);
     }
 
 

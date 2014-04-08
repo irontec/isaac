@@ -213,13 +213,13 @@ call_state(filter_t *filter, ami_message_t *msg)
         // Print status message dpending on Hangup Cause
         const char *cause = message_get_header(msg, "Cause");
         if (!strcasecmp(cause, "0") || !strcasecmp(cause, "21")) {
-            session_write(filter->sess, "CALLSTATUS %s %s ERROR\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s ERROR\r\n", info->actionid, from);
         } else if (!strcasecmp(cause, "16")) {
-            session_write(filter->sess, "CALLSTATUS %s %s HANGUP\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s HANGUP\r\n", info->actionid, from);
         } else if (!strcasecmp(cause, "17")) {
-            session_write(filter->sess, "CALLSTATUS %s %s BUSY\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s BUSY\r\n", info->actionid, from);
         } else {
-            session_write(filter->sess, "CALLSTATUS %s %s UNKOWNHANGUP %s\n", info->actionid, from,
+            session_write(filter->sess, "CALLSTATUS %s %s UNKOWNHANGUP %s\r\n", info->actionid, from,
                     cause);
         }
 
@@ -227,17 +227,17 @@ call_state(filter_t *filter, ami_message_t *msg)
         filter_unregister(filter);
     } else if (!strcasecmp(event, "MusicOnHold")) {
         if (!strcasecmp(message_get_header(msg, "State"), "Start")) {
-            session_write(filter->sess, "CALLSTATUS %s %s HOLD\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s HOLD\r\n", info->actionid, from);
         } else {
-            session_write(filter->sess, "CALLSTATUS %s %s UNHOLD\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s UNHOLD\r\n", info->actionid, from);
         }
     } else if (!strcasecmp(event, "Newstate")) {
         // Print status message depending on Channel Status
         const char *state = message_get_header(msg, "ChannelState");
         if (!strcasecmp(state, "5")) {
-            session_write(filter->sess, "CALLSTATUS %s %s RINGING\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s RINGING\r\n", info->actionid, from);
         } else if (!strcasecmp(state, "6")) {
-            session_write(filter->sess, "CALLSTATUS %s %s ANSWERED\n", info->actionid, from);
+            session_write(filter->sess, "CALLSTATUS %s %s ANSWERED\r\n", info->actionid, from);
         }
     } else if (!strcasecmp(event, "VarSet")) {
         const char *varvalue = message_get_header(msg, "Value");
@@ -245,7 +245,7 @@ call_state(filter_t *filter, ami_message_t *msg)
 
         // Progress event on cellphones
         if (!strcasecmp(varvalue, "SIP 183 Session Progress")) {
-            session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\n", info->actionid, to);
+            session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\r\n", info->actionid, to);
         }
 
         // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
@@ -260,7 +260,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             filter_register(info->ofilter);
 
             // Tell the client the channel is going on!
-            session_write(filter->sess, "CALLSTATUS %s AGENT STARTING\n", info->actionid);
+            session_write(filter->sess, "CALLSTATUS %s AGENT STARTING\r\n", info->actionid);
 
             // Remove this filter, we have the uniqueID
             filter_unregister(info->callfilter);
@@ -279,7 +279,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         filter_register(info->dfilter);
 
         // Say we have the remote channel
-        session_write(filter->sess, "CALLSTATUS %s REMOTE STARTING\n", info->actionid);
+        session_write(filter->sess, "CALLSTATUS %s REMOTE STARTING\r\n", info->actionid);
     }
 
     return 0;
@@ -396,9 +396,9 @@ dtmf_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Channel: %s", info->dchannel);
         message_add_header(&msg, "Digit: %s", digit);
         manager_write_message(manager, &msg);
-        session_write(sess, "DTMFOK\n");
+        session_write(sess, "DTMFOK\r\n");
     } else {
-        session_write(sess, "DTMFFAILED ID NOT FOUND\n");
+        session_write(sess, "DTMFFAILED ID NOT FOUND\r\n");
         return -1;
     }
     return 0;
@@ -440,9 +440,9 @@ hangup_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Action: Hangup");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         manager_write_message(manager, &msg);
-        session_write(sess, "HANGUPOK\n");
+        session_write(sess, "HANGUPOK\r\n");
     } else {
-        session_write(sess, "HANGUPFAILED ID NOT FOUND\n");
+        session_write(sess, "HANGUPFAILED ID NOT FOUND\r\n");
         return -1;
     }
     return 0;
@@ -492,9 +492,9 @@ hold_unhold_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Event: %s", ((!strcasecmp(app->name, "Hold"))?"hold":"talk"));
         manager_write_message(manager, &msg);
-        session_write(sess, "%sOK\n", action);
+        session_write(sess, "%sOK\r\n", action);
     } else {
-        session_write(sess, "%sFAILED ID NOT FOUND\n", action);
+        session_write(sess, "%sFAILED ID NOT FOUND\r\n", action);
         return -1;
     }
     return 0;
@@ -592,9 +592,9 @@ record_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Value: %s.wav", filename);
         manager_write_message(manager, &msg);
 
-        session_write(sess, "RECORDOK\n");
+        session_write(sess, "RECORDOK\r\n");
     } else {
-        session_write(sess, "RECORDFAILED ID NOT FOUND\n");
+        session_write(sess, "RECORDFAILED ID NOT FOUND\r\n");
         return -1;
     }
     return 0;

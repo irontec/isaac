@@ -106,7 +106,7 @@ stop_server()
 
     iter = session_iterator_new();
     while ((sess = session_iterator_next(iter))) {
-        session_write(sess, "BYE Isaac has been stoped.\n");
+        session_write(sess, "BYE Isaac has been stoped.\r\n");
         session_finish(sess);
     }
     session_iterator_destroy(iter);
@@ -191,7 +191,7 @@ manage_session(void *session)
         isaac_log(LOG_DEBUG, "[Session %s] Received connection from %s [ID %ld].\n", sess->id, sess->addrstr, TID);
 
     // Write the welcome banner
-    if (session_write(sess, "%s/%s\n", APP_LNAME, APP_VERSION) == -1) {
+    if (session_write(sess, "%s/%s\r\n", APP_LNAME, APP_VERSION) == -1) {
         isaac_log(LOG_ERROR, "Error sending welcome banner.");
         return NULL;
     }
@@ -206,15 +206,15 @@ manage_session(void *session)
                 // Run the application
                 if ((ret = application_run(app, session, args)) != 0) {
                     // If a generic error has occurred write it to the client
-                    if (ret > 100) session_write(sess, "ERROR %s\n", apperr2str(ret));
+                    if (ret > 100) session_write(sess, "ERROR %s\r\n", apperr2str(ret));
                 }
             } else {
                 // What? Me no understand
-                session_write(sess, "%s\n", apperr2str(UNKOWN_ACTION));
+                session_write(sess, "%s\r\n", apperr2str(UNKOWN_ACTION));
             }
         } else {
             // A message must have at least... one word
-            session_write(sess, "%s\n", apperr2str(INVALID_FORMAT));
+            session_write(sess, "%s\r\n", apperr2str(INVALID_FORMAT));
         }
         // Clean the buffers for the next run
         memset(action, 0, sizeof(action));

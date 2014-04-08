@@ -14,7 +14,7 @@ struct QueueAppInfo
 
 int print_queue_status(filter_t *filter, ami_message_t *msg)
 {
-    session_write(filter->sess, "QUEUEPARAMS %s %s %s\n",
+    session_write(filter->sess, "QUEUEPARAMS %s %s %s\r\n",
             message_get_header(msg, "Queue"),
             message_get_header(msg, "Strategy"),
             message_get_header(msg, "Calls"));
@@ -22,7 +22,7 @@ int print_queue_status(filter_t *filter, ami_message_t *msg)
 
 int print_queue_member(filter_t *filter, ami_message_t *msg)
 {
-    session_write(filter->sess, "QUEUEMEMBER %s %s %s\n",
+    session_write(filter->sess, "QUEUEMEMBER %s %s %s\r\n",
             message_get_header(msg, "Queue"),
             message_get_header(msg, "Name"),
             message_get_header(msg, "Paused"));
@@ -30,7 +30,7 @@ int print_queue_member(filter_t *filter, ami_message_t *msg)
 
 int print_queue_end(filter_t *filter, ami_message_t *msg)
 {
-    session_write(filter->sess, "QUEUESTATUS END\n");
+    session_write(filter->sess, "QUEUESTATUS END\r\n");
 
     struct QueueAppInfo *info = (struct QueueAppInfo *) filter->app_info;
     filter_unregister(info->paramfilter);

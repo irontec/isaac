@@ -165,7 +165,7 @@ login_exec(session_t *sess, app_t *app, const char *args)
 
     // If session is already authenticated, show an error
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
-        session_write(sess, "ALREADY LOGGED IN\n");
+        session_write(sess, "ALREADY LOGGED IN\r\n");
         return -1;
     }
 
@@ -202,13 +202,13 @@ login_exec(session_t *sess, app_t *app, const char *args)
         sprintf(agent, "%d", login_num);
         session_set_variable(sess, "AGENT", agent);
         // Send a success message
-        session_write(sess, "LOGINOK Welcome back %s %s\n", agent, interface);
+        session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
         ret = 0;
     } else {
         // Login failed. This mark should not be required because we're closing the connection
         session_clear_flag(sess, SESS_FLAG_AUTHENTICATED);
         // Send the Login failed message and close connection
-        session_write(sess, "LOGINFAIL\n");
+        session_write(sess, "LOGINFAIL\r\n");
         session_finish(sess);
         ret = 1;
     }
@@ -230,7 +230,7 @@ login_exec(session_t *sess, app_t *app, const char *args)
 int
 logout_exec(session_t *sess, app_t *app, const char *args)
 {
-    session_write(sess, "BYE %s\n", "Thanks for all the fish");
+    session_write(sess, "BYE %s\r\n", "Thanks for all the fish");
     session_finish(sess);
     return 0;
 }

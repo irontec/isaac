@@ -60,7 +60,7 @@ int help_exec(session_t *sess, app_t *app, const char *args)
         session_write(sess, "%s ", cur->name);
         cur = cur->next;
     }
-    session_write(sess, "\n");
+    session_write(sess, "\r\n");
     pthread_mutex_unlock(&apps_lock);
     return 0;
 }

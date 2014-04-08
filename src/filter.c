@@ -227,7 +227,7 @@ filter_print_message(filter_t *filter, ami_message_t *msg)
 {
     // Only for debuging purposes
     // Write a dump version of AMI message back to the session
-    return session_write(filter->sess, "%s\n", message_to_text(msg));
+    return session_write(filter->sess, "%s\r\n", message_to_text(msg));
 }
 
 int

@@ -198,7 +198,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
     // Open file input descriptor and read the php script output
     fd = fdopen(out, "r");
     if (getline(&line, &len, fd) != -1) {
-        session_write(sess, "%s", line);
+        session_write(sess, "%s\r\n", line);
     }
     // Stops spawned php
     pcloseRWE(pid, &out);

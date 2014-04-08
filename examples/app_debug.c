@@ -7,7 +7,7 @@
 
 int debug_message(filter_t *filter, ami_message_t *msg)
 {
-    session_write(filter->sess, "%s\n", message_to_text(msg));
+    session_write(filter->sess, "%s\r\n", message_to_text(msg));
 }
 
 int debug_exec(session_t *sess, const char *args)
@@ -16,7 +16,7 @@ int debug_exec(session_t *sess, const char *args)
     filter_register(filter_create(sess, FILTER_SYNC_CALLBACK, debug_message));
 
     // Some feedback
-    session_write(sess, "DEBUG ENABLED\n");
+    session_write(sess, "DEBUG ENABLED\r\n");
 }
 
 int classic_message(filter_t *filter, ami_message_t *msg)
@@ -34,7 +34,7 @@ int classic_exec(session_t *sess, const char *args)
     filter_register(filter_create(sess, FILTER_SYNC_CALLBACK, classic_message));
 
     // Some feedback
-    session_write(sess, "CLASSIC MODE ENABLED\n");
+    session_write(sess, "CLASSIC MODE ENABLED\r\n");
 }
 
 int load_module()

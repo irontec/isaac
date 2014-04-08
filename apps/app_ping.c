@@ -47,7 +47,7 @@ ping_exec(session_t *sess, app_t *app, const char *args)
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
-    session_write(sess, "PONG\n");
+    session_write(sess, "PONG\r\n");
     return 0;
 }
 
