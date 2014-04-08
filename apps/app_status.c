@@ -215,34 +215,37 @@ status_print(filter_t *filter, ami_message_t *msg)
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
     session_t *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
+    char statusevent[256];
 
+    // Initialize response string
+    memset(statusevent, 0, sizeof(statusevent));
 
     // CallStatus response
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "UserEvent") ||
         !isaac_strcmp(event, "Hangup") || !isaac_strcmp(event, "Transfer")) {
-        session_write(sess, "EXTERNALCALLSTATUS ");
+        sprintf(statusevent, "EXTERNALCALLSTATUS ");
         if (session_get_variable(sess, "STATUSWUID")) 
-            session_write(sess, "%s ", info->uniqueid);
-        session_write(sess, "%s ", info->plat);
-        session_write(sess, "%s ", info->clidnum);
+            sprintf(statusevent + strlen(statusevent), "%s ", info->uniqueid);
+        sprintf(statusevent + strlen(statusevent), "%s ", info->plat);
+        sprintf(statusevent + strlen(statusevent), "%s ", info->clidnum);
     }
 
     // Send ExternalCallStatus message depending on received event
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "UserEvent")) {
         // Print status message depending on Channel Status
         if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "5")) {
-            session_write(sess, "RINGING\n");
+            sprintf(statusevent + strlen(statusevent), "RINGING\n");
         } else if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "6")) {
-            session_write(sess, "ANSWERED\n");
+            sprintf(statusevent + strlen(statusevent), "ANSWERED\n");
         }
     } else if (!isaac_strcmp(event, "Hangup")) {
         // Queue call has finished for this agent
-        session_write(sess, "HANGUP\n");
+        sprintf(statusevent + strlen(statusevent), "HANGUP\n");
         // We dont expect more info about this filter, it's safe to unregister it here
         filter_unregister(filter);
     } else if (!isaac_strcmp(event, "Transfer")) {
         // Queue call has been transfered
-        session_write(sess, "TRANSFERED\n");
+        sprintf(statusevent + strlen(statusevent), "TRANSFERED\n");
         if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Attended")) {
             // At this point, we know the agent is transfering the call to another agent
             // But we still dont have the target channel nor even the transfer state (Att, SemiAtt..)
@@ -267,6 +270,11 @@ status_print(filter_t *filter, ami_message_t *msg)
             filter_set_userdata(blindxferfilter, (void*) info);
             filter_register_oneshot(blindxferfilter);
         }
+    }
+
+    // Check if there's something to write to client
+    if (strlen(statusevent)) {
+        session_write(sess, statusevent);
     }
     return 0;
 }
