@@ -172,7 +172,7 @@ session_write(session_t *sess, const char *fmt, ...)
     }
 
     // Write the built message into the socket
-    if ((wbytes = send(sess->fd, msgva, strlen(msgva) + 1, 0) == -1)) {
+    if ((wbytes = send(sess->fd, msgva, strlen(msgva), 0) == -1)) {
         isaac_log(LOG_WARNING, "Unable to write on session %s: %s\n", sess->id, strerror(errno));
     }
     pthread_mutex_unlock(&sess->lock);
