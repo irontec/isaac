@@ -50,7 +50,7 @@
 struct app_status_info
 {
     //! Platform of the Queue receiving the call
-    char plat[20];
+    char plat[120];
     //! CallerID num of the incoming call
     char clidnum[20];
     //! UniqueID from incoming call
@@ -316,7 +316,7 @@ status_call(filter_t *filter, ami_message_t *msg)
 int
 status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     char value[100]; 
-    char plat[20], clidnum[20], agent[20], uniqueid[20];
+    char plat[120], clidnum[20], agent[20], uniqueid[20];
 
     // Copy __TOUCH_MONITOR value
     isaac_strcpy(value, message_get_header(msg, "Value"));
