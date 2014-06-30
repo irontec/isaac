@@ -52,7 +52,7 @@ enum apperr
     //! Session has not been authenticated
     NOT_AUTHENTICATED = 101,
     //! Session requested an application not registered
-    UNKOWN_ACTION = 102,
+    UNKNOWN_ACTION = 102,
     //! Application requires different number arguments
     INVALID_ARGUMENTS = 103,
     //! Application requires different arguments types

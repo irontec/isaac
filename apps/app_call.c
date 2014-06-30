@@ -54,7 +54,7 @@ struct app_call_config
     //! Context to originate the second leg during CALL action
     char outcontext[80];
     //! Custom variable of Ivoz-NG to determine the context behaviour
-    char rol[20];
+    //char rol[20];
     //! Autoanswer flag. Does not work in all terminals.
     int autoanswer;
     //! File recorded path
@@ -126,9 +126,10 @@ read_call_config(const char *cfile)
         strcpy(call_config.outcontext, value);
     }
     // Rol variable (AGENTE, USUARIO) for incontext dialplan process
-    if (config_lookup_string(&cfg, "originate.rol", &value) == CONFIG_TRUE) {
-        strcpy(call_config.rol, value);
-    }
+    //if (config_lookup_string(&cfg, "originate.rol", &value) == CONFIG_TRUE) {
+    //    strcpy(call_config.rol, value);
+    //}
+
     // Autoanwer variable (0,1) for incontext dialplan process
     if (config_lookup_int(&cfg, "originate.autoanswer", &intvalue) == CONFIG_TRUE) {
         call_config.autoanswer = intvalue;
@@ -252,6 +253,8 @@ call_state(filter_t *filter, ami_message_t *msg)
         if (!strcasecmp(varname, "ACTIONID")) {
             // Get the UniqueId from the agent channel
             strcpy(info->ouid, message_get_header(msg, "UniqueID"));
+            // Store provisional Channel Name
+            strcpy(info->ochannel, message_get_header(msg, "Channel"));
 
             // Register a Filter for the agent statusthe custom manager application PlayDTMF.
             info->ofilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
@@ -262,8 +265,6 @@ call_state(filter_t *filter, ami_message_t *msg)
             // Tell the client the channel is going on!
             session_write(filter->sess, "CALLSTATUS %s AGENT STARTING\r\n", info->actionid);
 
-            // Remove this filter, we have the uniqueID
-            filter_unregister(info->callfilter);
         }
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
             "Begin")) {
@@ -333,10 +334,11 @@ call_exec(session_t *sess, app_t *app, const char *args)
     filter_new_condition(info->callfilter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(info->callfilter, MATCH_EXACT, "Value", actionid);
     filter_set_userdata(info->callfilter, (void*) info);
-    filter_register(info->callfilter);
+    filter_register_oneshot(info->callfilter);
 
     // Get the logged agent
     const char *agent = session_get_variable(sess, "AGENT");
+    const char *rol = session_get_variable(sess, "ROL");
 
     // Construct a Request message
     ami_message_t msg;
@@ -350,7 +352,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
     message_add_header(&msg, "Exten: %s", exten);
     message_add_header(&msg, "Async: 1");
     message_add_header(&msg, "Variable: ACTIONID=%s", actionid);
-    message_add_header(&msg, "Variable: ROL=%s", call_config.rol);
+    message_add_header(&msg, "Variable: ROL=%s", rol);
     message_add_header(&msg, "Variable: CALLERID=%s", agent);
     message_add_header(&msg, "Variable: DESTINO=%s", exten);
     message_add_header(&msg, "Variable: AUTOANSWER=%d", call_config.autoanswer);
@@ -434,13 +436,17 @@ hangup_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Try to find the action info of the given actionid
-    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
-        message_add_header(&msg, "Action: Hangup");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        manager_write_message(manager, &msg);
-        session_write(sess, "HANGUPOK\r\n");
+    if ((info = get_call_info_from_id(sess, actionid))) { 
+        if (!isaac_strlen_zero(info->ochannel)) {
+            ami_message_t msg;
+            memset(&msg, 0, sizeof(ami_message_t));
+            message_add_header(&msg, "Action: Hangup");
+            message_add_header(&msg, "Channel: %s", info->ochannel);
+            manager_write_message(manager, &msg);
+            session_write(sess, "HANGUPOK\r\n");
+        } else {
+            session_write(sess, "HANGUPFAILED CHANNEL NOT FOUND\r\n");
+        }
     } else {
         session_write(sess, "HANGUPFAILED ID NOT FOUND\r\n");
         return -1;

@@ -106,7 +106,7 @@ stop_server()
 
     iter = session_iterator_new();
     while ((sess = session_iterator_next(iter))) {
-        session_write(sess, "BYE Isaac has been stoped.\r\n");
+        session_write(sess, "BYE Isaac has been stopped.\r\n");
         session_finish(sess);
     }
     session_iterator_destroy(iter);
@@ -210,7 +210,7 @@ manage_session(void *session)
                 }
             } else {
                 // What? Me no understand
-                session_write(sess, "%s\r\n", apperr2str(UNKOWN_ACTION));
+                session_write(sess, "%s\r\n", apperr2str(UNKNOWN_ACTION));
             }
         } else {
             // A message must have at least... one word

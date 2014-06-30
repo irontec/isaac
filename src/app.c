@@ -136,8 +136,8 @@ apperr2str(int apperr)
     switch (apperr) {
     case NOT_AUTHENTICATED:
         return "SESSION NOT AUTHENTICATED";
-    case UNKOWN_ACTION:
-        return "UNKOWN ACTION";
+    case UNKNOWN_ACTION:
+        return "UNKNOWN ACTION";
     case INVALID_ARGUMENTS:
         return "INVALID ARGUMENT LIST";
     case INVALID_FORMAT:

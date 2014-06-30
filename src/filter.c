@@ -164,6 +164,13 @@ filter_exec_callback(filter_t *filter, ami_message_t *msg)
 {
     int oneshot = filter->oneshot;
     int ret = 1;
+    session_t *sess = filter->sess;
+
+    // If the debug is enabled in this session, print a message to
+    // connected CLIs. LOG_NONE will not reach any file or syslog.
+    if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
+       filter_print_message(filter, msg);  
+    }
 
     // Depending on callback type
     switch (filter->cbtype) {
@@ -227,7 +234,7 @@ filter_print_message(filter_t *filter, ami_message_t *msg)
 {
     // Only for debuging purposes
     // Write a dump version of AMI message back to the session
-    return session_write(filter->sess, "%s\r\n", message_to_text(msg));
+    return session_write(filter->sess, "D> %s\r\n", message_to_text(msg));
 }
 
 int

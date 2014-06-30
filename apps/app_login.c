@@ -161,7 +161,7 @@ login_exec(session_t *sess, app_t *app, const char *args)
     SQLLEN indicator;
     int ret = 0;
     int login_num;
-    char agent[100], pass[100], interface[100];
+    char agent[100], pass[100], interface[100], module[24];
 
     // If session is already authenticated, show an error
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -177,7 +177,7 @@ login_exec(session_t *sess, app_t *app, const char *args)
     // Allocate a statement handle
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     // Prepare login query
-    SQLPrepare(stmt, (SQLCHAR *) "SELECT interface from karma_usuarios as k"
+    SQLPrepare(stmt, (SQLCHAR *) "SELECT interface, modulo from karma_usuarios as k"
         " INNER JOIN shared_agents_interfaces as s"
         " ON k.login_num = s.agent"
         " WHERE login_num = ?"
@@ -193,14 +193,23 @@ login_exec(session_t *sess, app_t *app, const char *args)
 
     // Check if we fetched something
     if (SQL_SUCCEEDED(SQLFetch(stmt))) {
-        // Get the agent's interface
+        // Get the agent's interface and module
         SQLGetData(stmt, 1, SQL_C_CHAR, interface, sizeof(interface), &indicator);
+        SQLGetData(stmt, 2, SQL_C_CHAR, module, sizeof(interface), &indicator);
+
         session_set_variable(sess, "INTERFACE", interface);
         // Login successful!! Mark this session as authenticated
         session_set_flag(sess, SESS_FLAG_AUTHENTICATED);
         // Store the login agent for later use
         sprintf(agent, "%d", login_num);
         session_set_variable(sess, "AGENT", agent);
+
+        if (!strcasecmp(module, "c")) {
+            session_set_variable(sess, "ROL", "AGENTE");
+        } else {
+            session_set_variable(sess, "ROL", "USUARIO");
+        }
+
         // Send a success message
         session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
         ret = 0;
