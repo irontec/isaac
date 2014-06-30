@@ -240,6 +240,10 @@ call_state(filter_t *filter, ami_message_t *msg)
         } else if (!strcasecmp(state, "6")) {
             session_write(filter->sess, "CALLSTATUS %s %s ANSWERED\r\n", info->actionid, from);
         }
+    } else if (!strcasecmp(event, "Rename")) {
+        if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
+            strcpy(info->ochannel, message_get_header(msg, "NewName"));
+        }
     } else if (!strcasecmp(event, "VarSet")) {
         const char *varvalue = message_get_header(msg, "Value");
         const char *varname = message_get_header(msg, "Variable");
@@ -270,7 +274,6 @@ call_state(filter_t *filter, ami_message_t *msg)
             "Begin")) {
         // Get the UniqueId from the agent channel
         strcpy(info->duid, message_get_header(msg, "DestUniqueID"));
-        strcpy(info->ochannel, message_get_header(msg, "Channel"));
         strcpy(info->dchannel, message_get_header(msg, "Destination"));
 
         // Register a Filter for the agent status
