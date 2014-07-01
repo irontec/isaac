@@ -220,7 +220,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         } else if (!strcasecmp(cause, "17")) {
             session_write(filter->sess, "CALLSTATUS %s %s BUSY\r\n", info->actionid, from);
         } else {
-            session_write(filter->sess, "CALLSTATUS %s %s UNKOWNHANGUP %s\r\n", info->actionid, from,
+            session_write(filter->sess, "CALLSTATUS %s %s UNKNOWNHANGUP %s\r\n", info->actionid, from,
                     cause);
         }
 
