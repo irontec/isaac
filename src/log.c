@@ -65,7 +65,7 @@ log_type_to_text(int log_type)
         return "        o ";
     }
 
-    // Unkown logging type
+    // Unknown logging type
     return NULL;
 }
 

@@ -177,7 +177,7 @@ read_config(const char *cfile)
                 isaac_strcpy(config.modules[config.modulecnt++], config_setting_get_string(sett));
             }
         } else {
-            isaac_log(LOG_WARNING, "Unkown category %s\n", settname);
+            isaac_log(LOG_WARNING, "Unknown category %s\n", settname);
         }
     }
 
