@@ -55,6 +55,8 @@ struct app_status_info
     char clidnum[20];
     //! UniqueID from incoming call
     char uniqueid[20];
+    //! Agent channel
+    char agentchan[40];
     //! Attended transfer State (See Asterisk Call states)
     int  xfer_state;
     //! Agent to which this call is being transfered
@@ -297,12 +299,12 @@ status_call(filter_t *filter, ami_message_t *msg)
 
     // Get the interesting channel name, we will fetch the rest of the messages
     // that match that ID
-    const char *dest = message_get_header(msg, "Destination");
+    isaac_strcpy(info->agentchan, message_get_header(msg, "Destination"));
 
     // Register a Filter for notifying this call
     filter_t *callfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_print);
     filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|Transfer");
-    filter_new_condition(callfilter, MATCH_EXACT, "Channel", dest);
+    filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agentchan);
     filter_set_userdata(callfilter, (void*) info);
     filter_register(callfilter);
 
@@ -392,6 +394,62 @@ status_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
+ * @brief Answer application callback
+ *
+ * Answer a channel identified by given uniqueid
+ *
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
+int
+answer_exec(session_t *sess, app_t *app, const char *args)
+{
+    char uniqueid[50];
+    char *channame = NULL;
+    filter_t *filter = NULL;
+    struct app_status_info *info;
+
+    // Check we are logged in.
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Parse aplication arguments
+    if (sscanf(args, "%s", uniqueid) != 1) {
+        return INVALID_ARGUMENTS;
+    }
+
+    // Find the call with that uniqueid
+    while((filter = filter_from_session(sess, filter)) != NULL) {
+        info = (struct app_status_info *) filter_get_userdata(filter);
+        if (info && !strcasecmp(info->uniqueid, uniqueid)) {
+            channame = info->agentchan;
+            break;
+        }
+    }
+    
+    if (channame) {
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: SIPnotifyChan");
+        message_add_header(&msg, "Channel: %s", channame);
+        message_add_header(&msg, "Event: talk");
+        manager_write_message(manager, &msg);
+
+        // Give some feedback
+        session_write(sess, "ANSWEROK Event sent\r\n");
+    } else {
+        // Ups. 
+        session_write(sess, "ANSWERFAILED Channel not found\r\n");
+    }
+
+    return 0;
+}
+
+/**
  * @brief Module load entry point
  *
  * Load module applications
@@ -401,7 +459,10 @@ status_exec(session_t *sess, app_t *app, const char *args)
 int
 load_module()
 {
-    return application_register("Status", status_exec);
+    int ret = 0;
+    ret |= application_register("Status", status_exec);
+    ret |= application_register("Answer", answer_exec);
+    return ret;
 }
 
 /**
@@ -414,5 +475,8 @@ load_module()
 int
 unload_module()
 {
-    return application_unregister("Status");
+    int ret = 0;
+    ret |= application_unregister("Status");
+    ret |= application_unregister("Answer");
+    return ret;
 }
