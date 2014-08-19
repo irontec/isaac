@@ -64,6 +64,30 @@ struct app_status_info
 };
 
 /**
+ * @brief Returns channel name for a given UniqueID
+ *
+ * @param uniqueid Channel UniqueID
+ * @returns channel name or NULL if not found
+ */
+char *
+find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
+    filter_t *filter = NULL;
+    struct app_status_info *info = NULL;
+
+    // Find the call with that uniqueid
+    while((filter = filter_from_session(sess, filter)) != NULL) {
+        info = (struct app_status_info *) filter_get_userdata(filter);
+        if (info && !strcasecmp(info->uniqueid, uniqueid)) {
+            return info->agentchan;
+        }
+    }
+
+    // No channel found with that uniqueid
+    return NULL;
+}
+
+
+/**
  * @brief Callback for blind transfer
  *
  * When the agents transfer its call using an blind transfer, this callback
@@ -408,8 +432,6 @@ answer_exec(session_t *sess, app_t *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
-    filter_t *filter = NULL;
-    struct app_status_info *info;
 
     // Check we are logged in.
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -421,16 +443,7 @@ answer_exec(session_t *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
 
-    // Find the call with that uniqueid
-    while((filter = filter_from_session(sess, filter)) != NULL) {
-        info = (struct app_status_info *) filter_get_userdata(filter);
-        if (info && !strcasecmp(info->uniqueid, uniqueid)) {
-            channame = info->agentchan;
-            break;
-        }
-    }
-    
-    if (channame) {
+    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
@@ -449,6 +462,143 @@ answer_exec(session_t *sess, app_t *app, const char *args)
     return 0;
 }
 
+
+/**
+ * @brief Holduid application callback
+ *
+ * Holds a channel identified by given uniqueid
+ *
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
+int
+holduid_exec(session_t *sess, app_t *app, const char *args)
+{
+    char uniqueid[50];
+    char *channame = NULL;
+
+    // Check we are logged in.
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Parse aplication arguments
+    if (sscanf(args, "%s", uniqueid) != 1) {
+        return INVALID_ARGUMENTS;
+    }
+
+    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: SIPnotifyChan");
+        message_add_header(&msg, "Channel: %s", channame);
+        message_add_header(&msg, "Event: hold");
+        manager_write_message(manager, &msg);
+
+        // Give some feedback
+        session_write(sess, "HOLDUIDOK Event sent\r\n");
+    } else {
+        // Ups. 
+        session_write(sess, "HOLDUIDFAILED Channel not found\r\n");
+    }
+
+    return 0;
+}
+
+
+/**
+ * @brief Unholduid application callback
+ *
+ * Unholds a channel identified by given uniqueid
+ *
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
+int
+unholduid_exec(session_t *sess, app_t *app, const char *args)
+{
+    char uniqueid[50];
+    char *channame = NULL;
+
+    // Check we are logged in.
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Parse aplication arguments
+    if (sscanf(args, "%s", uniqueid) != 1) {
+        return INVALID_ARGUMENTS;
+    }
+
+    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: SIPnotifyChan");
+        message_add_header(&msg, "Channel: %s", channame);
+        message_add_header(&msg, "Event: talk");
+        manager_write_message(manager, &msg);
+
+        // Give some feedback
+        session_write(sess, "UNHOLDUIDOK Event sent\r\n");
+    } else {
+        // Ups. 
+        session_write(sess, "UNHOLDUIDFAILED Channel not found\r\n");
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Hangupuid application callback
+ *
+ * Hangups a channel identified by given uniqueid
+ *
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
+int
+hangupuid_exec(session_t *sess, app_t *app, const char *args)
+{
+    char uniqueid[50];
+    char *channame = NULL;
+
+    // Check we are logged in.
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Parse aplication arguments
+    if (sscanf(args, "%s", uniqueid) != 1) {
+        return INVALID_ARGUMENTS;
+    }
+
+    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Hangup");
+        message_add_header(&msg, "Channel: %s", channame);
+        manager_write_message(manager, &msg);
+
+        // Give some feedback
+        session_write(sess, "HANGUPUIDOK Event sent\r\n");
+    } else {
+        // Ups. 
+        session_write(sess, "HANGUPUIDFAILED Channel not found\r\n");
+    }
+
+    return 0;
+}
+
+
 /**
  * @brief Module load entry point
  *
@@ -462,6 +612,9 @@ load_module()
     int ret = 0;
     ret |= application_register("Status", status_exec);
     ret |= application_register("Answer", answer_exec);
+    ret |= application_register("HoldUID", holduid_exec);
+    ret |= application_register("UnholdUID", unholduid_exec);
+    ret |= application_register("HangupUID", hangupuid_exec);
     return ret;
 }
 
@@ -478,5 +631,8 @@ unload_module()
     int ret = 0;
     ret |= application_unregister("Status");
     ret |= application_unregister("Answer");
+    ret |= application_unregister("HoldUID");
+    ret |= application_unregister("UnholdUID");
+    ret |= application_unregister("HangupUID");
     return ret;
 }
