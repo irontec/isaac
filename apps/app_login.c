@@ -35,6 +35,7 @@
 
 #include "isaac.h"
 #include "app.h"
+#include "filter.h"
 #include "log.h"
 #include <stdio.h>
 #include <sql.h>
@@ -142,6 +143,47 @@ odbc_watchdog(void *args)
     return NULL;
 }
 
+/**
+ * @brief Callback for peer status functions
+ *
+ * After agent login and during the session, peer status will be monitored
+ * calling this fuction on every peer status change
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
+int
+peer_status_check(filter_t *filter, ami_message_t *msg)
+{
+    session_t *sess = filter->sess;
+    const char *interface = session_get_variable(sess, "INTERFACE");
+    const char *event = message_get_header(msg, "Event");    
+
+    if (event && !strncasecmp(event, "PeerStatus", 10)) {
+        session_write(sess, "BYE Peer %s is no longer registered\r\n", interface);
+        session_finish(sess);
+    } else {
+        const char *response = message_get_header(msg, "Response");
+        if (response) {
+            const char *agent = session_get_variable(sess, "AGENT");
+ 
+            if (!strncasecmp(response, "Success", 7)) {
+                // Send a success message
+                session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
+            } else {
+                // Send the Login failed message and close connection
+                session_write(sess, "LOGINFAIL %s is not registered\r\n", interface);
+                session_finish(sess);
+            }
+        }
+   }
+
+    return 0;
+}
+
+
+
 
 /**
  * @brief Check Login attempt against asterisk database
@@ -210,8 +252,27 @@ login_exec(session_t *sess, app_t *app, const char *args)
             session_set_variable(sess, "ROL", "USUARIO");
         }
 
-        // Send a success message
-        session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
+        // Check if device is registerd
+        filter_t *peerfilter = filter_create(sess, FILTER_SYNC_CALLBACK, peer_status_check);
+        filter_new_condition(peerfilter, MATCH_EXACT , "ActionID", interface+4);
+        filter_register_oneshot(peerfilter);
+
+        // Request Peer status right now
+        ami_message_t peermsg;
+        memset(&peermsg, 0, sizeof(ami_message_t));
+        message_add_header(&peermsg, "Action: SIPshowpeer");
+        message_add_header(&peermsg, "Peer: %s", interface+4);
+        message_add_header(&peermsg, "ActionID: %s", interface+4);
+        manager_write_message(manager, &peermsg);
+
+        // Also check for status changes
+        // Check if device is registerd
+        filter_t *monitorfilter = filter_create(sess, FILTER_SYNC_CALLBACK, peer_status_check);
+        filter_new_condition(monitorfilter, MATCH_EXACT , "Event", "PeerStatus");
+        filter_new_condition(monitorfilter, MATCH_EXACT , "Peer", interface);
+        filter_new_condition(monitorfilter, MATCH_EXACT , "PeerStatus", "Unregistered");
+        filter_register(monitorfilter);
+
         ret = 0;
     } else {
         // Login failed. This mark should not be required because we're closing the connection
