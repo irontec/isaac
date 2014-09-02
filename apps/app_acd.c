@@ -161,6 +161,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
     int out = 0;
     FILE *fd;
     char * line = NULL;
+    char queuename[256];
     size_t len = 0;
     char interface[40], action[20];
 
@@ -177,6 +178,18 @@ acd_exec(session_t *sess, app_t *app, const char *args)
         if (sscanf(args, "%s", interface) != 1) {
             return INVALID_ARGUMENTS;
         }
+    } else if (!strcasecmp(app->name, "QueueJoin")) {
+        // Get Queue name
+        if (sscanf(args, "%s", queuename) != 1) {
+            return INVALID_ARGUMENTS;
+        }
+        strcpy(action, "JOIN");
+    } else if (!strcasecmp(app->name, "QueueLeave")) {
+        // Get Queue name
+        if (sscanf(args, "%s", queuename) != 1) {
+            return INVALID_ARGUMENTS;
+        }
+        strcpy(action, "LEAVE");
     } else {
         memset(interface, 0, sizeof(interface));
     }
@@ -187,6 +200,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
             interface,
             session_get_variable(sess, "AGENT"),
             action,
+            queuename,
             NULL };
 
     // Some logging
@@ -198,7 +212,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
     // Open file input descriptor and read the php script output
     fd = fdopen(out, "r");
     if (getline(&line, &len, fd) != -1) {
-        session_write(sess, "%s\r\n", line);
+        session_write(sess, "%s", line);
     }
     // Stops spawned php
     pcloseRWE(pid, &out);
@@ -227,6 +241,8 @@ load_module()
     res |= application_register("ACDLogout", acd_exec);
     res |= application_register("ACDPause", acd_exec);
     res |= application_register("ACDUnpause", acd_exec);
+    res |= application_register("QueueJoin", acd_exec);
+    res |= application_register("QueueLeave", acd_exec);
     return res;
 }
 
@@ -246,5 +262,7 @@ unload_module()
     res |= application_unregister("ACDLogout");
     res |= application_unregister("ACDPause");
     res |= application_unregister("ACDUnpause");
+    res |= application_unregister("QueueJoin");
+    res |= application_unregister("QueueLeave");
     return res;
 }
