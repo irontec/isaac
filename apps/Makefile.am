@@ -40,6 +40,12 @@ app_call_so_CFLAGS = $(appsCFLAGS) -DCALLCONF=\"@isaacconfdir@/call.conf\"
 app_call_so_LDFLAGS = $(appsLDFLAGS)
 app_calldir = $(appsdir)
 
+app_queue_PROGRAMS = app_queue.so
+app_queue_so_SOURCES = app_queue.c
+app_queue_so_CFLAGS = $(appsCFLAGS) 
+app_queue_so_LDFLAGS = $(appsLDFLAGS)
+app_queuedir = $(appsdir)
+
 res_lua_PROGRAMS = res_lua.so
 res_lua_so_SOURCES = res_lua.c
 res_lua_so_CFLAGS = $(appsCFLAGS) -I/usr/include/lua5.1 -DMODDIR=\"@isaacmoddir@\" 
