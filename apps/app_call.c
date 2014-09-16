@@ -611,6 +611,48 @@ record_exec(session_t *sess, app_t *app, const char *args)
 
 
 /**
+ * @brief Record action entry point
+ *
+ * Record action will start MixMonitor on given channel and will
+ * set some variables for record post processing (in h extension).
+ *
+ * @param sess Session rnuning this application
+ * @param app The application structure
+ * @param args Hangup action args "ActionID" and "UniqueID"
+ * @return 0 if the call is found, -1 otherwise
+ */
+int
+recordstop_exec(session_t *sess, app_t *app, const char *args)
+{
+    struct app_call_info *info;
+    char actionid[ACTIONID_LEN];
+
+    // This can only be done after authentication
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Get Hangup parameteres
+    if (sscanf(args, "%s", actionid) != 1) {
+        return INVALID_ARGUMENTS;
+    }
+
+    // Try to find the action info of the given actionid
+    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Command");
+        message_add_header(&msg, "Command: mixmonitor stop %s", info->ochannel);
+        manager_write_message(manager, &msg);
+        session_write(sess, "RECORDSTOPOK\r\n");
+    } else {
+        session_write(sess, "RECORDSTOPFAILED ID NOT FOUND\r\n");
+        return -1;
+    }
+    return 0;
+}
+
+/**
  * @brief Module load entry point
  *
  * Load module configuration and applications
@@ -632,6 +674,7 @@ load_module()
     res |= application_register("Hold", hold_unhold_exec);
     res |= application_register("Unhold", hold_unhold_exec);
     res |= application_register("Record", record_exec);
+    res |= application_register("RecordStop", recordstop_exec);
     return res;
 }
 
@@ -652,5 +695,6 @@ unload_module()
     res |= application_unregister("Hold");
     res |= application_unregister("Unhold");
     res |= application_unregister("Record");
+    res |= application_unregister("RecordStop");
     return res;
 }
