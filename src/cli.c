@@ -80,6 +80,7 @@ static cli_entry_t cli_entries[] = {
         AST_CLI_DEFINE(handle_core_set_verbose, "Change Isaac log level"),
         AST_CLI_DEFINE(handle_show_connections, "Show connected sessions"),
         AST_CLI_DEFINE(handle_show_filters, "Show session filters"),
+        AST_CLI_DEFINE(handle_show_variables, "Show session variables"),
         AST_CLI_DEFINE(handle_kill_connection, "Stops a connected session"),
         AST_CLI_DEFINE(handle_debug_connection, "Mark debug flag to a connected session") };
 
@@ -1205,6 +1206,52 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
 
     return CLI_SUCCESS;
 }
+
+char *
+handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
+{
+    session_t *sess;
+    int i = 0;
+
+    switch (cmd) {
+    case CLI_INIT:
+        entry->command = "show variables";
+        entry->usage = "Usage: show variables [sessionid]\n"
+            "       Show connected session variables\n";
+        return NULL;
+    case CLI_GENERATE:
+        if (args->pos == 2) {
+            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
+        }
+        return NULL;
+    }
+
+    /* Inform all required parameters */
+    if (args->argc != 3) {
+        return CLI_SHOWUSAGE;
+    }
+
+    /* Avoid other output for this cli */
+    pthread_mutex_lock(&clilock);
+
+    /* Get session */
+    if (!(sess = session_by_id(args->argv[2]))) {
+        cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
+    } else {
+        cli_write(args->cli,  "------------ Variables for session %s ------------\n", args->argv[2]);
+        pthread_mutex_lock(&sess->lock);
+        for (i = 0; i < sess->varcount; i++) {
+            cli_write(args->cli, "%s = %s\n", sess->vars[i].varname, sess->vars[i].varvalue);
+        }
+        pthread_mutex_unlock(&sess->lock);
+    }
+
+    /* Set cli output unlocked */
+    pthread_mutex_unlock(&clilock);
+
+    return CLI_SUCCESS;
+}
+
 
 char *
 handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
