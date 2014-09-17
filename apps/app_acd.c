@@ -161,13 +161,18 @@ acd_exec(session_t *sess, app_t *app, const char *args)
     int out = 0;
     FILE *fd;
     char * line = NULL;
-    char queuename[256];
+    char extraparams[256];
     size_t len = 0;
     char interface[40], action[20];
 
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
+
+    // Initialize
+    memset(extraparams, 0, 256);
+    memset(action, 0, 20);
+    memset(interface, 0, 40);
 
     // Get the ACD Action
     isaac_strcpy(action, app->name);
@@ -178,15 +183,19 @@ acd_exec(session_t *sess, app_t *app, const char *args)
         if (sscanf(args, "%s", interface) != 1) {
             return INVALID_ARGUMENTS;
         }
+
+    } else if (!strcasecmp(action, "PAUSE")) {
+        // Check if whe have a pausetype
+        sscanf(args, "%s", extraparams);
     } else if (!strcasecmp(app->name, "QueueJoin")) {
         // Get Queue name
-        if (sscanf(args, "%s", queuename) != 1) {
+        if (sscanf(args, "%s", extraparams) != 1) {
             return INVALID_ARGUMENTS;
         }
         strcpy(action, "JOIN");
     } else if (!strcasecmp(app->name, "QueueLeave")) {
         // Get Queue name
-        if (sscanf(args, "%s", queuename) != 1) {
+        if (sscanf(args, "%s", extraparams) != 1) {
             return INVALID_ARGUMENTS;
         }
         strcpy(action, "LEAVE");
@@ -200,7 +209,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
             interface,
             session_get_variable(sess, "AGENT"),
             action,
-            queuename,
+            extraparams,
             NULL };
 
     // Some logging

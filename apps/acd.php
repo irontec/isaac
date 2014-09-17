@@ -35,6 +35,9 @@ if ($op != "LOGIN")
 }
 
 
+// Set Agent interface
+$iacd->setSIPpeer($interface);
+
 switch ($op){
 	case "STATUS":
 		if (!$iacd->agentAlreadyOn()) {
@@ -81,18 +84,45 @@ switch ($op){
 
 		break;
 	case "PAUSE":
+        // Check agent is logged in
 		if (!$iacd->agentAlreadyOn()) {
 			fwrite(STDERR, "ACDPAUSEFAIL AGENT NOT LOGGED IN\r\n");
 			break;
 		}
-		if ($iacd->agentPauseSuper()) {
-			$ami->login();
-			$ami->devstate("pause",$interface,"RINGING");
-			$ami->logoff();
-			fwrite(STDERR, "ACDPAUSEOK AGENT PAUSED\r\n");
-		} else {
-			fwrite(STDERR, "ACDPAUSEFAIL AGENT ALREADY PAUSED\r\n");
-		}
+
+        // Check we have a custom pause id
+        $pausecode = strtoupper($argv[4]);
+        if (is_null($pausecode) || empty($pausecode)) {
+	        if ($iacd->agentPauseSuper()) {
+		    	$ami->login();
+		    	$ami->devstate("pause",$interface,"RINGING");
+		    	$ami->logoff();
+		    	fwrite(STDERR, "ACDPAUSEOK AGENT PAUSED\r\n");
+		    } else {
+		    	fwrite(STDERR, "ACDPAUSEFAIL AGENT ALREADY PAUSED\r\n");
+		    }
+        } else {
+            // Get the id_pausa from its code
+            $sql = "SELECT id_pausa FROM callcenter_pausas WHERE cod_pausa = '$pausecode'";
+            $con = new con($sql, DB_CON);
+            if ($con->getError() || !$con->getNumRows()) {
+                fwrite(STDERR, "ACDPAUSEFAIL UNKOWN PAUSE CODE\r\n");
+                break;
+            } 
+
+            // Get Agent queue information
+            $r =  $con->getResult();
+
+            // Pause Custom
+            if ($iacd->agentPauseCustom($r['id_pausa'])) {
+                $ami->login();
+                $ami->devstate("pause",$interface,"RINGING");
+                $ami->logoff();
+                fwrite(STDERR, "ACDPAUSEOK AGENT PAUSED\r\n");
+            } else {
+                fwrite(STDERR, "ACDPAUSEFAIL AGENT ALREADY PAUSED\r\n");
+            } 
+        }
 		break;
 	case "UNPAUSE":
 		if (!$iacd->agentAlreadyOn()) {
