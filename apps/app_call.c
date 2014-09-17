@@ -36,6 +36,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <libconfig.h>
+#include <stdbool.h>
 #include "app.h"
 #include "manager.h"
 #include "filter.h"
@@ -87,6 +88,8 @@ struct app_call_info
     char ochannel[50];
     //! Remote Channel Name
     char dchannel[50];
+    //! Flag: This call is being Recorded
+    bool recording;
 };
 
 /**
@@ -542,6 +545,14 @@ record_exec(session_t *sess, app_t *app, const char *args)
 
     // Try to find the action info of the given actionid
     if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
+
+        // Check if this call is already being recorded
+        if (info->recording) {
+            session_write(sess, "RECORDFAILED CALL IS ALREADY BEING RECORDED\r\n");
+            return -1;
+        }
+
+
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: MixMonitor");
@@ -601,6 +612,9 @@ record_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Value: %s.wav", filename);
         manager_write_message(manager, &msg);
 
+        // Flag this call as being recorded
+        info->recording = true;
+
         session_write(sess, "RECORDOK\r\n");
     } else {
         session_write(sess, "RECORDFAILED ID NOT FOUND\r\n");
@@ -639,11 +653,22 @@ recordstop_exec(session_t *sess, app_t *app, const char *args)
 
     // Try to find the action info of the given actionid
     if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
+
+        // Check if this call is not being recorded
+        if (!info->recording) {
+            session_write(sess, "RECORDSTOPFAILED CALL NOT BEING RECORDED\r\n");
+            return -1;
+        }
+
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Command");
         message_add_header(&msg, "Command: mixmonitor stop %s", info->ochannel);
         manager_write_message(manager, &msg);
+
+        // Flag this call as not being recorded
+        info->recording = false;
+
         session_write(sess, "RECORDSTOPOK\r\n");
     } else {
         session_write(sess, "RECORDSTOPFAILED ID NOT FOUND\r\n");
