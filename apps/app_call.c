@@ -90,6 +90,8 @@ struct app_call_info
     char dchannel[50];
     //! Flag: This call is being Recorded
     bool recording;
+    //! Flag for printing uniqueid info
+    bool print_uniqueid;
 };
 
 /**
@@ -201,16 +203,27 @@ call_state(filter_t *filter, ami_message_t *msg)
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
     // Get message event
     const char *event = message_get_header(msg, "Event");
-    const char *from, *to;
+    char from[80], to[80];
 
     // So this leg is first one or second one?
     if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
-        from = "AGENT";
-        to = "REMOTE";
+        if (info->print_uniqueid) {
+            sprintf(from, "%s %s", info->ouid, "AGENT");
+            sprintf(to, "%s %s", info->duid, "REMOTE");
+        } else {
+            sprintf(from, "%s", "AGENT");
+            sprintf(to, "%s", "REMOTE");
+        }
     } else {
-        from = "REMOTE";
-        to = "AGENT";
+        if (info->print_uniqueid) {
+            sprintf(from, "%s %s", info->duid, "REMOTE");
+            sprintf(to, "%s %s", info->ouid, "AGENT");
+        } else {
+            sprintf(from, "%s", "REMOTE");
+            sprintf(to, "%s", "AGENT");
+        }
     }
+
 
     // Send CallStatus message depending on received event
     if (!strcasecmp(event, "Hangup")) {
@@ -270,8 +283,11 @@ call_state(filter_t *filter, ami_message_t *msg)
             filter_register(info->ofilter);
 
             // Tell the client the channel is going on!
-            session_write(filter->sess, "CALLSTATUS %s AGENT STARTING\r\n", info->actionid);
-
+            if (info->print_uniqueid) {
+                session_write(filter->sess, "CALLSTATUS %s %s AGENT STARTING\r\n", info->actionid, info->ouid);
+            } else {
+                session_write(filter->sess, "CALLSTATUS %s AGENT STARTING\r\n", info->actionid);
+            }
         }
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
             "Begin")) {
@@ -286,7 +302,11 @@ call_state(filter_t *filter, ami_message_t *msg)
         filter_register(info->dfilter);
 
         // Say we have the remote channel
-        session_write(filter->sess, "CALLSTATUS %s REMOTE STARTING\r\n", info->actionid);
+        if (info->print_uniqueid) {
+            session_write(filter->sess, "CALLSTATUS %s %s REMOTE STARTING\r\n", info->actionid, info->duid);
+        } else {
+            session_write(filter->sess, "CALLSTATUS %s REMOTE STARTING\r\n", info->actionid);
+        }
     }
 
     return 0;
@@ -317,14 +337,14 @@ int
 call_exec(session_t *sess, app_t *app, const char *args)
 {
     char actionid[ACTIONID_LEN];
-    char exten[20];
+    char exten[20], options[80];
 
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
 
     // Get Call parameteres
-    if (sscanf(args, "%s %s", actionid, exten) != 2) {
+    if (sscanf(args, "%s %s %s", actionid, exten, options) < 2) {
         return INVALID_ARGUMENTS;
     }
 
@@ -333,6 +353,13 @@ call_exec(session_t *sess, app_t *app, const char *args)
     memset(info, 0, sizeof(struct app_call_info));
     isaac_strcpy(info->actionid, actionid);
     isaac_strcpy(info->destiny, exten);
+
+    // Check if uniqueid info is requested
+    if (!strncasecmp(options, "WUID", 4)) {
+        info->print_uniqueid = true;
+    } else {
+        info->print_uniqueid = false;
+    }
 
     // Register a Filter to get Generated Channel
     info->callfilter = filter_create(sess, FILTER_SYNC_CALLBACK, call_state);
