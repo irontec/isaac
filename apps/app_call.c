@@ -92,6 +92,16 @@ struct app_call_info
     bool recording;
     //! Flag for printing uniqueid info
     bool print_uniqueid;
+
+    //! Store recording vars
+    char grabaciones_modulo[512];
+    char grabaciones_tipo[1024];
+    char grabaciones_plataforma[2048];
+    char grabaciones_origen[2048];
+    char grabaciones_destino[2048];
+    char grabaciones_fecha_hora[2048];
+    char grabaciones_ruta[4086];;
+    char grabaciones_fichero[4086];
 };
 
 /**
@@ -269,6 +279,18 @@ call_state(filter_t *filter, ami_message_t *msg)
             session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\r\n", info->actionid, to);
         }
 
+        // Update recording variables
+        if (!strncasecmp(varname, "GRABACIONES_", 12)) {
+            if (!strcasecmp(varname+27, "MODULO"))     sprintf(info->grabaciones_modulo, "%s;", varvalue);
+            if (!strcasecmp(varname+27, "TIPO"))       sprintf(info->grabaciones_tipo, "%s;", varvalue);
+            if (!strcasecmp(varname+27, "PLATAFORMA")) sprintf(info->grabaciones_plataforma, "%s;", varvalue);
+            if (!strcasecmp(varname+27, "ORIGEN"))     sprintf(info->grabaciones_origen, "%s;", varvalue);
+            if (!strcasecmp(varname+27, "DESTINO"))    sprintf(info->grabaciones_destino, "%s;", varvalue);
+            if (!strcasecmp(varname+27, "FECHA_HORA")) sprintf(info->grabaciones_fecha_hora, "%s;", varvalue);
+            if (!strcasecmp(varname+27, "RUTA"))       sprintf(info->grabaciones_ruta, "%s;", varvalue);
+            if (!strcasecmp(varname+27, "FICHERO"))    sprintf(info->grabaciones_fichero, "%s;", varvalue);
+        }
+
         // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
         if (!strcasecmp(varname, "ACTIONID")) {
             // Get the UniqueId from the agent channel
@@ -278,6 +300,7 @@ call_state(filter_t *filter, ami_message_t *msg)
 
             // Register a Filter for the agent statusthe custom manager application PlayDTMF.
             info->ofilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
+            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
             filter_set_userdata(info->ofilter, (void*) info);
             filter_register(info->ofilter);
@@ -579,7 +602,6 @@ record_exec(session_t *sess, app_t *app, const char *args)
             return -1;
         }
 
-
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: MixMonitor");
@@ -591,28 +613,28 @@ record_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->ouid);
-        message_add_header(&msg, "Value: CC");
+        message_add_header(&msg, "Value: %sCC", info->grabaciones_modulo);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->ouid);
-        message_add_header(&msg, "Value: on-demand_ISAAC");
+        message_add_header(&msg, "Value: %son-demand_ISAAC", info->grabaciones_tipo);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->ouid);
-        message_add_header(&msg, "Value: %s", session_get_variable(sess, "AGENT"));
+        message_add_header(&msg, "Value: %s%s",info->grabaciones_origen,session_get_variable(sess, "AGENT"));
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->ouid);
-        message_add_header(&msg, "Value: %s", info->destiny);
+        message_add_header(&msg, "Value: %s%s",info->grabaciones_destino, info->destiny);
         manager_write_message(manager, &msg);
 
         time(&timer);
@@ -622,21 +644,21 @@ record_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->ouid);
-        message_add_header(&msg, "Value: %s", timestr);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_fecha_hora, timestr);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->ouid);
-        message_add_header(&msg, "Value: %s", call_config.record_path);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_ruta, call_config.record_path);
         manager_write_message(manager, &msg);
         
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->ouid);
-        message_add_header(&msg, "Value: %s.wav", filename);
+        message_add_header(&msg, "Value: %s%s.wav", info->grabaciones_fichero, filename);
         manager_write_message(manager, &msg);
 
         // Flag this call as being recorded
