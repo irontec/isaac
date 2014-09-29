@@ -74,7 +74,7 @@ queueinfo_print(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-status_exec(session_t *sess, app_t *app, const char *args)
+queueinfo_exec(session_t *sess, app_t *app, const char *args)
 {
     // Store variable name to flag a queue being watched
     char queuevar[256];
@@ -114,6 +114,92 @@ status_exec(session_t *sess, app_t *app, const char *args)
 
 
 /**
+ * @brief Print queue calls count
+ *
+ * When a new call enters or leaves a queue a message will be printed to the sessions
+ * that requested queue information using queueinfo command
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
+int
+queueshow_print(filter_t *filter, ami_message_t *msg)
+{
+
+    const char *event = message_get_header(msg, "Event");
+
+    if (!strcasecmp(event, "QueueMember")) {
+      
+    //Convert the output
+        const char *queue = message_get_header(msg, "Queue");
+        const char *penalty = message_get_header(msg, "Penalty");
+        const char *stateInterface = message_get_header(msg, "StateInterface");
+        const char *status = message_get_header(msg, "Status");
+        const char *paused = message_get_header(msg, "Paused");
+        char stateinfo[20];        
+        memset(stateinfo, 0, sizeof(stateinfo));
+ 
+        if (!strcasecmp(paused, "1")){
+            isaac_strcpy(stateinfo, "PAUSED");
+        } else if (!strcasecmp(status, "1")) {
+            isaac_strcpy(stateinfo, "IDLE");
+        } else if (!strcasecmp(status, "2")) {
+            isaac_strcpy(stateinfo, "INUSE");
+        } else if (!strcasecmp(status, "6")) {
+            isaac_strcpy(stateinfo, "RINGING");
+        } else {
+            return 0;
+        }
+
+        session_write(filter->sess, "QUEUESHOWDATA %s %s %s %s \r\n", queue, penalty, stateInterface, stateinfo);
+
+    } else if (!strcasecmp(event, "QueueStatusComplete")) {
+        session_write(filter->sess, "%s\r\n", "QUEUESHOWEND");
+        // We dont expect more info about this filter, unregister it here
+        filter_unregister(filter);     
+    }
+
+    return 0;
+}
+
+/** 
+ * @brief Request Queue status
+ * 
+ * Request a list of queues and their status.
+ * 
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
+int
+queueshow_exec(session_t *sess, app_t *app, const char *args)
+{
+    // Check we are logged in.
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+    
+    // Filter QueueMember and QueueStatusComplete responses
+    filter_t *queuefilter = filter_create(sess, FILTER_SYNC_CALLBACK, queueshow_print);
+    filter_new_condition(queuefilter, MATCH_REGEX , "Event", "QueueMember|QueueStatusComplete");
+    filter_new_condition(queuefilter, MATCH_EXACT , "ActionID", "QueueStatusID%s", sess->id);
+    filter_register(queuefilter);
+    
+    
+    // Construct a Request message
+    ami_message_t msg;
+    memset(&msg, 0, sizeof(ami_message_t));
+    message_add_header(&msg, "Action: QueueStatus");
+    message_add_header(&msg, "ActionID: QueueStatusID%s", sess->id);
+    manager_write_message(manager, &msg);
+
+    return 0;
+}
+
+
+/**
  * @brief Module load entry point
  *
  * Load module applications
@@ -124,7 +210,8 @@ int
 load_module()
 {
     int ret = 0;
-    ret |= application_register("QueueInfo", status_exec);
+    ret |= application_register("QueueInfo", queueinfo_exec);
+    ret |= application_register("QueueShow", queueshow_exec);
     return ret;
 }
 
@@ -140,5 +227,6 @@ unload_module()
 {
     int ret = 0;
     ret |= application_unregister("QueueInfo");
+    ret |= application_unregister("QueueShow");
     return ret;
 }
