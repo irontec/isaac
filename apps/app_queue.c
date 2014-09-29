@@ -129,8 +129,7 @@ queueshow_print(filter_t *filter, ami_message_t *msg)
 
     const char *event = message_get_header(msg, "Event");
 
-    if (!strcasecmp(event, "QueueMember")) {
-      
+    if (!strcasecmp(event, "QueueMember")) {      
     //Convert the output
         const char *queue = message_get_header(msg, "Queue");
         const char *penalty = message_get_header(msg, "Penalty");
@@ -139,6 +138,10 @@ queueshow_print(filter_t *filter, ami_message_t *msg)
         const char *paused = message_get_header(msg, "Paused");
         char stateinfo[20];        
         memset(stateinfo, 0, sizeof(stateinfo));
+
+        const char *interface=session_get_variable(filter->sess, "INTERFACE");
+        if (strcasecmp(interface, stateInterface))
+            return 0;
  
         if (!strcasecmp(paused, "1")){
             isaac_strcpy(stateinfo, "PAUSED");
