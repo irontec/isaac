@@ -107,7 +107,7 @@ isaac_log_location(int log_level, const char *file, int line, const char *functi
     // Lock here to avoid more than one message write at the same time
     pthread_mutex_lock(&loglock);
     // If running in debug mode just print to the screen
-    if (debug) {
+    if ((log_level == LOG_DEBUG && debug > 2) || (log_level != LOG_DEBUG && debug)) {
         printf("%s", logmsg);
     }
 

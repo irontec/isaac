@@ -238,6 +238,14 @@ filter_print_message(filter_t *filter, ami_message_t *msg)
 }
 
 int
+inject_message(ami_message_t *msg)
+{
+    // Show some log
+    isaac_log(LOG_DEBUG, "Injecting fake %s message: %s\n", message_get_header(msg, "Event"), message_to_text(msg));
+    return check_filters_for_message(msg);
+}
+
+int
 check_filters_for_message(ami_message_t *msg)
 {
     filter_t * cur, *next;

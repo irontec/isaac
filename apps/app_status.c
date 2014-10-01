@@ -34,6 +34,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "app.h"
 #include "session.h"
 #include "manager.h"
@@ -55,12 +56,18 @@ struct app_status_info
     char clidnum[20];
     //! UniqueID from incoming call
     char uniqueid[20];
+    //! Incoming Channel name
+    char channel[80];
     //! Agent channel
-    char agentchan[40];
+    char agent_channel[80];
     //! Attended transfer State (See Asterisk Call states)
     int  xfer_state;
-    //! Agent to which this call is being transfered
+    //! Agent to which this call is being transferred
     char xfer_agent[20];
+    //! Agent channel in case of attended tansfer
+    char xfer_channel[80];
+    //! Answered flag
+    bool answered;
 };
 
 /**
@@ -78,7 +85,7 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
     while((filter = filter_from_session(sess, filter)) != NULL) {
         info = (struct app_status_info *) filter_get_userdata(filter);
         if (info && !strcasecmp(info->uniqueid, uniqueid)) {
-            return info->agentchan;
+            return info->agent_channel;
         }
     }
 
@@ -88,147 +95,142 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
 
 
 /**
- * @brief Callback for blind transfer
+ * @brief Injects messages to AMI to simulate an incoming call
  *
- * When the agents transfer its call using an blind transfer, this callback
- * will be executed. This function will create a FAKE AMI message for the agent
- * that is receiving the transfered call.
+ * When a transfer occurs, some clients want to receive status
+ * messages in the transfer receiver bus.
  *
- * @param filter Triggering filter structure
- * @param msg Matching message from Manager
- * @return 0 in all cases
+ * This is not naturaly possible so, if we want to trigger
+ * status filters, we must inject those messages.
+ *
+ * For a status callback trigger, we need 
+ * a) Transfer receiver Agent 
+ * b) Transfer receiver Channel
+ * c) Transfer receiver Channel status (Anwered, Ringing..)
+ *
+ * The rest of the information (such as platform, uniqueid, ...)
+ * will be the same that the original one (stored in the filter
+ * userdata pointer)
  */
 int
-status_blindxfer(filter_t *filter, ami_message_t *msg){
+status_inject_queue_call(filter_t *filter)
+{
+
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
 
-    // Construct a Request message (fake Dial)
+    /* Construct a Request message (fake VarSet).
+     * This will trigger the initial Status callback and will try to search a 
+     * Event: Dial message to obtain the real SIP/ channel name (not the Local/ one) 
+     */
     ami_message_t usermsg;
+    memset(&usermsg, 0, sizeof(ami_message_t));
+    message_add_header(&usermsg, "Event: VarSet");
+    message_add_header(&usermsg, "Variable: __ISAAC_MONITOR");
+    message_add_header(&usermsg, "Value: \"%s!%s!%s!%s\"", info->plat, info->clidnum, info->channel, info->uniqueid);
+    message_add_header(&usermsg, "Channel: Local/%s@agentes", info->xfer_agent);
+    inject_message(&usermsg);
+
+    /* Construct a Request message (fake Dial). 
+     * We trigger the second callback of Status, now providing the SIP/ channel name
+     * so the logic can detect when this channel status changes 
+     */
     memset(&usermsg, 0, sizeof(ami_message_t));
     message_add_header(&usermsg, "Event: Dial");
     message_add_header(&usermsg, "SubEvent: Begin");
     message_add_header(&usermsg, "Channel: Local/%s@agentes", info->xfer_agent);
-    message_add_header(&usermsg, "Destination: %s", message_get_header(msg, "Destination"));
+    message_add_header(&usermsg, "Destination: %s", info->xfer_channel);
     message_add_header(&usermsg, "CallerIDName: %s", info->plat);
     message_add_header(&usermsg, "CallerIDNum: %s", info->clidnum);
-    check_filters_for_message(&usermsg);
-    return 0;
+    inject_message(&usermsg);
+
+    /* Construct NewState fake status messages
+     * We generate Newstate messages to update the channel status to match the 
+     * real status.
+     */
+    if (info->xfer_state >= 5) {
+        memset(&usermsg, 0, sizeof(ami_message_t));
+        message_add_header(&usermsg, "Event: Newstate");
+        message_add_header(&usermsg, "Channel: %s", info->xfer_channel);
+        message_add_header(&usermsg, "ChannelState: 5");
+        inject_message(&usermsg);
+    }
+
+    if (info->xfer_state >= 6) {
+        memset(&usermsg, 0, sizeof(ami_message_t));
+        message_add_header(&usermsg, "Event: Newstate");
+        message_add_header(&usermsg, "Channel: %s", info->xfer_channel);
+        message_add_header(&usermsg, "ChannelState: 6");
+        inject_message(&usermsg);
+    }
+
+    return 1;
 }
 
 /**
- * @brief Callback for attended transfer
+ * @brief Callback for blind transfer
  *
- * When the agents transfer its call using an attended transfer, this callback
- * will be executed. We can get the original call status (Attended or Semi-Attended)
- * and the target agent. This function will generate FAKE AMI messages for the agent
- * who is receiving the transfered call.
+ * When the agents transfer its call using an blind transfer, this callback
+ * will be executed. This function will create a FAKE AMI message for the agent
+ * that is receiving the transferred call.
  *
  * @param filter Triggering filter structure
  * @param msg Matching message from Manager
  * @return 0 in all cases
  */
 int
-status_attxfer(filter_t *filter, ami_message_t *msg)
+status_blindxfer(filter_t *filter, ami_message_t *msg)
 {
-    session_t *sess;
-    char interface[80] = "\0", destiny[80] = "\0", match[80];
-    char varvalue[MAX_LEN];
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
-    const char *event = message_get_header(msg, "Event");
 
-    if (!isaac_strcmp(event, "Masquerade")) {
-        // Store actual session
-        sess = filter->sess;
+    // Not previous status known on blind transfer
+    info->xfer_state = 0;
+    // Destiny transfer channel name 
+    isaac_strcpy(info->xfer_channel, message_get_header(msg, "Destination"));
 
-        // Masquerade Event, get the Destiny channel status from here
-        if (!isaac_strcmp(message_get_header(msg, "OriginalState"), "Ring")) {
-            info->xfer_state = 5;
-        } else if (!isaac_strcmp(message_get_header(msg, "OriginalState"), "Up")) {
-            info->xfer_state = 6;
-        } else {
-            info->xfer_state = 0;
-        }
-
-        // We get the Destiny channel from SIP Messages
-        filter_t *attfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_attxfer);
-        filter_new_condition(attfilter, MATCH_EXACT, "Event", "VarSet");
-        filter_new_condition(attfilter, MATCH_REGEX, "Variable", "~HASH~SIP_CAUSE~.*|BRIDGEPEER");
-        filter_new_condition(attfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Clone"));
-        filter_set_userdata(attfilter, (void*) info);
-        filter_register_oneshot(attfilter);
-
-    } else if (!isaac_strcmp(event, "VarSet")) {
-
-        if (!isaac_strcmp(message_get_header(msg, "Variable"), "BRIDGEPEER")){
-            isaac_strcpy(destiny, message_get_header(msg, "Value"));
-            isaac_strcpy(varvalue, message_get_header(msg, "Value"));
-            if (sscanf(varvalue, "%[^-]", match)) {
-                isaac_strcpy(interface, match);
-            }
-
-        } else {
-            // VarSet, get Destiny channel name from here
-            isaac_strcpy(varvalue, message_get_header(msg, "Variable"));
-            if (sscanf(varvalue, "~HASH~SIP_CAUSE~%[^~]", match)) {
-                isaac_strcpy(destiny, match);
-            }
-            // VarSet, get Destiny interface from here
-            isaac_strcpy(varvalue, message_get_header(msg, "Variable"));
-            if (sscanf(varvalue, "~HASH~SIP_CAUSE~%[^-]", match)) {
-                isaac_strcpy(interface, match);
-            }
-        }
-
-        isaac_log(LOG_NOTICE, "%s@%s\n", destiny, interface);
-
-        // Check if we have everything we need
-        if (isaac_strlen_zero(interface) || isaac_strlen_zero(destiny)) {
-            isaac_log(LOG_ERROR, "Failed to get Attxfer destination\n");
-            return -1;
-        }
-
-        // Ok we have the interface, check if there is an agent with that interface
-        // in a active session
-        if ((sess = session_by_variable("INTERFACE", interface))) {
-            // Construct a Request message (fake Dial)
-            ami_message_t usermsg;
-            memset(&usermsg, 0, sizeof(ami_message_t));
-            message_add_header(&usermsg, "Event: Dial");
-            message_add_header(&usermsg, "SubEvent: Begin");
-            message_add_header(&usermsg, "Channel: Local/%s@agentes", session_get_variable(sess,
-                    "AGENT"));
-            message_add_header(&usermsg, "Destination: %s", destiny);
-            message_add_header(&usermsg, "CallerIDName: %s", info->plat);
-            message_add_header(&usermsg, "CallerIDNum: %s", info->clidnum);
-            // Pass the readed msg to the H&C logic
-            check_filters_for_message(&usermsg);
-
-            // Construct NewState fake messages
-            if (info->xfer_state >= 5) {
-                memset(&usermsg, 0, sizeof(ami_message_t));
-                message_add_header(&usermsg, "Event: Newstate");
-                message_add_header(&usermsg, "Channel: %s", destiny);
-                message_add_header(&usermsg, "ChannelState: 5");
-                check_filters_for_message(&usermsg);
-            }
-            if (info->xfer_state >= 6) {
-                memset(&usermsg, 0, sizeof(ami_message_t));
-                message_add_header(&usermsg, "Event: Newstate");
-                message_add_header(&usermsg, "Channel: %s", destiny);
-                message_add_header(&usermsg, "ChannelState: 6");
-                check_filters_for_message(&usermsg);
-            }
-        }
-    }
+    // We have enough information to inject messages in receiver bus 
+    isaac_log(LOG_NOTICE, "[Session %s] Detected Blind Transfer to %s\n", filter->sess->id, info->xfer_agent);
+    status_inject_queue_call(filter);
+    
     return 0;
 }
 
+/**
+ * @brief Callback for attended transfer using features
+ *
+ * When agents transfer using builtin, a new local channel is spwaned that call the
+ * final agent.
+ * We try to find the dial that calls to the final agent to fill our xfer structures
+ *
+ */
+int
+status_builtinxfer(filter_t *filter, ami_message_t *msg)
+{
+    struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
+
+    if (!strcasecmp(message_get_header(msg, "Event"), "VarSet")) {
+        isaac_strcpy(info->xfer_channel, message_get_header(msg, "Channel")); 
+        info->xfer_channel[strlen(info->xfer_channel)-1] = '2';
+
+        // Try to find the final xfer channel
+        filter_t *builtinxferfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_builtinxfer);
+        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "Dial");
+        filter_new_condition(builtinxferfilter, MATCH_EXACT, "SubEvent", "Begin");
+        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Channel", info->xfer_channel);
+        filter_set_userdata(builtinxferfilter, (void*) info);
+        filter_register_oneshot(builtinxferfilter);
+        
+    } else if (!strcasecmp(message_get_header(msg, "Event"), "Dial")) {
+        isaac_strcpy(info->xfer_channel, message_get_header(msg, "Destination"));
+    }
+
+    return 0;
+}
 
 /**
  * @brief Agent's Call state changes filter callback.
  *
  * When the agents's call leg status changes, this callback will be triggered.
- * It will also check if the remote call is being transfered to another agent
+ * It will also check if the remote call is being transferred to another agent
  * creating filters to get all required messages.
  *
  * @param filter Triggering filter structure
@@ -241,50 +243,79 @@ status_print(filter_t *filter, ami_message_t *msg)
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
     session_t *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
-    char statusevent[256];
+    char statusevent[512];
 
     // Initialize response string
     memset(statusevent, 0, sizeof(statusevent));
 
     // CallStatus response
-    if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "UserEvent") ||
-        !isaac_strcmp(event, "Hangup") || !isaac_strcmp(event, "Transfer")) {
+    if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "Hangup") 
+    || !isaac_strcmp(event, "IsaacTransfer")) {
         sprintf(statusevent, "EXTERNALCALLSTATUS ");
         if (session_get_variable(sess, "STATUSWUID")) 
             sprintf(statusevent + strlen(statusevent), "%s ", info->uniqueid);
+        if (session_get_variable(sess, "STATUSDEBUG"))
+            sprintf(statusevent + strlen(statusevent), "%s %s ", info->agent_channel, info->channel);
         sprintf(statusevent + strlen(statusevent), "%s ", info->plat);
         sprintf(statusevent + strlen(statusevent), "%s ", info->clidnum);
     }
 
     // Send ExternalCallStatus message depending on received event
-    if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "UserEvent")) {
+    if (!isaac_strcmp(event, "Newstate")) {
+
         // Print status message depending on Channel Status
         if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "5")) {
             sprintf(statusevent + strlen(statusevent), "RINGING\r\n");
         } else if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "6")) {
             sprintf(statusevent + strlen(statusevent), "ANSWERED\r\n");
+            info->answered = true;
         }
+
     } else if (!isaac_strcmp(event, "Hangup")) {
-        // Queue call has finished for this agent
-        sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
+
+        const char *cause = message_get_header(msg, "Cause");
+        if (!isaac_strcmp(cause, "17")) {
+            // Queue call rejected by agent
+            sprintf(statusevent + strlen(statusevent), "BUSY\r\n");
+        } else if (!info->answered) {
+            // Queue call timeout
+            sprintf(statusevent + strlen(statusevent), "NOANSWER\r\n");
+        } else {
+            // Queue call has finished for this agent
+            sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
+        }
+
         // We dont expect more info about this filter, it's safe to unregister it here
-        filter_unregister(filter);
-    } else if (!isaac_strcmp(event, "Transfer")) {
+        //filter_unregister(filter);
+
+    } else if (!isaac_strcmp(event, "IsaacTransfer")) {
         // Queue call has been transfered
-        sprintf(statusevent + strlen(statusevent), "TRANSFERED\r\n");
+        sprintf(statusevent + strlen(statusevent), "TRANSFERRED\r\n");
+
         if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Attended")) {
-            // At this point, we know the agent is transfering the call to another agent
-            // But we still dont have the target channel nor even the transfer state (Att, SemiAtt..)
+            // We have the destriny information
+            isaac_strcpy(info->xfer_channel, message_get_header(msg, "TargetChannel"));
+            isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
+            // Blonde transfer, destiny was ringing
+            info->xfer_state = 6;
+            // We have enough information to inject messages in receiver bus 
+            isaac_log(LOG_NOTICE, "[Session %s] Detected Attended Transfer to %s\n", filter->sess->id, info->xfer_agent);
+            status_inject_queue_call(filter);
+        } 
 
-            // We get the Attender transfer type from masquearde Event
-            filter_t *attstatefilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_attxfer);
-            filter_new_condition(attstatefilter, MATCH_EXACT, "Event", "Masquerade");
-            filter_new_condition(attstatefilter, MATCH_EXACT, "Original", message_get_header(msg,
-                    "TargetChannel"));
-            filter_set_userdata(attstatefilter, (void*) info);
-            filter_register_oneshot(attstatefilter);
+        if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Blonde")) {
+            // We have the destriny information
+            isaac_strcpy(info->xfer_channel, message_get_header(msg, "TargetChannel"));
+            isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
+            // Blonde transfer, destiny was ringing
+            info->xfer_state = 5;
+            // We have enough information to inject messages in receiver bus 
+            isaac_log(LOG_NOTICE, "[Session %s] Detected Blonde Transfer to %s\n", filter->sess->id, info->xfer_agent);
+            status_inject_queue_call(filter);
+        }
 
-        } else if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Blind")) {
+        if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Blind")) {
+
             // Copy the destiny agent
             isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
 
@@ -296,12 +327,36 @@ status_print(filter_t *filter, ami_message_t *msg)
             filter_set_userdata(blindxferfilter, (void*) info);
             filter_register_oneshot(blindxferfilter);
         }
+
+        if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Builtin")) {
+
+            if (!isaac_strcmp(message_get_header(msg, "SubEvent"), "Begin")) {
+                isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
+                info->xfer_state = 6;
+
+                // We get the Attender transfer type from masquearde Event
+                filter_t *builtinxferfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_builtinxfer);
+                filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "VarSet");
+                filter_new_condition(builtinxferfilter, MATCH_EXACT, "Variable", "TRANSFERERNAME");
+                filter_new_condition(builtinxferfilter, MATCH_EXACT, "Value", info->agent_channel);
+                filter_set_userdata(builtinxferfilter, (void*) info);
+                filter_register_oneshot(builtinxferfilter);
+
+                // Not yet ready to consider this a transfer
+                memset(statusevent, 0, sizeof(statusevent));
+            } else {
+                // We have enough information to inject messages in receiver bus 
+                isaac_log(LOG_NOTICE, "[Session %s] Detected Builtin Transfer to %s\n", filter->sess->id, info->xfer_agent);
+                status_inject_queue_call(filter);
+            }
+        }
     }
 
     // Check if there's something to write to client
     if (strlen(statusevent)) {
         session_write(sess, statusevent);
     }
+
     return 0;
 }
 
@@ -323,12 +378,12 @@ status_call(filter_t *filter, ami_message_t *msg)
 
     // Get the interesting channel name, we will fetch the rest of the messages
     // that match that ID
-    isaac_strcpy(info->agentchan, message_get_header(msg, "Destination"));
+    isaac_strcpy(info->agent_channel, message_get_header(msg, "Destination"));
 
     // Register a Filter for notifying this call
     filter_t *callfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_print);
-    filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|Transfer");
-    filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agentchan);
+    filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer");
+    filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agent_channel);
     filter_set_userdata(callfilter, (void*) info);
     filter_register(callfilter);
 
@@ -336,23 +391,32 @@ status_call(filter_t *filter, ami_message_t *msg)
 }
 
 /**
- * @brief Get Incoming call UniqueID from __TOUCH_MONITOR variable
+ * @brief Get Incoming call UniqueID from __ISAAC_MONITOR variable
  *
  */
 int
 status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     char value[100]; 
-    char plat[120], clidnum[20], agent[20], uniqueid[20];
+    char plat[120], clidnum[20], uniqueid[20], channel[80];
+    const char *agent = session_get_variable(filter->sess, "AGENT");
 
-    // Copy __TOUCH_MONITOR value
+    isaac_log(LOG_NOTICE, "Detected ISAAC_MONITOR variable on channel %s\n", message_get_header(msg, "Channel"));
+
+    // Copy __ISAAC_MONITOR value
     isaac_strcpy(value, message_get_header(msg, "Value"));
 
-    if(sscanf(value, "\"%[^-]-%[^-]-%[^-]-%[^-\"]\"", plat, clidnum, agent, uniqueid)) {
+    if(sscanf(value, "\"%[^!]!%[^!]!%[^!]!%[^!\"]\"", plat, clidnum, channel, uniqueid)) {
+        // FIXME FIXME FIXME (Ignore internal queue calls)
+        if (strlen(clidnum) == strlen(agent))
+            return 0;
+        
         // Initialize application info
         struct app_status_info *info = malloc(sizeof(struct app_status_info));
         isaac_strcpy(info->plat, plat);
         isaac_strcpy(info->clidnum, clidnum);
+        isaac_strcpy(info->channel, channel);
         isaac_strcpy(info->uniqueid, uniqueid);
+        info->answered = false;
 
         filter_t *channelfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_call);
         filter_new_condition(channelfilter, MATCH_EXACT , "Event", "Dial");
@@ -383,7 +447,6 @@ int
 status_exec(session_t *sess, app_t *app, const char *args)
 {
     const char *agent = session_get_variable(sess, "AGENT");
-    const char *interface = session_get_variable(sess, "INTERFACE");
 
     // Check we are logged in.
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -399,16 +462,22 @@ status_exec(session_t *sess, app_t *app, const char *args)
     // Register a Filter to get All generated channels for
     filter_t *channelfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_incoming_uniqueid);
     filter_new_condition(channelfilter, MATCH_EXACT , "Event", "VarSet");
-    filter_new_condition(channelfilter, MATCH_EXACT , "Variable", "__TOUCH_MONITOR");
-    filter_new_condition(channelfilter, MATCH_START_WITH, "Channel", "Local/%s@agentes", agent, interface);
+    filter_new_condition(channelfilter, MATCH_EXACT , "Variable", "__ISAAC_MONITOR");
+    filter_new_condition(channelfilter, MATCH_START_WITH, "Channel", "Local/%s@agentes", agent);
     filter_register(channelfilter);
 
     // Check with uniqueid mode
-    if (args && !strncasecmp(args, "WUID", 4)) {
-        session_set_variable(sess, "STATUSWUID", "1");        
-        session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID info).\r\n", agent);
-    } else {
-        session_write(sess, "STATUSOK Agent %s status will be printed.\r\n", agent);
+    if (args) {
+        if (strstr(args, "DEBUG")) {
+            session_set_variable(sess, "STATUSDEBUG", "1");
+        }
+
+        if (strstr(args, "WUID")) {
+            session_set_variable(sess, "STATUSWUID", "1");        
+            session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID info).\r\n", agent);
+        } else {
+            session_write(sess, "STATUSOK Agent %s status will be printed.\r\n", agent);
+        }
     }
 
 

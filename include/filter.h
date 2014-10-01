@@ -316,6 +316,21 @@ extern int
 filter_print_message(filter_t *filter, ami_message_t *msg);
 
 /**
+ * @brief Inject a fake message as being received by manager
+ *
+ * This can generate fake messages in order to trigger filters in other
+ * sessions.
+ * The fake message passed to this function will be checked before any other
+ * manager message.
+ *
+ * Be aware: If the function emitting the message is also triggered by the 
+ *           injected message, this can cause an infinite loop!
+ */
+extern int
+inject_message(ami_message_t *msg);
+
+
+/**
  * @brief Check which of the registered filters match the given message
  *
  * This function is invoked from manager thread for each received message to
