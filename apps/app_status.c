@@ -84,7 +84,7 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
     struct app_status_info *info = NULL;
 
     // Find the call with that uniqueid
-    while((filter = filter_from_session(sess, filter)) != NULL) {
+    while((filter = filter_from_session(sess, filter))) {
         info = (struct app_status_info *) filter_get_userdata(filter);
         if (info && !strcasecmp(info->uniqueid, uniqueid)) {
             return info->agent_channel;
@@ -109,6 +109,7 @@ status_showing_uniqueid(session_t *sess, const char *uniqueid) {
     // Find the call with that uniqueid
     while((filter = filter_from_session(sess, filter)) != NULL) {
         info = (struct app_status_info *) filter_get_userdata(filter);
+        isaac_log(LOG_NOTICE, "%s - %s [ %s ]\n", filter->sess->id, sess->id, uniqueid);
         if (info && !strcasecmp(info->uniqueid, uniqueid)) {
             return true;
         }
@@ -447,24 +448,27 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     char plat[120], clidnum[20], uniqueid[20], channel[80];
     const char *agent = session_get_variable(filter->sess, "AGENT");
 
-    isaac_log(LOG_NOTICE, "[Session %s] Detected ISAAC_MONITOR on channel %s: %s\n",
-        filter->sess->id,
-        message_get_header(msg, "Channel"),
-        message_get_header(msg, "Value"));
-
     // Copy __ISAAC_MONITOR value
     isaac_strcpy(value, message_get_header(msg, "Value"));
 
     if(sscanf(value, "\"%[^!]!%[^!]!%[^!]!%[^!\"]\"", plat, clidnum, channel, uniqueid)) {
 
         // Already showing this call
-        if (status_showing_uniqueid(filter->sess, uniqueid)) 
-            return 0;
+        //if (status_showing_uniqueid(filter->sess, uniqueid)) {
+        //    isaac_log(LOG_WARNING, "[Session %s] Already showing information for uniqueid %s\n", 
+        //        filter->sess->id, uniqueid);
+        //    return 0;
+        //} 
 
         // FIXME FIXME FIXME (Ignore internal queue calls)
         if (strlen(clidnum) == strlen(agent) || !strncasecmp(channel, "Local/", 6))
             return 0;
         
+        isaac_log(LOG_NOTICE, "[Session %s] Detected ISAAC_MONITOR on channel %s: %s\n",
+            filter->sess->id,
+            message_get_header(msg, "Channel"),
+            message_get_header(msg, "Value"));
+
         // Initialize application info
         struct app_status_info *info = malloc(sizeof(struct app_status_info));
         isaac_strcpy(info->plat, plat);
