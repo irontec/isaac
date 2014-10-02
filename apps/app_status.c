@@ -96,32 +96,6 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
 }
 
 /**
- * @brief Returns channel name for a given UniqueID
- *
- * @param uniqueid Channel UniqueID
- * @returns channel name or NULL if not found
- */
-bool
-status_showing_uniqueid(session_t *sess, const char *uniqueid) {
-    filter_t *filter = NULL;
-    struct app_status_info *info = NULL;
-
-    // Find the call with that uniqueid
-    while((filter = filter_from_session(sess, filter)) != NULL) {
-        info = (struct app_status_info *) filter_get_userdata(filter);
-        isaac_log(LOG_NOTICE, "%s - %s [ %s ]\n", filter->sess->id, sess->id, uniqueid);
-        if (info && !strcasecmp(info->uniqueid, uniqueid)) {
-            return true;
-        }
-    }
-
-    // No channel found with that uniqueid
-    return false;
-}
-
-
-
-/**
  * @brief Injects messages to AMI to simulate an incoming call
  *
  * When a transfer occurs, some clients want to receive status
@@ -155,7 +129,7 @@ status_inject_queue_call(filter_t *filter)
     message_add_header(&usermsg, "Variable: __ISAAC_MONITOR");
     message_add_header(&usermsg, "Value: \"%s!%s!%s!%s\"", info->plat, info->clidnum, info->channel, info->uniqueid);
     message_add_header(&usermsg, "Channel: Local/%s@agentes", info->xfer_agent);
-    inject_message(&usermsg);
+    filter_inject_message(filter, &usermsg);
 
     /* Construct a Request message (fake Dial). 
      * We trigger the second callback of Status, now providing the SIP/ channel name
@@ -168,7 +142,7 @@ status_inject_queue_call(filter_t *filter)
     message_add_header(&usermsg, "Destination: %s", info->xfer_channel);
     message_add_header(&usermsg, "CallerIDName: %s", info->plat);
     message_add_header(&usermsg, "CallerIDNum: %s", info->clidnum);
-    inject_message(&usermsg);
+    filter_inject_message(filter, &usermsg);
 
     /* Construct NewState fake status messages
      * We generate Newstate messages to update the channel status to match the 
@@ -179,7 +153,7 @@ status_inject_queue_call(filter_t *filter)
         message_add_header(&usermsg, "Event: Newstate");
         message_add_header(&usermsg, "Channel: %s", info->xfer_channel);
         message_add_header(&usermsg, "ChannelState: 5");
-        inject_message(&usermsg);
+        filter_inject_message(filter, &usermsg);
     }
 
     if (info->xfer_state >= 6) {
@@ -187,7 +161,7 @@ status_inject_queue_call(filter_t *filter)
         message_add_header(&usermsg, "Event: Newstate");
         message_add_header(&usermsg, "Channel: %s", info->xfer_channel);
         message_add_header(&usermsg, "ChannelState: 6");
-        inject_message(&usermsg);
+        filter_inject_message(filter, &usermsg);
     }
 
     return 1;

@@ -327,7 +327,7 @@ filter_print_message(filter_t *filter, ami_message_t *msg);
  *           injected message, this can cause an infinite loop!
  */
 extern int
-inject_message(ami_message_t *msg);
+filter_inject_message(filter_t *filter, ami_message_t *msg);
 
 
 /**

@@ -321,6 +321,23 @@ session_iterator_next(session_iter_t *iter)
     return next;
 }
 
+session_t *
+session_iterator_next_by_variable(session_iter_t *iter, const char *variable, const char *value)
+{
+    session_t *next = NULL;
+    if (!variable || !value) 
+        return NULL;
+
+    while ((next = session_iterator_next(iter))) {
+        const char* sessvalue = session_get_variable(next, variable);
+        if (sessvalue && !strcasecmp(sessvalue, value)) {
+            break;
+        }
+    }
+
+    return next;
+}
+
 void
 session_iterator_destroy(session_iter_t *iter)
 {
@@ -375,4 +392,10 @@ session_finish_all(const char *message)
     }
     session_iterator_destroy(iter);
     return 0;
+}
+
+int
+session_id(session_t *sess)
+{
+    return atoi(sess->id);
 }

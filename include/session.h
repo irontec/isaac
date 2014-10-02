@@ -228,6 +228,10 @@ extern session_iter_t *
 session_iterator_new();
 extern session_t *
 session_iterator_next(session_iter_t *iter);
+
+extern session_t *
+session_iterator_next_by_variable(session_iter_t *iter, const char *variable, const char *value);
+
 extern void
 session_iterator_destroy(session_iter_t *iter);
 
@@ -238,5 +242,8 @@ session_by_variable(const char *varname, const char *varvalue);
 
 extern int
 session_finish_all(const char *message);
+
+extern int 
+session_id(session_t *sess);
 
 #endif

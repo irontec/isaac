@@ -238,10 +238,25 @@ filter_print_message(filter_t *filter, ami_message_t *msg)
 }
 
 int
-inject_message(ami_message_t *msg)
+filter_inject_message(filter_t *filter, ami_message_t *msg)
 {
+    session_iter_t *iter;
+    session_t *sess = NULL;
+    const char *agent = session_get_variable(filter->sess, "AGENT");
+
+    iter = session_iterator_new();
+    while ((sess = session_iterator_next_by_variable(iter, "AGENT", agent))) {
+        if (session_id(sess) < session_id(filter->sess)) {
+            isaac_log(LOG_DEBUG, "YOU SHALL NOT INJECT! %s < %s\n", sess->id, filter->sess->id);
+            session_iterator_destroy(iter);
+            return 1;
+        }
+    }
+    session_iterator_destroy(iter);
+
     // Show some log
-    isaac_log(LOG_DEBUG, "Injecting fake %s message: %s\n", message_get_header(msg, "Event"), message_to_text(msg));
+    isaac_log(LOG_NOTICE, "[Session %s] Injecting fake %s message\n", filter->sess->id, message_get_header(msg, "Event"));
+    isaac_log(LOG_DEBUG, "[Session %s] Injecting fake %s message: %s\n", filter->sess->id, message_get_header(msg, "Event"), message_to_text(msg));
     return check_filters_for_message(msg);
 }
 
