@@ -35,6 +35,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include "app.h"
 #include "session.h"
 #include "manager.h"
@@ -207,20 +209,23 @@ status_builtinxfer(filter_t *filter, ami_message_t *msg)
 {
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
 
-    if (!strcasecmp(message_get_header(msg, "Event"), "VarSet")) {
-        isaac_strcpy(info->xfer_channel, message_get_header(msg, "Channel")); 
-        info->xfer_channel[strlen(info->xfer_channel)-1] = '2';
+    if (!strcasecmp(message_get_header(msg, "Variable"), "TRANSFERERNAME")) {
+        char local_channel[80];
+        isaac_strcpy(local_channel, message_get_header(msg, "Channel")); 
+        local_channel[strlen(local_channel)-1] = '2';
 
         // Try to find the final xfer channel
         filter_t *builtinxferfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_builtinxfer);
-        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "Dial");
-        filter_new_condition(builtinxferfilter, MATCH_EXACT, "SubEvent", "Begin");
-        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Channel", info->xfer_channel);
+        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "VarSet");
+        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Channel", local_channel);
+        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Variable", "BRIDGEPEER");
+        filter_new_condition(builtinxferfilter, MATCH_START_WITH, "Value", "SIP/");
         filter_set_userdata(builtinxferfilter, (void*) info);
         filter_register_oneshot(builtinxferfilter);
         
-    } else if (!strcasecmp(message_get_header(msg, "Event"), "Dial")) {
-        isaac_strcpy(info->xfer_channel, message_get_header(msg, "Destination"));
+    } else if (!strcasecmp(message_get_header(msg, "Variable"), "BRIDGEPEER")) {
+        // Final Xfer channel found!
+        isaac_strcpy(info->xfer_channel, message_get_header(msg, "Value"));
     }
 
     return 0;
@@ -329,7 +334,6 @@ status_print(filter_t *filter, ami_message_t *msg)
         }
 
         if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Builtin")) {
-
             if (!isaac_strcmp(message_get_header(msg, "SubEvent"), "Begin")) {
                 isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
                 info->xfer_state = 6;
@@ -345,9 +349,23 @@ status_print(filter_t *filter, ami_message_t *msg)
                 // Not yet ready to consider this a transfer
                 memset(statusevent, 0, sizeof(statusevent));
             } else {
-                // We have enough information to inject messages in receiver bus 
-                isaac_log(LOG_NOTICE, "[Session %s] Detected Builtin Transfer to %s\n", filter->sess->id, info->xfer_agent);
-                status_inject_queue_call(filter);
+                char xferchan[80];
+                isaac_strcpy(xferchan, info->xfer_channel);
+                char *interface = strtok(xferchan, "-");
+    
+                // Find the session for the given interface
+                session_t *xfer_sess = session_by_variable("INTERFACE", interface);
+
+                if (xfer_sess) {
+                    // We have enough information to inject messages in receiver bus 
+                    isaac_strcpy(info->xfer_agent, session_get_variable(xfer_sess, "AGENT"));
+                    isaac_log(LOG_NOTICE, "[Session %s] Detected Builtin Transfer to %s\n", filter->sess->id, info->xfer_agent);
+                    status_inject_queue_call(filter);
+                } else {
+                    // Oh, transfering to someone not logged in
+                    isaac_log(LOG_WARNING, "[Session %s] Ignoring transfer injection to %s. It does not have any Isaac sessions Up.\n",
+                        interface);
+                }
             }
         }
     }
@@ -400,14 +418,17 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     char plat[120], clidnum[20], uniqueid[20], channel[80];
     const char *agent = session_get_variable(filter->sess, "AGENT");
 
-    isaac_log(LOG_NOTICE, "Detected ISAAC_MONITOR variable on channel %s\n", message_get_header(msg, "Channel"));
+    isaac_log(LOG_NOTICE, "[Session %s] Detected ISAAC_MONITOR on channel %s: %s\n",
+        filter->sess->id,
+        message_get_header(msg, "Channel"),
+        message_get_header(msg, "Value"));
 
     // Copy __ISAAC_MONITOR value
     isaac_strcpy(value, message_get_header(msg, "Value"));
 
     if(sscanf(value, "\"%[^!]!%[^!]!%[^!]!%[^!\"]\"", plat, clidnum, channel, uniqueid)) {
         // FIXME FIXME FIXME (Ignore internal queue calls)
-        if (strlen(clidnum) == strlen(agent))
+        if (strlen(clidnum) == strlen(agent) || !strncasecmp(channel, "Local/", 6))
             return 0;
         
         // Initialize application info
