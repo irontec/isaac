@@ -291,7 +291,7 @@ status_print(filter_t *filter, ami_message_t *msg)
         }
 
         // We dont expect more info about this filter, it's safe to unregister it here
-        //filter_unregister(filter);
+        filter_unregister(filter);
 
     } else if (!isaac_strcmp(event, "IsaacTransfer")) {
         // Queue call has been transfered
@@ -324,13 +324,18 @@ status_print(filter_t *filter, ami_message_t *msg)
             // Copy the destiny agent
             isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
 
-            // We get the Attender transfer type from masquearde Event
-            filter_t *blindxferfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_blindxfer);
-            filter_new_condition(blindxferfilter, MATCH_EXACT, "Event", "Dial");
-            filter_new_condition(blindxferfilter, MATCH_EXACT, "SubEvent", "Begin");
-            filter_new_condition(blindxferfilter, MATCH_EXACT, "UniqueID", message_get_header(msg, "TargetUniqueid"));
-            filter_set_userdata(blindxferfilter, (void*) info);
-            filter_register_oneshot(blindxferfilter);
+            // Find the session for the given interface
+            session_t *xfer_sess = session_by_variable("AGENT", info->xfer_agent);
+
+            if (xfer_sess) {
+                // We get the Attender transfer type from masquearde Event
+                filter_t *blindxferfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_blindxfer);
+                filter_new_condition(blindxferfilter, MATCH_EXACT, "Event", "Dial");
+                filter_new_condition(blindxferfilter, MATCH_EXACT, "SubEvent", "Begin");
+                filter_new_condition(blindxferfilter, MATCH_EXACT, "UniqueID", message_get_header(msg, "TargetUniqueid"));
+                filter_set_userdata(blindxferfilter, (void*) info);
+                filter_register_oneshot(blindxferfilter);
+            }
         }
 
         if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Builtin")) {
@@ -468,6 +473,7 @@ int
 status_exec(session_t *sess, app_t *app, const char *args)
 {
     const char *agent = session_get_variable(sess, "AGENT");
+    const char *interface = session_get_variable(sess, "INTERFACE");
 
     // Check we are logged in.
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -484,7 +490,7 @@ status_exec(session_t *sess, app_t *app, const char *args)
     filter_t *channelfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_incoming_uniqueid);
     filter_new_condition(channelfilter, MATCH_EXACT , "Event", "VarSet");
     filter_new_condition(channelfilter, MATCH_EXACT , "Variable", "__ISAAC_MONITOR");
-    filter_new_condition(channelfilter, MATCH_START_WITH, "Channel", "Local/%s@agentes", agent);
+    filter_new_condition(channelfilter, MATCH_REGEX, "Channel", "Local/%s@agentes", agent, interface);
     filter_register(channelfilter);
 
     // Check with uniqueid mode
