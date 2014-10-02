@@ -359,3 +359,20 @@ session_by_variable(const char *varname, const char *varvalue)
     session_iterator_destroy(iter);
     return sess;
 }
+
+int
+session_finish_all(const char *message)
+{
+    session_iter_t *iter;
+    session_t *sess = NULL;
+    char bye[256];
+    sprintf(bye, "BYE %s\r\n", message);
+
+    iter = session_iterator_new();
+    while ((sess = session_iterator_next(iter))) {
+        session_write(sess, bye);
+        session_finish(sess);
+    }
+    session_iterator_destroy(iter);
+    return 0;
+}

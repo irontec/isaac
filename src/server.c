@@ -101,16 +101,8 @@ start_server(const char *addrstr, const int port)
 int
 stop_server()
 {
-    session_iter_t *iter;
-    session_t *sess = NULL;
-
-    iter = session_iterator_new();
-    while ((sess = session_iterator_next(iter))) {
-        session_write(sess, "BYE Isaac has been stopped.\r\n");
-        session_finish(sess);
-    }
-    session_iterator_destroy(iter);
-
+    // Say bye to all the sessions
+    session_finish_all("Isaac has been stopped.");
     // Stop the socket from receiving new connections
     shutdown(server_sock, SHUT_RDWR);
     // Wait for the accept thread to finish

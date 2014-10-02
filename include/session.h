@@ -236,4 +236,7 @@ session_by_id(const char *id);
 extern session_t *
 session_by_variable(const char *varname, const char *varvalue);
 
+extern int
+session_finish_all(const char *message);
+
 #endif

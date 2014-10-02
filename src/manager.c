@@ -271,6 +271,9 @@ manager_read_thread(void *man)
     // Start reading messages
     while (config.running) {
         if (!manager->connected) {
+            // Close all sessions
+            session_finish_all("Asterisk has gone.");
+            // Try to connect 
             if (manager_connect(manager) != -1) {
                 manager->connected = 1;
                 manager->connectedtime = isaac_tvnow();
