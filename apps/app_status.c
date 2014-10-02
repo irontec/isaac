@@ -95,6 +95,30 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
     return NULL;
 }
 
+/**
+ * @brief Returns channel name for a given UniqueID
+ *
+ * @param uniqueid Channel UniqueID
+ * @returns channel name or NULL if not found
+ */
+bool
+status_showing_uniqueid(session_t *sess, const char *uniqueid) {
+    filter_t *filter = NULL;
+    struct app_status_info *info = NULL;
+
+    // Find the call with that uniqueid
+    while((filter = filter_from_session(sess, filter)) != NULL) {
+        info = (struct app_status_info *) filter_get_userdata(filter);
+        if (info && !strcasecmp(info->uniqueid, uniqueid)) {
+            return true;
+        }
+    }
+
+    // No channel found with that uniqueid
+    return false;
+}
+
+
 
 /**
  * @brief Injects messages to AMI to simulate an incoming call
@@ -434,7 +458,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     if(sscanf(value, "\"%[^!]!%[^!]!%[^!]!%[^!\"]\"", plat, clidnum, channel, uniqueid)) {
 
         // Already showing this call
-        if (find_channel_by_uniqueid(filter->sess, uniqueid)) 
+        if (status_showing_uniqueid(filter->sess, uniqueid)) 
             return 0;
 
         // FIXME FIXME FIXME (Ignore internal queue calls)
