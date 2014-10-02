@@ -190,7 +190,6 @@ status_blindxfer(filter_t *filter, ami_message_t *msg)
     isaac_strcpy(info->xfer_channel, message_get_header(msg, "Destination"));
 
     // We have enough information to inject messages in receiver bus 
-    isaac_log(LOG_NOTICE, "[Session %s] Detected Blind Transfer to %s\n", filter->sess->id, info->xfer_agent);
     status_inject_queue_call(filter);
     
     return 0;
@@ -323,6 +322,7 @@ status_print(filter_t *filter, ami_message_t *msg)
 
             // Copy the destiny agent
             isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
+            isaac_log(LOG_NOTICE, "[Session %s] Detected Blind Transfer to %s\n", filter->sess->id, info->xfer_agent);
 
             // Find the session for the given interface
             session_t *xfer_sess = session_by_variable("AGENT", info->xfer_agent);
