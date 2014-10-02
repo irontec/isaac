@@ -432,6 +432,11 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     isaac_strcpy(value, message_get_header(msg, "Value"));
 
     if(sscanf(value, "\"%[^!]!%[^!]!%[^!]!%[^!\"]\"", plat, clidnum, channel, uniqueid)) {
+
+        // Already showing this call
+        if (find_channel_by_uniqueid(filter->sess, uniqueid)) 
+            return 0;
+
         // FIXME FIXME FIXME (Ignore internal queue calls)
         if (strlen(clidnum) == strlen(agent) || !strncasecmp(channel, "Local/", 6))
             return 0;
