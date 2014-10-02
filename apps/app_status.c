@@ -127,7 +127,7 @@ status_inject_queue_call(filter_t *filter)
     memset(&usermsg, 0, sizeof(ami_message_t));
     message_add_header(&usermsg, "Event: VarSet");
     message_add_header(&usermsg, "Variable: __ISAAC_MONITOR");
-    message_add_header(&usermsg, "Value: \"%s!%s!%s!%s\"", info->plat, info->clidnum, info->channel, info->uniqueid);
+    message_add_header(&usermsg, "Value: %s!%s!%s!%s", info->plat, info->clidnum, info->channel, info->uniqueid);
     message_add_header(&usermsg, "Channel: Local/%s@agentes", info->xfer_agent);
     filter_inject_message(filter, &usermsg);
 
@@ -425,7 +425,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     // Copy __ISAAC_MONITOR value
     isaac_strcpy(value, message_get_header(msg, "Value"));
 
-    if(sscanf(value, "\"%[^!]!%[^!]!%[^!]!%[^!\"]\"", plat, clidnum, channel, uniqueid)) {
+    if(sscanf(value, "%[^!]!%[^!]!%[^!]!%s", plat, clidnum, channel, uniqueid)) {
 
         // Already showing this call
         //if (status_showing_uniqueid(filter->sess, uniqueid)) {
