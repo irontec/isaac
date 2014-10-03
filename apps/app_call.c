@@ -281,14 +281,20 @@ call_state(filter_t *filter, ami_message_t *msg)
 
         // Update recording variables
         if (!strncasecmp(varname, "GRABACIONES_", 12)) {
-            if (!strcasecmp(varname+27, "MODULO"))     sprintf(info->grabaciones_modulo, "%s;", varvalue);
-            if (!strcasecmp(varname+27, "TIPO"))       sprintf(info->grabaciones_tipo, "%s;", varvalue);
-            if (!strcasecmp(varname+27, "PLATAFORMA")) sprintf(info->grabaciones_plataforma, "%s;", varvalue);
-            if (!strcasecmp(varname+27, "ORIGEN"))     sprintf(info->grabaciones_origen, "%s;", varvalue);
-            if (!strcasecmp(varname+27, "DESTINO"))    sprintf(info->grabaciones_destino, "%s;", varvalue);
-            if (!strcasecmp(varname+27, "FECHA_HORA")) sprintf(info->grabaciones_fecha_hora, "%s;", varvalue);
-            if (!strcasecmp(varname+27, "RUTA"))       sprintf(info->grabaciones_ruta, "%s;", varvalue);
-            if (!strcasecmp(varname+27, "FICHERO"))    sprintf(info->grabaciones_fichero, "%s;", varvalue);
+            char recordvar[256],recorduniqueid[80], grabaciones[80], recordtype[80];
+            isaac_strcpy(recordvar, varname);
+            if (sscanf(recordvar, "%[^_]_%[^_]_%s", grabaciones, recorduniqueid, recordtype) == 3) {
+                if (!strcasecmp(recordtype, "MODULO"))     sprintf(info->grabaciones_modulo, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "TIPO"))       sprintf(info->grabaciones_tipo, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "PLATAFORMA")) sprintf(info->grabaciones_plataforma, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "ORIGEN"))     sprintf(info->grabaciones_origen, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "DESTINO"))    sprintf(info->grabaciones_destino, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "FECHA_HORA")) sprintf(info->grabaciones_fecha_hora, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "RUTA"))       sprintf(info->grabaciones_ruta, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "FICHERO"))    sprintf(info->grabaciones_fichero, "%s;", varvalue);
+            } else {
+                isaac_log(LOG_WARNING, "Unhandled record variable %s\n", varname);
+            }
         }
 
         // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
