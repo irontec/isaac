@@ -305,7 +305,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             strcpy(info->ochannel, message_get_header(msg, "Channel"));
 
             // Register a Filter for the agent statusthe custom manager application PlayDTMF.
-            info->ofilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
+            info->ofilter = filter_create_async(filter->sess, call_state);
             filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
             filter_set_userdata(info->ofilter, (void*) info);
@@ -325,8 +325,8 @@ call_state(filter_t *filter, ami_message_t *msg)
         strcpy(info->dchannel, message_get_header(msg, "Destination"));
 
         // Register a Filter for the agent status
-        info->dfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, call_state);
-        info->dfilter->app_info = info;
+        info->dfilter = filter_create_async(filter->sess, call_state);
+        filter_set_userdata(info->dfilter, info);
         filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
         filter_register(info->dfilter);
 
@@ -391,7 +391,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Register a Filter to get Generated Channel
-    info->callfilter = filter_create(sess, FILTER_SYNC_CALLBACK, call_state);
+    info->callfilter = filter_create_async(sess, call_state);
     filter_new_condition(info->callfilter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(info->callfilter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(info->callfilter, MATCH_EXACT, "Value", actionid);

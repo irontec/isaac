@@ -213,7 +213,7 @@ status_builtinxfer(filter_t *filter, ami_message_t *msg)
         local_channel[strlen(local_channel)-1] = '2';
 
         // Try to find the final xfer channel
-        filter_t *builtinxferfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_builtinxfer);
+        filter_t *builtinxferfilter = filter_create_async(filter->sess, status_builtinxfer);
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "VarSet");
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Channel", local_channel);
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Variable", "BRIDGEPEER");
@@ -328,7 +328,7 @@ status_print(filter_t *filter, ami_message_t *msg)
 
             if (xfer_sess) {
                 // We get the Attender transfer type from masquearde Event
-                filter_t *blindxferfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_blindxfer);
+                filter_t *blindxferfilter = filter_create_async(sess, status_blindxfer);
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "Event", "Dial");
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "SubEvent", "Begin");
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "UniqueID", message_get_header(msg, "TargetUniqueid"));
@@ -343,7 +343,7 @@ status_print(filter_t *filter, ami_message_t *msg)
                 info->xfer_state = 6;
 
                 // We get the Attender transfer type from masquearde Event
-                filter_t *builtinxferfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_builtinxfer);
+                filter_t *builtinxferfilter = filter_create_async(sess, status_builtinxfer);
                 filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "VarSet");
                 filter_new_condition(builtinxferfilter, MATCH_EXACT, "Variable", "TRANSFERERNAME");
                 filter_new_condition(builtinxferfilter, MATCH_EXACT, "Value", info->agent_channel);
@@ -403,7 +403,7 @@ status_call(filter_t *filter, ami_message_t *msg)
     isaac_strcpy(info->agent_channel, message_get_header(msg, "Destination"));
 
     // Register a Filter for notifying this call
-    filter_t *callfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_print);
+    filter_t *callfilter = filter_create_async(filter->sess, status_print);
     filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer");
     filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agent_channel);
     filter_set_userdata(callfilter, (void*) info);
@@ -451,7 +451,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
         isaac_strcpy(info->uniqueid, uniqueid);
         info->answered = false;
 
-        filter_t *channelfilter = filter_create(filter->sess, FILTER_SYNC_CALLBACK, status_call);
+        filter_t *channelfilter = filter_create_async(filter->sess, status_call);
         filter_new_condition(channelfilter, MATCH_EXACT , "Event", "Dial");
         filter_new_condition(channelfilter, MATCH_EXACT , "SubEvent", "Begin");
         filter_new_condition(channelfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Channel"));
@@ -494,7 +494,7 @@ status_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Register a Filter to get All generated channels for
-    filter_t *channelfilter = filter_create(sess, FILTER_SYNC_CALLBACK, status_incoming_uniqueid);
+    filter_t *channelfilter = filter_create_async(sess, status_incoming_uniqueid);
     filter_new_condition(channelfilter, MATCH_EXACT , "Event", "VarSet");
     filter_new_condition(channelfilter, MATCH_EXACT , "Variable", "__ISAAC_MONITOR");
     filter_new_condition(channelfilter, MATCH_REGEX, "Channel", "Local/%s@agentes", agent, interface);

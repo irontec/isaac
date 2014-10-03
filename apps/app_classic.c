@@ -107,7 +107,7 @@ classic_exec(session_t *sess, app_t *app, const char *args)
         session_write(sess, "Status: Fully Booted\r\n");
         session_write(sess, "\r\n\r\n");
         pthread_mutex_unlock(&sess->lock);
-        filter_t *filter = filter_create(sess, FILTER_SYNC_CALLBACK, classic_print);
+        filter_t *filter = filter_create_async(sess, classic_print);
         filter_register(filter);
     } else if (!strcasecmp(action, "Events")) {
         pthread_mutex_lock(&sess->lock);

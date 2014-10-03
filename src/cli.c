@@ -1169,8 +1169,11 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     } else {
         while ((filter = filter_from_session(sess, filter))) {
             // Print session filters
-            cli_write(args->cli, "------------ Filter %d %s ------------\n", filter_cnt++,
-                    ((filter->oneshot) ? "(OneShot)" : ""));
+            cli_write(args->cli, "------------ %s Filter %d %s ------------\n", 
+                    (filter->type == FILTER_ASYNC) ? "(Async)" : "(Sync)",
+                    filter_cnt++,
+                    (filter->type == FILTER_ASYNC && filter->data.async.oneshot)?"(OneShot)":"");
+
             for (ccnt = 0; ccnt < filter->condcount; ccnt++) {
 
                 cli_write(args->cli, " %-10s", filter->conds[ccnt].hdr);

@@ -253,7 +253,7 @@ login_exec(session_t *sess, app_t *app, const char *args)
         }
 
         // Check if device is registerd
-        filter_t *peerfilter = filter_create(sess, FILTER_SYNC_CALLBACK, peer_status_check);
+        filter_t *peerfilter = filter_create_async(sess, peer_status_check);
         filter_new_condition(peerfilter, MATCH_EXACT , "ActionID", interface+4);
         filter_register_oneshot(peerfilter);
 
@@ -267,7 +267,7 @@ login_exec(session_t *sess, app_t *app, const char *args)
 
         // Also check for status changes
         // Check if device is registerd
-        filter_t *monitorfilter = filter_create(sess, FILTER_SYNC_CALLBACK, peer_status_check);
+        filter_t *monitorfilter = filter_create_async(sess, peer_status_check);
         filter_new_condition(monitorfilter, MATCH_EXACT , "Event", "PeerStatus");
         filter_new_condition(monitorfilter, MATCH_EXACT , "Peer", interface);
         filter_new_condition(monitorfilter, MATCH_EXACT , "PeerStatus", "Unregistered");

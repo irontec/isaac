@@ -222,10 +222,12 @@ lua_filter_create(lua_State *L)
 
         isaac_log(LOG_DEBUG, "Creating new filter for LUA module [%s]\n", callback);
 
-        filter_t *filter = filter_create(sess, filter_type, lua_filter_callback);
-        filter_set_userdata(filter, info);
+        if (filter_type == FILTER_ASYNC) {
+            filter_t *filter = filter_create_async(sess, lua_filter_callback);
+            filter_set_userdata(filter, info);
+            lua_pushlightuserdata(L, filter);
+        }
 
-        lua_pushlightuserdata(L, filter);
         return 1;
     }
     return 0;
@@ -351,10 +353,10 @@ lua_module_create(const char *file)
     lua_setglobal(module->lua, "LOG_CRITICAL");
 
     // Load Filter Callback Types
-    lua_pushnumber(module->lua, FILTER_ASYNC_CALLBACK);
-    lua_setglobal(module->lua, "FILTER_ASYNC_CALLBACK");
-    lua_pushnumber(module->lua, FILTER_SYNC_CALLBACK);
-    lua_setglobal(module->lua, "FILTER_SYNC_CALLBACK");
+    lua_pushnumber(module->lua, FILTER_ASYNC);
+    lua_setglobal(module->lua, "FILTER_ASYNC");
+    lua_pushnumber(module->lua, FILTER_SYNC);
+    lua_setglobal(module->lua, "FILTER_SYNC");
 
     // Load Condition types
     lua_pushnumber(module->lua, MATCH_EXACT);

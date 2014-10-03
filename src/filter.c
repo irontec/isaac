@@ -36,8 +36,7 @@ filter_t *filters = NULL;
 pthread_mutex_t filters_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 filter_t *
-filter_create(session_t *sess, enum callbacktype cbtype, int
-(*callback)(filter_t *filter, ami_message_t *msg))
+filter_create_async(session_t *sess, int (*callback)(filter_t *filter, ami_message_t *msg))
 {
     filter_t *filter = NULL;
     // Allocate memory for a new filter
@@ -45,14 +44,34 @@ filter_create(session_t *sess, enum callbacktype cbtype, int
         // Initialice basic fields
         memset(filter, 0, sizeof(filter_t));
         filter->sess = sess;
-        filter->oneshot = 0;
         filter->condcount = 0;
-        filter->cbtype = cbtype;
-        filter->callback = callback;
+        filter->type = FILTER_ASYNC;
+        filter->data.async.callback = callback;
+        filter->data.async.oneshot = 0;
     }
     // Return the allocated filter (or NULL ;p)
     return filter;
 
+}
+
+filter_t *
+filter_create_sync(session_t *sess)
+{
+    filter_t *filter = NULL;
+    // Allocate memory for a new filter
+    if ((filter = malloc(sizeof(filter_t)))) {
+        // Initialice basic fields
+        memset(filter, 0, sizeof(filter_t));
+        filter->sess = sess;
+        filter->condcount = 0;
+        filter->type = FILTER_SYNC;
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
+        pthread_mutex_init(&filter->data.sync.lock, &attr);
+    }
+    // Return the allocated filter (or NULL ;p)
+    return filter;
 }
 
 int
@@ -105,7 +124,10 @@ filter_remove_conditions(filter_t *filter)
 int
 filter_register_oneshot(filter_t *filter)
 {
-    filter->oneshot = 1;
+    if (!filter) return 1;
+    if (filter->type == FILTER_ASYNC)
+        filter->data.async.oneshot = 1;
+
     return filter_register(filter);
 }
 
@@ -113,8 +135,12 @@ int
 filter_register(filter_t *filter)
 {
     pthread_mutex_lock(&filters_mutex);
-    isaac_log(LOG_DEBUG, "[Session %s] Registering filter [%p] with %d conditions\n",
-            filter->sess->id, filter, filter->condcount);
+    isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter [%p] with %d conditions\n",
+            filter->sess->id, 
+            (filter->type == FILTER_ASYNC)?"asnyc":"sync",
+            filter, 
+            filter->condcount);
+
     filter->next = filters;
     filters = filter;
     pthread_mutex_unlock(&filters_mutex);
@@ -160,11 +186,15 @@ filter_unregister(filter_t *filter)
 }
 
 int
-filter_exec_callback(filter_t *filter, ami_message_t *msg)
+filter_exec_async(filter_t *filter, ami_message_t *msg)
 {
-    int oneshot = filter->oneshot;
+    int oneshot = filter->data.async.oneshot;
     int ret = 1;
     session_t *sess = filter->sess;
+
+    // Check we have a valid filter
+    if (!filter || filter->type != FILTER_ASYNC)
+        return 1;
 
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
@@ -172,20 +202,11 @@ filter_exec_callback(filter_t *filter, ami_message_t *msg)
        filter_print_message(filter, msg);  
     }
 
-    // Depending on callback type
-    switch (filter->cbtype) {
-    case FILTER_SYNC_CALLBACK:
-        // Invoke callback right now!
-        if (filter->callback) {
-            isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n", 
-                filter->sess->id, filter, (oneshot)?"(oneshot)":"");
-            ret = filter->callback(filter, msg);
-        }
-        break;
-    default:
-        // Add the callback to the scheduller
-        /* FILTER_ASYNC_CALLBACK Not yet implemented */
-        break;
+    // Invoke callback right now!
+    if (filter->data.async.callback) {
+        isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n", 
+            filter->sess->id, filter, (oneshot)?"(oneshot)":"");
+        ret = filter->data.async.callback(filter, msg);
     }
 
     // If the filter is marked for only triggering once, unregister it
@@ -193,15 +214,71 @@ filter_exec_callback(filter_t *filter, ami_message_t *msg)
     return ret;
 }
 
+int
+filter_exec_sync(filter_t *filter, ami_message_t *msg)
+{
+    // Check we have a valid filter
+    if (!filter || filter->type != FILTER_SYNC)
+        return 1;
+
+    // This filter already contains a message
+    if (filter->data.sync.triggered)
+        return 1;
+
+    // Lock the filter before updating
+    pthread_mutex_lock(&filter->data.sync.lock);
+    // Copy the message
+    filter->data.sync.msg = *msg;
+    // Mark as triggered
+    filter->data.sync.triggered = 1;
+    // Unlock and exit
+    pthread_mutex_unlock(&filter->data.sync.lock);
+    return 0;
+}
+
+int
+filter_run(filter_t *filter, int timeout, ami_message_t *ret)
+{
+    // Check we have a valid filter
+    if (!filter || filter->type != FILTER_SYNC)
+        return 1;
+
+    int remaining = timeout * 1000; 
+    while (filter->data.sync.triggered == 0 && remaining) {
+        usleep(500);
+        remaining -= 500;
+    }
+
+    // Tiemout!
+    if (!remaining) {
+        filter_unregister(filter);
+        return 1;
+    } 
+
+    isaac_log(LOG_DEBUG, "[Session %s] Storing sync filter data [%p]\n", 
+            filter->sess->id, filter);
+
+    // Copy the message to be returned
+    *ret = filter->data.sync.msg;
+
+    // Unregister the filter
+    filter_unregister(filter);
+    return 0;
+}
+
 void
 filter_set_userdata(filter_t *filter, void *userdata)
 {
-    filter->app_info = userdata;
+    if (!filter || filter->type != FILTER_ASYNC)
+    return;
+    filter->data.async.app_info = userdata;
 }
 void *
 filter_get_userdata(filter_t *filter)
 {
-    return filter->app_info;
+    if (!filter || filter->type != FILTER_ASYNC)
+        return NULL;
+    return filter->data.async.app_info;
 }
 
 filter_t *
@@ -321,8 +398,13 @@ check_filters_for_message(ami_message_t *msg)
         if (matches == cur->condcount) {
             // We don't need to hold this lock while exec'ing the filter callback
             pthread_mutex_unlock(&filters_mutex);
-            // Exec the filter callback with the current message
-            filter_exec_callback(cur, msg);
+            if (cur->type == FILTER_ASYNC) {
+                // Exec the filter callback with the current message
+                filter_exec_async(cur, msg);
+            } else {
+                // Store the message and leave
+                filter_exec_sync(cur, msg);
+            }
             // Lock the filters before going on                
             pthread_mutex_lock(&filters_mutex);
         }

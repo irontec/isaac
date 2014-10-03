@@ -120,12 +120,32 @@ struct isaac_condition
  * which won't block manager thread, but only should be used for filters that don't
  * have to make further filters.
  */
-enum callbacktype
+enum filtertype
 {
     //! Invoke filters callback from the scheduler thread
-    FILTER_ASYNC_CALLBACK = 0,
+    FILTER_ASYNC = 0,
     //! Invoke filters callback from the manager thread (will block manager reads from AMI)
-    FILTER_SYNC_CALLBACK,
+    FILTER_SYNC,
+};
+
+struct isaac_filter_async
+{
+    //! Pointer to the callback function
+    int (*callback)(filter_t *filter, ami_message_t *msg);
+    //! If this flag is on, the filter will be unregisted after triggering once
+    int oneshot;
+    //! User pointer for storing application information if required
+    void *app_info;
+};
+
+struct isaac_filter_sync
+{
+    //! Stored ami message triggering the filter
+    ami_message_t msg;
+    //! This filter has triggered and has a valid message
+    int triggered;
+    //! Filter sync lock (avoid timeout while setting filter sync data)
+    pthread_mutex_t lock;
 };
 
 /**
@@ -138,19 +158,21 @@ struct isaac_filter
 {
     //! Session that requested the application that registered this filter
     session_t *sess;
-    //! If this flag is on, the filter will be unregisted after triggering once
-    int oneshot;
+
     //! Filter's conditions that will determine which messages are sent back to the app
     cond_t conds[MAX_CONDS];
     //! How many conditions must match
     unsigned int condcount;
+
     //! How the callback function is invoked
-    enum callbacktype cbtype;
-    //! Pointer to the callback function
-    int
-    (*callback)(filter_t *filter, ami_message_t *msg);
-    //! User pointer for storing application information if required
-    void *app_info;
+    enum filtertype type;
+
+    //! Depending on the filter type 
+    union {
+        struct isaac_filter_async async;
+        struct isaac_filter_sync sync;
+    } data;
+    
     //! Pointer for Filters Linked list
     filter_t *next;
 };
@@ -169,8 +191,23 @@ struct isaac_filter
  * @return The new allocated filter structure or NULL in case of failure
  */
 extern filter_t *
-filter_create(session_t *sess, enum callbacktype cbtype, int
-(*callback)(filter_t *filter, ami_message_t *msg));
+filter_create_async(session_t *sess, int (*callback)(filter_t *filter, ami_message_t *msg));
+
+/**
+ * @brief Create a new filter structure (This won't add it to the Filter's list)
+ *
+ * This will create a new filter's structure with the minimum required information
+ * This function only allocates memory and set some values, but won't add it to the
+ * Filters list (so it still won't trigger) so a filter_register should be called
+ * when the filter structure is ready to rock.
+ *
+ * @param sess Session that requested the application that registered the filter
+ * @param cbtype How the callback function is invoked
+ * @param callback  Pointer to the callback function
+ * @return The new allocated filter structure or NULL in case of failure
+ */
+extern filter_t *
+filter_create_sync(session_t *sess);
 
 /**
  * @brief Add a cooked condition to the given filter
@@ -251,15 +288,43 @@ filter_unregister(filter_t *filter);
  * @brief Excute the filters callback when a AMI message match its conditions
  *
  * When an AMI Message match all conditions from a filter, this function will
- * invoke the filter callback. Depending on the callback type, this will be done
- * synchronously or will be added to the callback scheduler.
+ * call its callback.
+ * If the filteres is registered as oneshot, filter will be unregistered
+ * after the callback has finished
  *
  * @param filter Filter that has matched
  * @param msg Message that matched filter conditions
  * @return The filter callback return
  */
 extern int
-filter_exec_callback(filter_t *filter, ami_message_t *msg);
+filter_exec_async(filter_t *filter, ami_message_t *msg);
+
+/**
+ * @brief Store the triggering message in the filter and mark it as triggered
+ *
+ * When an AMI Message match all conditions from a filter, this function will
+ * strore the message in the filter and mark it as filtered
+ *
+ * @param filter Filter that has matched
+ * @param msg Message that matched filter conditions
+ * @return The filter callback return
+ */
+extern int
+filter_exec_sync(filter_t *filter, ami_message_t *msg);
+
+/**
+ * @brief Wait for an ami event to trigger the filter
+ *
+ * This fuction will lock until timeout has elapsed or an ami event is filled
+ * and the filter data.
+ * 
+ * @param filter Filter thas has matched
+ * @param timeout Block timeout in milliseconds
+ * @param The matching ami message or NULL
+ * @return 0 in case of triggered, 1 otherwise
+ */
+extern int
+filter_run(filter_t *filter, int timeout, ami_message_t *msg);
 
 /**
  * @brief Set userdata pointer to the filter

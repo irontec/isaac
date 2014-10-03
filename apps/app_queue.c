@@ -90,6 +90,34 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
 
+    // Check we have a valid quene name
+    filter_t *namefilter = filter_create_sync(sess);
+    filter_new_condition(namefilter, MATCH_REGEX , "Event", "QueueSummary|QueueSummaryComplete");
+    filter_new_condition(namefilter, MATCH_EXACT , "ActionID", sess->id);
+    filter_register(namefilter);
+
+    // Construct a Request message
+    ami_message_t msg;
+    memset(&msg, 0, sizeof(ami_message_t));
+    message_add_header(&msg, "Action: QueueSummary");
+    message_add_header(&msg, "Queue: %s", queuename);
+    message_add_header(&msg, "ActionID: %s", sess->id);
+    manager_write_message(manager, &msg);
+
+    // Get the response!
+    ami_message_t retmsg;
+    if (filter_run(namefilter, 10000, &retmsg) != 0) {
+        // No response Boo!
+        session_write(sess, "QUEUEINFOFAIL Unable to get queuedata of %s\r\n", queuename);
+        return 0;
+    }
+
+    // No data from this queue
+    if (!isaac_strcasecmp(message_get_header(&retmsg, "Event"), "QueueSummaryComplete")) {
+        session_write(sess, "QUEUEINFOFAIL Queue %s does not exist.\r\n", queuename);
+        return 0;
+    }
+
     // Check we havent run this application before
     sprintf(queuevar, "QUEUEINFO_%s", queuename); 
     if (session_get_variable(sess, queuevar)) {
@@ -101,7 +129,7 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Register a Filter to get All generated channels for
-    filter_t *queuefilter = filter_create(sess, FILTER_SYNC_CALLBACK, queueinfo_print);
+    filter_t *queuefilter = filter_create_async(sess, queueinfo_print);
     filter_new_condition(queuefilter, MATCH_REGEX , "Event", "Join|Leave");
     filter_new_condition(queuefilter, MATCH_EXACT , "Queue", queuename);
     filter_register(queuefilter);
@@ -185,7 +213,7 @@ queueshow_exec(session_t *sess, app_t *app, const char *args)
     }
     
     // Filter QueueMember and QueueStatusComplete responses
-    filter_t *queuefilter = filter_create(sess, FILTER_SYNC_CALLBACK, queueshow_print);
+    filter_t *queuefilter = filter_create_async(sess, queueshow_print);
     filter_new_condition(queuefilter, MATCH_REGEX , "Event", "QueueMember|QueueStatusComplete");
     filter_new_condition(queuefilter, MATCH_EXACT , "ActionID", "QueueStatusID%s", sess->id);
     filter_register(queuefilter);
