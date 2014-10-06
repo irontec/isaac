@@ -276,17 +276,21 @@ status_print(filter_t *filter, ami_message_t *msg)
 
     } else if (!isaac_strcmp(event, "Hangup")) {
 
-        const char *cause = message_get_header(msg, "Cause");
-        if (!isaac_strcmp(cause, "17")) {
-            // Queue call rejected by agent
-            sprintf(statusevent + strlen(statusevent), "BUSY\r\n");
-        } else if (!info->answered) {
-            // Queue call timeout
-            sprintf(statusevent + strlen(statusevent), "NOANSWER\r\n");
-        } else {
-            // Queue call has finished for this agent
-            sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
-        }
+        // #0042649 Regression. Noanswer status is not valid sometimes.
+        //const char *cause = message_get_header(msg, "Cause");
+        //if (!isaac_strcmp(cause, "17")) {
+        //    // Queue call rejected by agent
+        //    sprintf(statusevent + strlen(statusevent), "BUSY\r\n");
+        //} else if (!info->answered) {
+        //    // Queue call timeout
+        //    sprintf(statusevent + strlen(statusevent), "NOANSWER\r\n");
+        //} else {
+        //    // Queue call has finished for this agent
+        //    sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
+        //}
+
+        // Queue call has finished for this agent
+        sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
 
         // We dont expect more info about this filter, it's safe to unregister it here
         filter_unregister(filter);
