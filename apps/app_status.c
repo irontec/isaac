@@ -335,7 +335,7 @@ status_print(filter_t *filter, ami_message_t *msg)
                 filter_t *blindxferfilter = filter_create_async(sess, status_blindxfer);
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "Event", "Dial");
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "SubEvent", "Begin");
-                filter_new_condition(blindxferfilter, MATCH_EXACT, "UniqueID", message_get_header(msg, "TargetUniqueid"));
+                filter_new_condition(blindxferfilter, MATCH_EXACT, "Channel", info->channel);
                 filter_set_userdata(blindxferfilter, (void*) info);
                 filter_register_oneshot(blindxferfilter);
             }
