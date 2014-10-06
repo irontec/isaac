@@ -208,14 +208,13 @@ status_builtinxfer(filter_t *filter, ami_message_t *msg)
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
 
     if (!strcasecmp(message_get_header(msg, "Variable"), "TRANSFERERNAME")) {
-        char local_channel[80];
-        isaac_strcpy(local_channel, message_get_header(msg, "Channel")); 
-        local_channel[strlen(local_channel)-1] = '2';
+        isaac_strcpy(info->xfer_channel, message_get_header(msg, "Channel")); 
+        info->xfer_channel[strlen(info->xfer_channel)-1] = '2';
 
         // Try to find the final xfer channel
         filter_t *builtinxferfilter = filter_create_async(filter->sess, status_builtinxfer);
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "VarSet");
-        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Channel", local_channel);
+        filter_new_condition(builtinxferfilter, MATCH_EXACT, "Channel", info->xfer_channel);
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Variable", "BRIDGEPEER");
         filter_new_condition(builtinxferfilter, MATCH_START_WITH, "Value", "SIP/");
         filter_set_userdata(builtinxferfilter, (void*) info);
@@ -357,6 +356,13 @@ status_print(filter_t *filter, ami_message_t *msg)
                 // Not yet ready to consider this a transfer
                 memset(statusevent, 0, sizeof(statusevent));
             } else {
+                // Optimize Local channel
+                ami_message_t optimize;
+                memset(&optimize, 0, sizeof(ami_message_t));
+                message_add_header(&optimize, "Action: LocalOptimizeAway");
+                message_add_header(&optimize, "Channel: %s", info->xfer_channel);
+                manager_write_message(manager, &optimize);
+ 
                 char xferchan[80];
                 isaac_strcpy(xferchan, info->xfer_channel);
                 char *interface = strtok(xferchan, "-");
