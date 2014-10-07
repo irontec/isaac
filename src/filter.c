@@ -135,11 +135,13 @@ int
 filter_register(filter_t *filter)
 {
     pthread_mutex_lock(&filters_mutex);
-    isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter [%p] with %d conditions\n",
-            filter->sess->id, 
-            (filter->type == FILTER_ASYNC)?"asnyc":"sync",
-            filter, 
-            filter->condcount);
+    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
+        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter [%p] with %d conditions\n",
+                filter->sess->id, 
+                (filter->type == FILTER_ASYNC)?"asnyc":"sync",
+                filter, 
+                filter->condcount);
+    }
 
     filter->next = filters;
     filters = filter;
@@ -151,7 +153,8 @@ int
 filter_unregister(filter_t *filter)
 {
     pthread_mutex_lock(&filters_mutex);
-    isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
+    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) 
+        isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
     filter_t *cur = filters, *prev = NULL;
     // Sanity check
     if (!filter) return 1;
@@ -204,8 +207,10 @@ filter_exec_async(filter_t *filter, ami_message_t *msg)
 
     // Invoke callback right now!
     if (filter->data.async.callback) {
-        isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n", 
-            filter->sess->id, filter, (oneshot)?"(oneshot)":"");
+        if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
+            isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n", 
+                filter->sess->id, filter, (oneshot)?"(oneshot)":"");
+        }
         ret = filter->data.async.callback(filter, msg);
     }
 
@@ -254,9 +259,10 @@ filter_run(filter_t *filter, int timeout, ami_message_t *ret)
         filter_unregister(filter);
         return 1;
     } 
-
-    isaac_log(LOG_DEBUG, "[Session %s] Storing sync filter data [%p]\n", 
-            filter->sess->id, filter);
+    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
+        isaac_log(LOG_DEBUG, "[Session %s] Storing sync filter data [%p]\n", 
+                filter->sess->id, filter);
+    }
 
     // Copy the message to be returned
     *ret = filter->data.sync.msg;

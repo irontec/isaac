@@ -123,8 +123,9 @@ application_run(app_t *app, session_t *sess, const char *args)
     }
 
     // Some debug logging
-    if (!session_test_flag(sess, SESS_FLAG_LOCAL)) 
-        isaac_log(LOG_DEBUG, "[Session %s] Requested application %s -> args: %s\n", sess->id, app->name, args);
+    if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {
+        isaac_log(LOG_DEBUG, "[Session %s] <- %s %s\n", sess->id, app->name, args);
+    }
 
     // Run the application entry point
     return app->execute(sess, app, args);

@@ -316,6 +316,8 @@ start_manager(const char* addrstr, const int port, const char* username, const c
         isaac_log(LOG_ERROR, "Failed to allocate server manager: %s\n", strerror(errno));
         return 1;
     }
+    // Initialize manager structure
+    memset(manager, 0, sizeof(manager_t));
 
     // Create a socket for a new TCP IPv4 connection
     if ((manager->fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {

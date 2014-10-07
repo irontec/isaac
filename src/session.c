@@ -171,6 +171,9 @@ session_write(session_t *sess, const char *fmt, ...)
         isaac_log(LOG_VERBOSE_3, "\e[1;31mSession %s >> \e[0m%s", sess->id, msgva);
     }
 
+    // LOG Debug info
+    isaac_log(LOG_DEBUG, "[Session %s] --> %s\n", sess->id, msgva);
+
     // Write the built message into the socket
     if ((wbytes = send(sess->fd, msgva, strlen(msgva), 0) == -1)) {
         isaac_log(LOG_WARNING, "Unable to write on session %s: %s\n", sess->id, strerror(errno));
