@@ -24,7 +24,10 @@
  *
  * @brief Source code for functions defined in util.h
  */
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 #include "util.h"
 #include "log.h"
 
@@ -286,3 +289,15 @@ isaac_tvelap(struct timeval timeval, int printsec, char *out)
     sprintf(out, "%s%s%s%s%s %d second%s ", year, week, day, hour, minute, x, ESS(x));
 }
 
+
+void
+isaac_toupper(char *str)
+{
+    char *sptr;
+
+    if (!str) return;
+    
+    for(sptr = str; *sptr != '\0'; sptr++) {
+        *sptr = toupper((unsigned char)*sptr);
+    }
+}

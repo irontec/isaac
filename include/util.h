@@ -103,5 +103,7 @@ struct timeval
 isaac_tvsub(struct timeval a, struct timeval b);
 void
 isaac_tvelap(struct timeval timeval, int printsec, char *out);
+void
+isaac_toupper(char *str);
 
 #endif /* __ISAAC_UTIL_H_ */

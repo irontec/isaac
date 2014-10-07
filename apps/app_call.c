@@ -94,8 +94,6 @@ struct app_call_info
     bool print_uniqueid;
     //! Flag for broadcasting call info
     bool broadcast;
-    //! Flag for marking the call as finished
-    bool finished;
 
     //! Store recording vars
     char grabaciones_modulo[512];
@@ -218,6 +216,7 @@ call_state(filter_t *filter, ami_message_t *msg)
     // Get message event
     const char *event = message_get_header(msg, "Event");
     char from[80], state[80], uniqueid[80], response[256];
+    bool finished = false;
  
     // Initialize arrays
     memset(from,        0, sizeof(from));
@@ -247,8 +246,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         }
 
         // This call info has ended
-        if (!strcasecmp(from, "AGENT"))
-            info->finished = true;
+        finished = true;
 
     } else if (!strcasecmp(event, "MusicOnHold")) {
         if (!strcasecmp(message_get_header(msg, "State"), "Start")) {
@@ -323,6 +321,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         // Register a Filter for the agent status
         info->dfilter = filter_create_async(filter->sess, call_state);
         filter_set_userdata(info->dfilter, info);
+        filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
         filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
         filter_register(info->dfilter);
 
@@ -353,7 +352,7 @@ call_state(filter_t *filter, ami_message_t *msg)
     }
 
     // We dont expect more info about this filter, it's safe to unregister it here
-    if (info->finished)
+    if (finished)
         filter_unregister(filter);
 
     return 0;
@@ -402,6 +401,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
     isaac_strcpy(info->destiny, exten);
 
     // Check if uniqueid info is requested
+    isaac_toupper(options);
     info->print_uniqueid = (strstr(options, "WUID"));
     info->broadcast = (strstr(options, "BRD"));
 
