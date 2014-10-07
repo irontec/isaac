@@ -171,8 +171,23 @@ session_finish(session_t *sess);
  * \param ...	Zero or more vars to fill the fmt
  * \return 0 in case of success, -1 otherwise
  */
-int
+extern int
 session_write(session_t *sess, const char *fmt, ...);
+
+/**
+ * \brief Broadcast text to all sessions of an agent
+ *
+ * This function will broadcast the message to the given
+ * session and also to all sessions of the same agent
+ * with the broadcast allowed
+ *
+ * \param sess  Session structure 
+ * \param fmt   String format in printf syntax 
+ * \param ...   Zero or more vars to fill the fmt
+ * \return 0 in case of success, -1 otherwise
+ */
+extern int
+session_write_broadcast(session_t *sender, const char *fmt, ...);
 
 /**
  * \brief Read some text from client socket

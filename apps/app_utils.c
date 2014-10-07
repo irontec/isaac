@@ -19,13 +19,11 @@
  **
  *****************************************************************************/
 /**
- * @file app_help.c
+ * @file app_utils.c
  * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
- * @brief Small application that will print to the session the available actions
+ * @brief Utils applications to manage sessions
  *
- * This is almost a demo application that shows how application callbacks are defined
- * and work.
  */
 
 #include <stdio.h>
@@ -65,6 +63,61 @@ int help_exec(session_t *sess, app_t *app, const char *args)
     return 0;
 }
 
+
+/**
+ * @brief Sets a variable on session
+ *
+ * Store a variable on current session. All variable values
+ * are stored as char strings
+ * 
+ * @param sess Session structure to store the var
+ * @param app The application structure
+ * @param args  Aditional command line arguments (Variable, Value)
+ * @return 0 in all cases
+ */
+int set_exec(session_t *sess, app_t *app, const char *args)
+{
+    char variable[80], value[250];
+
+    // Get login data from application arguments
+    if (sscanf(args, "%s %s", variable, value) != 2) {
+        return INVALID_ARGUMENTS;
+    }
+
+    // Store given variable
+    session_set_variable(sess, variable, value);
+    return session_write(sess, "SETOK\r\n");
+}
+
+/**
+ * @brief Get a variable from a session
+ *
+ * Retrieve a variable on current session. All variable values
+ * are stored as char strings 
+ * 
+ * @param sess Session structure to store the var
+ * @param app The application structure
+ * @param args  Aditional command line arguments (Variable, Value)
+ * @return 0 in all cases
+ */
+int get_exec(session_t *sess, app_t *app, const char *args)
+{
+    char variable[80];
+    const char *value;
+
+    // Get login data from application arguments
+    if (sscanf(args, "%s", variable) != 1) {
+        return INVALID_ARGUMENTS;
+    }
+
+    // Retrieve given variable
+    if (!(value = session_get_variable(sess, variable))) 
+        return session_write(sess, "GETFAIL Variable %s does not exists.\r\n", variable);
+
+    // Return retrieved variable
+    return session_write(sess, "GETOK %s\r\n", value);
+}
+
 /**
  * @brief Module load entry point
  *
@@ -75,7 +128,11 @@ int help_exec(session_t *sess, app_t *app, const char *args)
  */
 int load_module()
 {
-    return application_register("Help", help_exec);
+    int ret = 0;
+    ret |= application_register("Help", help_exec);
+    ret |= application_register("Set", set_exec);
+    ret |= application_register("Get", get_exec);
+    return ret;
 }
 
 /**
@@ -87,5 +144,9 @@ int load_module()
  */
 int unload_module()
 {
-    return application_unregister("Help");
+    int ret = 0;
+    ret |= application_unregister("Help");
+    ret |= application_unregister("Get");
+    ret |= application_unregister("Set");
+    return ret;
 }

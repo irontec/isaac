@@ -28,11 +28,11 @@ app_ping_so_CFLAGS = $(appsCFLAGS)
 app_ping_so_LDFLAGS = $(appsLDFLAGS)
 app_pingdir = $(appsdir)
 
-app_help_PROGRAMS = app_help.so
-app_help_so_SOURCES = app_help.c
-app_help_so_CFLAGS = $(appsCFLAGS)
-app_help_so_LDFLAGS = $(appsLDFLAGS)
-app_helpdir = $(appsdir)
+app_utils_PROGRAMS = app_utils.so
+app_utils_so_SOURCES = app_utils.c
+app_utils_so_CFLAGS = $(appsCFLAGS)
+app_utils_so_LDFLAGS = $(appsLDFLAGS)
+app_utilsdir = $(appsdir)
 
 app_call_PROGRAMS = app_call.so
 app_call_so_SOURCES = app_call.c

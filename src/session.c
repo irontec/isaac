@@ -180,6 +180,35 @@ session_write(session_t *sess, const char *fmt, ...)
     return wbytes;
 }
 
+int
+session_write_broadcast(session_t *sender, const char *fmt, ...)
+{
+    // Write to the original session
+    session_iter_t *iter;
+    session_t *sess = NULL;
+    va_list ap;
+    char msgva[512];
+    const char *orig_agent = session_get_variable(sender, "AGENT");
+
+    // Built the message with the given variables
+    va_start(ap, fmt);
+    vsprintf(msgva, fmt, ap);
+    va_end(ap);
+
+    iter = session_iterator_new();
+    while ((sess = session_iterator_next(iter))) {
+        const char *agent = session_get_variable(sess, "AGENT");
+        //const char *broadcast = session_get_variable(sess, "CALLBRD");
+        if (sender == sess ||
+            (agent && !isaac_strcmp(agent, orig_agent))) {
+            session_write(sess, msgva);
+        }
+    }
+    session_iterator_destroy(iter);
+    return 0;
+
+}
+
 /*****************************************************************************/
 int
 session_read(session_t *sess, char *msg)

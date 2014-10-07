@@ -92,6 +92,10 @@ struct app_call_info
     bool recording;
     //! Flag for printing uniqueid info
     bool print_uniqueid;
+    //! Flag for broadcasting call info
+    bool broadcast;
+    //! Flag for marking the call as finished
+    bool finished;
 
     //! Store recording vars
     char grabaciones_modulo[512];
@@ -213,58 +217,52 @@ call_state(filter_t *filter, ami_message_t *msg)
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
     // Get message event
     const char *event = message_get_header(msg, "Event");
-    char from[80], to[80];
+    char from[80], state[80], uniqueid[80], response[256];
+ 
+    // Initialize arrays
+    memset(from,        0, sizeof(from));
+    memset(state,       0, sizeof(state));
+    memset(uniqueid,    0, sizeof(uniqueid));
+    memset(response,    0, sizeof(response));
 
     // So this leg is first one or second one?
     if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
-        if (info->print_uniqueid) {
-            sprintf(from, "%s %s", info->ouid, "AGENT");
-            sprintf(to, "%s %s", info->duid, "REMOTE");
-        } else {
-            sprintf(from, "%s", "AGENT");
-            sprintf(to, "%s", "REMOTE");
-        }
+        isaac_strcpy(from, "AGENT");
     } else {
-        if (info->print_uniqueid) {
-            sprintf(from, "%s %s", info->duid, "REMOTE");
-            sprintf(to, "%s %s", info->ouid, "AGENT");
-        } else {
-            sprintf(from, "%s", "REMOTE");
-            sprintf(to, "%s", "AGENT");
-        }
+        isaac_strcpy(from, "REMOTE");
     }
-
 
     // Send CallStatus message depending on received event
     if (!strcasecmp(event, "Hangup")) {
         // Print status message dpending on Hangup Cause
         const char *cause = message_get_header(msg, "Cause");
         if (!strcasecmp(cause, "0") || !strcasecmp(cause, "21")) {
-            session_write(filter->sess, "CALLSTATUS %s %s ERROR\r\n", info->actionid, from);
+            isaac_strcpy(state, "ERROR");
         } else if (!strcasecmp(cause, "16")) {
-            session_write(filter->sess, "CALLSTATUS %s %s HANGUP\r\n", info->actionid, from);
+            isaac_strcpy(state, "HANGUP");
         } else if (!strcasecmp(cause, "17")) {
-            session_write(filter->sess, "CALLSTATUS %s %s BUSY\r\n", info->actionid, from);
+            isaac_strcpy(state, "BUSY");
         } else {
-            session_write(filter->sess, "CALLSTATUS %s %s UNKNOWNHANGUP %s\r\n", info->actionid, from,
-                    cause);
+            sprintf(state, "UNKNOWNHANGUP %s", cause);
         }
 
-        // We dont expect more info about this filter, it's safe to unregister it here
-        filter_unregister(filter);
+        // This call info has ended
+        if (!strcasecmp(from, "AGENT"))
+            info->finished = true;
+
     } else if (!strcasecmp(event, "MusicOnHold")) {
         if (!strcasecmp(message_get_header(msg, "State"), "Start")) {
-            session_write(filter->sess, "CALLSTATUS %s %s HOLD\r\n", info->actionid, from);
+            isaac_strcpy(state, "HOLD");
         } else {
-            session_write(filter->sess, "CALLSTATUS %s %s UNHOLD\r\n", info->actionid, from);
+            isaac_strcpy(state, "UNHOLD");
         }
     } else if (!strcasecmp(event, "Newstate")) {
         // Print status message depending on Channel Status
-        const char *state = message_get_header(msg, "ChannelState");
-        if (!strcasecmp(state, "5")) {
-            session_write(filter->sess, "CALLSTATUS %s %s RINGING\r\n", info->actionid, from);
-        } else if (!strcasecmp(state, "6")) {
-            session_write(filter->sess, "CALLSTATUS %s %s ANSWERED\r\n", info->actionid, from);
+        const char *chanstate = message_get_header(msg, "ChannelState");
+        if (!strcasecmp(chanstate, "5")) {
+            isaac_strcpy(state, "RINGING");
+        } else if (!strcasecmp(chanstate, "6")) {
+            isaac_strcpy(state, "ANSWERED");
         }
     } else if (!strcasecmp(event, "Rename")) {
         if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
@@ -276,7 +274,7 @@ call_state(filter_t *filter, ami_message_t *msg)
 
         // Progress event on cellphones
         if (!strcasecmp(varvalue, "SIP 183 Session Progress")) {
-            session_write(filter->sess, "CALLSTATUS %s %s PROGRESS\r\n", info->actionid, to);
+            isaac_strcpy(state, "PROGRESS");
         }
 
         // Update recording variables
@@ -300,9 +298,11 @@ call_state(filter_t *filter, ami_message_t *msg)
         // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
         if (!strcasecmp(varname, "ACTIONID")) {
             // Get the UniqueId from the agent channel
-            strcpy(info->ouid, message_get_header(msg, "UniqueID"));
+            isaac_strcpy(info->ouid, message_get_header(msg, "UniqueID"));
             // Store provisional Channel Name
-            strcpy(info->ochannel, message_get_header(msg, "Channel"));
+            isaac_strcpy(info->ochannel, message_get_header(msg, "Channel"));
+            // This messages are always from agent
+            isaac_strcpy(from, "AGENT");
 
             // Register a Filter for the agent statusthe custom manager application PlayDTMF.
             info->ofilter = filter_create_async(filter->sess, call_state);
@@ -312,11 +312,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             filter_register(info->ofilter);
 
             // Tell the client the channel is going on!
-            if (info->print_uniqueid) {
-                session_write(filter->sess, "CALLSTATUS %s %s AGENT STARTING\r\n", info->actionid, info->ouid);
-            } else {
-                session_write(filter->sess, "CALLSTATUS %s AGENT STARTING\r\n", info->actionid);
-            }
+            isaac_strcpy(state, "STARTING"); 
         }
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
             "Begin")) {
@@ -330,13 +326,35 @@ call_state(filter_t *filter, ami_message_t *msg)
         filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
         filter_register(info->dfilter);
 
-        // Say we have the remote channel
+        // This messages are always from agent
+        isaac_strcpy(from, "REMOTE");
+
+        // Store the call state
+        isaac_strcpy(state, "STARTING");
+    }
+
+
+    // Built the event message
+    if (strlen(state)) {
+        // Add Uniqueid to response if requested
         if (info->print_uniqueid) {
-            session_write(filter->sess, "CALLSTATUS %s %s REMOTE STARTING\r\n", info->actionid, info->duid);
+            isaac_strcpy(uniqueid, !strcasecmp(from, "AGENT")?info->ouid:info->duid);
+            sprintf(response, "CALLSTATUS %s %s %s %s\r\n", info->actionid, uniqueid, from, state);
         } else {
-            session_write(filter->sess, "CALLSTATUS %s REMOTE STARTING\r\n", info->actionid);
+            sprintf(response, "CALLSTATUS %s %s %s\r\n", info->actionid, from, state);
+        }
+
+        // Send this message to other clients if requested
+        if (info->broadcast) {
+            session_write_broadcast(filter->sess, response);
+        } else {
+            session_write(filter->sess, response);
         }
     }
+
+    // We dont expect more info about this filter, it's safe to unregister it here
+    if (info->finished)
+        filter_unregister(filter);
 
     return 0;
 }
@@ -373,7 +391,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Get Call parameteres
-    if (sscanf(args, "%s %s %s", actionid, exten, options) < 2) {
+    if (sscanf(args, "%s %s %[^\n]", actionid, exten, options) < 2) {
         return INVALID_ARGUMENTS;
     }
 
@@ -384,11 +402,8 @@ call_exec(session_t *sess, app_t *app, const char *args)
     isaac_strcpy(info->destiny, exten);
 
     // Check if uniqueid info is requested
-    if (!strncasecmp(options, "WUID", 4)) {
-        info->print_uniqueid = true;
-    } else {
-        info->print_uniqueid = false;
-    }
+    info->print_uniqueid = (strstr(options, "WUID"));
+    info->broadcast = (strstr(options, "BRD"));
 
     // Register a Filter to get Generated Channel
     info->callfilter = filter_create_async(sess, call_state);
