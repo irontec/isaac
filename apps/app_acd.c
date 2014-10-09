@@ -149,7 +149,6 @@ pcloseRWE(int pid, int *rwepipe)
 {
     int status;
     close(*rwepipe);
-    kill(pid, SIGQUIT);
     waitpid(pid, &status, 0);
     return status;
 }
