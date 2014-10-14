@@ -640,6 +640,13 @@ record_exec(session_t *sess, app_t *app, const char *args)
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->ouid);
+        message_add_header(&msg, "Value: %s", info->grabaciones_plataforma);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->ouid);
         message_add_header(&msg, "Value: %son-demand_ISAAC", info->grabaciones_tipo);
         manager_write_message(manager, &msg);
