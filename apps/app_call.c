@@ -401,9 +401,14 @@ call_exec(session_t *sess, app_t *app, const char *args)
     isaac_strcpy(info->destiny, exten);
 
     // Check if uniqueid info is requested
-    isaac_toupper(options);
-    info->print_uniqueid = (strstr(options, "WUID"));
-    info->broadcast = (strstr(options, "BRD"));
+    app_args_t parsed;
+    application_parse_args(options, &parsed);
+
+    if (!isaac_strcmp(application_get_arg(&parsed, "WUID"), "1"))
+        info->print_uniqueid = 1;
+
+    if (!isaac_strcmp(application_get_arg(&parsed, "BRD"), "1"))
+        info->broadcast = 1;
 
     // Register a Filter to get Generated Channel
     info->callfilter = filter_create_async(sess, call_state);
@@ -433,6 +438,12 @@ call_exec(session_t *sess, app_t *app, const char *args)
     message_add_header(&msg, "Variable: CALLERID=%s", agent);
     message_add_header(&msg, "Variable: DESTINO=%s", exten);
     message_add_header(&msg, "Variable: AUTOANSWER=%d", call_config.autoanswer);
+
+    // Forced CLID from application arguments
+    if (application_get_arg(&parsed, "CLID"))
+        message_add_header(&msg, "Variable: ISAAC_FORCED_CLID=%s", 
+            application_get_arg(&parsed, "CLID"));
+
     manager_write_message(manager, &msg);
 
     return 0;

@@ -25,6 +25,9 @@
  * @brief Source code for funtions defined in app.h
  */
 #include "config.h"
+#include <stdio.h>
+#include <ctype.h>
+#include <pthread.h>
 #include "app.h"
 #include "log.h"
 #include "util.h"
@@ -129,6 +132,74 @@ application_run(app_t *app, session_t *sess, const char *args)
 
     // Run the application entry point
     return app->execute(sess, app, args);
+}
+
+void
+application_parse_args(const char *argstr, app_args_t *args)
+{
+    char arguments[256];
+    char *arg, *rest = NULL, c, *end;
+    int i;
+
+    // No arguments, we're done :)
+    if (!argstr) return;
+    // No storage for arguments!
+    if (!args) return;
+
+    // Initialize argument structure
+    memset(args, 0, sizeof(app_args_t));
+        
+    // Store argument string, to be tokenized
+    isaac_strcpy(arguments, argstr);
+    
+    // Fix the arguments string, remove any \r or \n characters
+    for (end = arguments; *end; end++) {
+        if (*end == '\n' || *end == '\r')
+            *end = '\0';
+    }
+
+    // Split the arguments by space
+    for(arg = arguments; (arg = strtok_r(arg, " ", &rest)); arg = rest) {
+        // Store this argument
+        isaac_strncpy(args->args[args->count], arg, strlen(arg));
+
+        // Uppercase all variables until value signal is found
+        for (i = 0; (c = args->args[args->count][i]); i++) {
+            if (c == '=') break;
+            args->args[args->count][i] = toupper(c);
+        }
+
+        // Incremente argument counter
+        args->count++; 
+    }
+}
+
+const char *
+application_get_arg(app_args_t *args, const char *argname)
+{
+    int i;
+    char *ret;
+
+    if (!args) return NULL;
+    if (!argname) return NULL;
+
+
+    // Search for the argument 
+    for (i = 0; i < args->count; i++) {
+        if (!strncasecmp(args->args[i], argname, strlen(argname))) {
+            // Argument found, check if it has a value
+            if ((ret = strchr(args->args[i], '='))) {
+                // Found with value, return value 
+                return ret + 1;
+            } else {
+                // Found without value, return default value "1"
+                return "1";
+            }
+        }
+    }
+
+    // Argument not found
+    return NULL;
 }
 
 const char *

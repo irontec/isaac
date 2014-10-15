@@ -38,7 +38,9 @@
 #include "session.h"
 
 /* Define the actionid Length */
-#define ACTIONID_LEN  128
+#define ACTIONID_LEN 128
+/* Define maximum argument length */
+#define ARGUMENT_LEN 128
 
 /** 
  * @brief Common exit codes for applications.
@@ -61,6 +63,7 @@ enum apperr
 
 //! Sorter declaration of isaac_application struct
 typedef struct isaac_application app_t;
+typedef struct isaac_application_args app_args_t;
 
 /**
  * @brief Application structure
@@ -80,6 +83,19 @@ struct isaac_application
     (*execute)(session_t *sess, app_t *app, const char *args);
     //! Next application in the linked list @ref apps
     app_t *next;
+};
+
+/**
+ * @brief Application argument structure
+ *
+ * Structure to store application invocation args
+ */
+struct isaac_application_args
+{
+    //! Argument counter
+    int count;
+    //! Aplication args
+    char args[ARGUMENT_LEN][24];
 };
 
 /**
@@ -148,6 +164,22 @@ application_count();
  */
 extern int
 application_run(app_t *app, session_t *sess, const char *args);
+
+/**
+ * @brief Parse application arguments 
+ *
+ * This function will parse arguments and store them in 
+ * an app_args_t structure given as parameter
+ *
+ */
+extern void
+application_parse_args(const char *argstr, app_args_t *args);
+
+/**
+ * @brief Return the value of a given argument
+ */
+extern const char *
+application_get_arg(app_args_t *args, const char *argname);
 
 /**
  * @brief Common error (@ref apperr) to text
