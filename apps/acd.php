@@ -141,13 +141,16 @@ switch ($op){
     case "JOIN":
     case "LEAVE":
 
+        // Parse remaining arguments
+        $args = explode(" ", trim($argv[4]));
+
         // Check we have a queuename
-        $cola = strtoupper($argv[4]);
+        $cola = strtoupper($args[0]);
         if (is_null($cola) || empty($cola)) {
 			fwrite(STDERR, "QUEUE${op}FAILED Queuename is required\r\n");
             break;
         }
-
+    
         // Check if the agent can login in given queue
         $sql = "SELECT r.penalty, r.ringinuse
             FROM ast_queues AS q 
@@ -163,9 +166,22 @@ switch ($op){
 
         // Get Agent queue information
         $r =  $con->getResult();
+        
+        // Check if command specifies priority
+        if (isset($args[1])) {
+            $priority = $args[1]; 
+        } else {
+            $priority = $r['penalty'];
+        }
+
+        // Check we have a valid priority
+        if (!is_numeric($priority)) {
+            fwrite(STDERR, "QUEUE${op}FAIL Priority $priority is not numeric\r\n");
+            break;
+        }
 
         // Join/Leave Queue
-        if ($iacd->queueJoinLeaveManual(($op == "JOIN"), $cola, $r['penalty'], $r['ringinuse']) == true) {
+        if ($iacd->queueJoinLeaveManual(($op == "JOIN"), $cola, $priority, $r['ringinuse']) == true) {
             fwrite(STDERR, "QUEUE${op}OK Successfully ${op} queue $cola\r\n");
         } else {
             fwrite(STDERR, "QUEUE${op}FAIL Unable to ${op} queue $cola\r\n");

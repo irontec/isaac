@@ -182,19 +182,18 @@ acd_exec(session_t *sess, app_t *app, const char *args)
         if (sscanf(args, "%s", interface) != 1) {
             return INVALID_ARGUMENTS;
         }
-
     } else if (!strcasecmp(action, "PAUSE")) {
         // Check if whe have a pausetype
-        sscanf(args, "%s", extraparams);
+        sscanf(args, "%[^\n]", extraparams);
     } else if (!strcasecmp(app->name, "QueueJoin")) {
         // Get Queue name
-        if (sscanf(args, "%s", extraparams) != 1) {
+        if (sscanf(args, "%[^\n]", extraparams) != 1) {
             return INVALID_ARGUMENTS;
         }
         strcpy(action, "JOIN");
     } else if (!strcasecmp(app->name, "QueueLeave")) {
         // Get Queue name
-        if (sscanf(args, "%s", extraparams) != 1) {
+        if (sscanf(args, "%[^\n]", extraparams) != 1) {
             return INVALID_ARGUMENTS;
         }
         strcpy(action, "LEAVE");
