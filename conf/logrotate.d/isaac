@@ -1,0 +1,9 @@
+/var/log/ivozng/isaac.log {
+      daily
+      missingok
+      rotate 60
+      compress
+      copytruncate
+      notifempty
+      create 640 root adm
+}
