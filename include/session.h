@@ -38,7 +38,7 @@
 
 //! Maximun number of vars in a session
 //TODO Make vars a linked list to remove this limitation
-#define MAX_VARS        10
+#define MAX_VARS        80
 
 //! Sorter declaration of session_var struct
 typedef struct session_var session_var_t;
