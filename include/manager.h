@@ -258,4 +258,13 @@ stop_manager();
 extern char *
 message_to_text(ami_message_t *msg);
 
+/**
+ * @brief Build a random actionid
+ *
+ * @param actiond Pointer to allocated memory 
+ * @return the given pointer
+ */
+extern char *
+random_actionid(char *actionid, int len);
+
 #endif /* __ISAAC_MANAGER_H_ */

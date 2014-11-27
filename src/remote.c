@@ -106,37 +106,21 @@ remote_control(char* command)
         fds.events = POLLIN;
         fds.revents = 0;
         while (poll(&fds, 1, 60000) > 0) {
-            char buffer[512] = "", *curline = buffer, *nextline;
-            int not_written = 1;
+            char buffer[512] = "";
+            int nbytes = 0;
 
             if (sig_flags.need_quit) {
                 break;
             }
             // Read the answer from Isaac
-            if (read(remote_cli->fd, buffer, sizeof(buffer) - 1) <= 0) {
+            if ((nbytes = read(remote_cli->fd, buffer, sizeof(buffer) - 1)) <= 0) {
                 break;
             }
 
-            do {
-                if ((nextline = strchr(curline, '\n'))) {
-                    nextline++;
-                } else {
-                    nextline = strchr(curline, '\0');
-                }
-                // Skip verbose lines and two first lines
-                if (*curline != 127) {
-                    not_written = 0;
-                    if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
-                        isaac_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
-                    }
-                }
-                curline = nextline;
-            } while (!isaac_strlen_zero(curline));
-
-            // No non-verbose output in 60 seconds.
-            if (not_written) {
-                break;
-            }
+            // Write the answer to the client
+            if (write(STDOUT_FILENO, buffer, nbytes) < 0) {
+                isaac_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
+            } 
         }
         // We've done here
         return;

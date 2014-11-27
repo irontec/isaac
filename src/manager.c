@@ -374,3 +374,20 @@ message_to_text(ami_message_t *msg)
     }
     return msgtxt;
 }
+
+char *
+random_actionid(char *actionid, int len)
+{
+    int i;
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+
+    for (i = 0; i < len; ++i) {
+        actionid[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+
+    actionid[len] = 0;    
+    return actionid;
+}
