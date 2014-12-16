@@ -107,29 +107,30 @@ static int
 popenRWE(int *rwepipe, const char *exe, const char * const argv[])
 {
     int err[2];
-    int out[2];
     int pid;
     int rc;
 
     rc = pipe(err);
     if (rc < 0) return rc;
 
-    rc = pipe(out);
-    if (rc < 0) return rc;
-
     pid = fork();
-    if (pid > 0) { // parent
+    if (pid > 0) {
+        // Parent, store the first side of the pipe
         *rwepipe = err[0];
+        // Close the other part, we wont send anything
+        close(err[1]);
         return pid;
-    } else if (pid == 0) { // child
+    } else if (pid == 0) {
+        // Child, replace STDERR with the second side of the pipe
         close(2);
         dup(err[1]);
-        close(1);
-        dup(out[1]);
+        // Close the other part, we wont send anything
+        close(err[0]);
         execvp(exe, (char**) argv);
     } else {
-        close(out[0]);
-        close(out[1]);
+        // Error, close both sides of the pipe
+        close(err[0]);
+        close(err[1]);
         return -1;
     }
 
