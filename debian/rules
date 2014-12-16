@@ -33,7 +33,7 @@ binary-indep: build install
 	dh_installdocs
 	dh_installexamples
 	dh_installdebconf
-	dh_installinit
+	dh_installinit -r
 	dh_installman
 	dh_compress
 #	dh_fixperms
