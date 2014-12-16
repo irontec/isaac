@@ -222,6 +222,7 @@ manage_session(void *session)
         isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
 
     // Deallocate session memory
+    session_finish(sess);
     session_destroy(sess);
 
     // Leave the thread gracefully
