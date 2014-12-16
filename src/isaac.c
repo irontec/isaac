@@ -244,6 +244,12 @@ main(int argc, char *argv[])
             fprintf(stderr, "Unable to connect to remote Isaac (does %s exist?)\n", CLI_SOCKET);
             exit(1);
         }
+    } else {
+        // Check Isaac is not already running
+        if (access(PIDFILE, F_OK) == 0) {
+            fprintf(stderr, "%s already running on %s. Use '%s -r' to connect\n", argv[0], PIDFILE, argv[0]);
+            exit(1);
+        }
     }
 
     // If we are not in debug mode, then fork to background
