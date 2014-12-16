@@ -214,6 +214,8 @@ apperr2str(int apperr)
         return "INVALID ARGUMENT LIST";
     case INVALID_FORMAT:
         return "INVALID MESSAGE FORMAT";
+    case INTERNAL_ERROR:
+        return "INTERNAL APPLICATION ERROR";
     default:
         return NULL;
     }

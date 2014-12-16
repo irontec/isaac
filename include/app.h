@@ -59,6 +59,8 @@ enum apperr
     INVALID_ARGUMENTS = 103,
     //! Application requires different arguments types
     INVALID_FORMAT = 104,
+    //! Application has encountered some problems during execution
+    INTERNAL_ERROR = 105,
 };
 
 //! Sorter declaration of isaac_application struct

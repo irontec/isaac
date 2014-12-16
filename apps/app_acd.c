@@ -40,6 +40,8 @@
 #include "log.h"
 #include "util.h"
 
+#define BSIZE 1024
+
 /**
  * @brief Module configuration readed from ACDCONF file
  *
@@ -159,10 +161,8 @@ acd_exec(session_t *sess, app_t *app, const char *args)
 {
     int pid;
     int out = 0;
-    FILE *fd;
-    char * line = NULL;
+    char line[BSIZE];
     char extraparams[256];
-    size_t len = 0;
     char interface[40], action[20];
 
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -217,11 +217,17 @@ acd_exec(session_t *sess, app_t *app, const char *args)
     // Open the requested file, load I/O file descriptors
     pid = popenRWE(&out, php_args[0], php_args);
 
+    // Check we have a valid PID and file descriptor
+    if (pid < 0 || out <= 0)
+        return INTERNAL_ERROR;
+
     // Open file input descriptor and read the php script output
-    fd = fdopen(out, "r");
-    if (getline(&line, &len, fd) != -1) {
+    if (read(out, line, BSIZE) > 0) {
         session_write(sess, "%s", line);
+    } else {
+        return INTERNAL_ERROR;
     }
+
     // Stops spawned php
     pcloseRWE(pid, &out);
 
