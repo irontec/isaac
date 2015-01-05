@@ -173,9 +173,6 @@ filter_destroy(filter_t *filter)
     pthread_mutex_lock(&filters_mutex);
     // Sanity check
     if (!filter) return 1;
-
-    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) 
-        isaac_log(LOG_DEBUG, "Destroying filter [%p]\n", filter);
     filter_t *cur = filters, *prev = NULL;
 
     // Remove the filter from the filters list
