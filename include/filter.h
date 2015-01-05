@@ -275,6 +275,14 @@ extern int
 filter_register_oneshot(filter_t *filter);
 
 /**
+ * @brief Mark a filter as no longer valid
+ *
+ * @param filter Filter to be removed
+ */
+extern int
+filter_unregister(filter_t *filter);
+
+/**
  * @brief Remove a filter from the filters list.
  *
  * Main function for destroying a filter and remove it from the filter list.
@@ -282,7 +290,7 @@ filter_register_oneshot(filter_t *filter);
  * @param filter Filter to be removed
  */
 extern int
-filter_unregister(filter_t *filter);
+filter_destroy(filter_t *filter);
 
 /**
  * @brief Excute the filters callback when a AMI message match its conditions

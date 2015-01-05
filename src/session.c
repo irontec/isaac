@@ -106,6 +106,10 @@ session_destroy(session_t *sess)
 {
     filter_t *filter;
     session_t *cur, *prev = NULL;
+
+    // Mark this session as leaving
+    session_set_flag(sess, SESS_FLAG_LEAVING);
+
     // Unregister all this connection filters
     while ((filter = filter_from_session(sess, NULL))) {
         filter_unregister(filter);
@@ -126,8 +130,6 @@ session_destroy(session_t *sess)
     }
     pthread_mutex_unlock(&sessionlock);
 
-    // Mark this session as leaving
-    session_set_flag(sess, SESS_FLAG_LEAVING);
 }
 
 /*****************************************************************************/
@@ -160,6 +162,11 @@ session_write(session_t *sess, const char *fmt, ...)
     }
 
     pthread_mutex_lock(&sess->lock);
+
+    // If session is being shutdown, we're done
+    if (session_test_flag(sess, SESS_FLAG_LEAVING))
+        return -1;
+
     // Built the message with the given variables
     va_start(ap, fmt);
     vsprintf(msgva, fmt, ap);

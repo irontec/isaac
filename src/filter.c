@@ -153,11 +153,30 @@ int
 filter_unregister(filter_t *filter)
 {
     pthread_mutex_lock(&filters_mutex);
-    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) 
-        isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
-    filter_t *cur = filters, *prev = NULL;
     // Sanity check
     if (!filter) return 1;
+
+    // Some debug info
+    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) 
+        isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
+
+    // Mark this filter as not valid
+    filter->sess = 0;
+    pthread_mutex_unlock(&filters_mutex);
+
+    return 0;
+}
+
+int
+filter_destroy(filter_t *filter)
+{
+    pthread_mutex_lock(&filters_mutex);
+    // Sanity check
+    if (!filter) return 1;
+
+    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) 
+        isaac_log(LOG_DEBUG, "Destroying filter [%p]\n", filter);
+    filter_t *cur = filters, *prev = NULL;
 
     // Remove the filter from the filters list
     while (cur) {
@@ -315,6 +334,7 @@ filter_from_session(session_t *sess, filter_t *from)
 int
 filter_print_message(filter_t *filter, ami_message_t *msg)
 {
+    return 1;
     // Only for debuging purposes
     // Write a dump version of AMI message back to the session
     return session_write(filter->sess, "D> %s\r\n", message_to_text(msg));
@@ -330,7 +350,6 @@ filter_inject_message(filter_t *filter, ami_message_t *msg)
     iter = session_iterator_new();
     while ((sess = session_iterator_next_by_variable(iter, "AGENT", agent))) {
         if (session_id(sess) < session_id(filter->sess)) {
-            isaac_log(LOG_DEBUG, "YOU SHALL NOT INJECT! %s < %s\n", sess->id, filter->sess->id);
             session_iterator_destroy(iter);
             return 1;
         }
@@ -357,63 +376,70 @@ check_filters_for_message(ami_message_t *msg)
         // Save here the next filter for the loop. This is required because the pointer
         // can disappear during the loop process (unregisted oneshot filters)
         next = cur->next;
-        // Initialize the matching headers count
-        matches = 0;
-        // Loop through all filter conditions
-        for (i = 0; i < cur->condcount; i++) {
-            msgvalue = message_get_header(msg, cur->conds[i].hdr);
-            condvalue = cur->conds[i].val;
 
-            // Depending on condition type, do the proper check
-            switch (cur->conds[i].type) {
-            case MATCH_EXACT:
-                if (!isaac_strcmp(msgvalue, condvalue)) {
-                    matches++;
+        // Check if this filter can be triggered
+        if (cur->sess == 0) {
+            // Clean this filter allocated memory
+            filter_destroy(cur);
+        } else { 
+            // Initialize the matching headers count
+            matches = 0;
+            // Loop through all filter conditions
+            for (i = 0; i < cur->condcount; i++) {
+                msgvalue = message_get_header(msg, cur->conds[i].hdr);
+                condvalue = cur->conds[i].val;
+
+                // Depending on condition type, do the proper check
+                switch (cur->conds[i].type) {
+                case MATCH_EXACT:
+                    if (!isaac_strcmp(msgvalue, condvalue)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_EXACT_CASE:
+                    if (!isaac_strcasecmp(msgvalue, condvalue)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_START_WITH:
+                    if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_REGEX:
+                    if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_REGEX_NOT:
+                    if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                        matches++;
+                    }
+                    break;
+                default:
+                    break;
                 }
-                break;
-            case MATCH_EXACT_CASE:
-                if (!isaac_strcasecmp(msgvalue, condvalue)) {
-                    matches++;
-                }
-                break;
-            case MATCH_START_WITH:
-                if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
-                    matches++;
-                }
-                break;
-            case MATCH_REGEX:
-                if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                    matches++;
-                }
-                break;
-            case MATCH_REGEX_NOT:
-                if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                    matches++;
-                }
-                break;
-            default:
-                break;
+
+                // If at this point, matches equals the loop counter, the last condition
+                // has not matched. No sense to continue checking.
+                if (matches == i) break;
             }
 
-            // If at this point, matches equals the loop counter, the last condition
-            // has not matched. No sense to continue checking.
-            if (matches == i) break;
-        }
-
-        // All condition matched! We have a winner!
-        if (matches == cur->condcount) {
-            // We don't need to hold this lock while exec'ing the filter callback
-            pthread_mutex_unlock(&filters_mutex);
-            if (cur->type == FILTER_ASYNC) {
-                // Exec the filter callback with the current message
-                filter_exec_async(cur, msg);
-            } else {
-                // Store the message and leave
-                filter_exec_sync(cur, msg);
+            // All condition matched! We have a winner!
+            if (matches == cur->condcount) {
+                // We don't need to hold this lock while exec'ing the filter callback
+                pthread_mutex_unlock(&filters_mutex);
+                if (cur->type == FILTER_ASYNC) {
+                    // Exec the filter callback with the current message
+                    filter_exec_async(cur, msg);
+                } else {
+                    // Store the message and leave
+                    filter_exec_sync(cur, msg);
+                }
+                // Lock the filters before going on                
+                pthread_mutex_lock(&filters_mutex);
             }
-            // Lock the filters before going on                
-            pthread_mutex_lock(&filters_mutex);
-        }
+       }
 
         // Go on with the next message
         cur = next;
