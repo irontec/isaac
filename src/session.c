@@ -179,7 +179,7 @@ session_write(session_t *sess, const char *fmt, ...)
     }
 
     // LOG Debug info
-    isaac_log(LOG_DEBUG, "[Session %s] --> %s\n", sess->id, msgva);
+    isaac_log(LOG_DEBUG, "[Session %s] --> %s", sess->id, msgva);
 
     // Write the built message into the socket
     if ((wbytes = send(sess->fd, msgva, strlen(msgva), 0) == -1)) {
