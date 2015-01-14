@@ -26,8 +26,11 @@
  *
  */
 
+#include <string.h>
 #include <stdio.h>
+#include "log.h"
 #include "app.h"
+#include "util.h"
 #include "session.h"
 
 //! Application List
@@ -119,6 +122,45 @@ int get_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
+ * @brief Send a message to other sessions
+ * 
+ * @param sess Session structure that invoked the app
+ * @param app The application structure
+ * @param args  Aditional command line arguments (Variable, Value)
+ * @return 0 in all cases
+ */
+int broadcast_exec(session_t *sess, app_t *app, const char *args)
+{
+    session_iter_t *iter;
+    session_t *cur;
+    char variable[80], value[80], message[1024];
+
+    // Check if message has a condition
+    if (sscanf(args, "%[^=]=%s %[^\n]", variable, value, message) < 3) {
+        isaac_strcpy(message, args);
+        memset(variable, 0, 80);
+        memset(value, 0, 80);
+    }
+
+    // Loop through sessions
+    iter = session_iterator_new();
+    while ((cur = session_iterator_next(iter))) {
+        // If there is a variable, check current session has the same value
+        if (strlen(variable)) {
+            isaac_log(LOG_NOTICE, "Broadcasting condition %s=%s\n", variable, value);
+            const char *cur_value = session_get_variable(cur, variable);
+            if (!cur_value || strcasecmp(cur_value, value))
+                continue;
+        }
+   
+        // Otherwise send the message to that session
+        session_write(cur, "%s\r\n", message);
+    }
+    session_iterator_destroy(iter);
+    return 0;
+}
+
+/**
  * @brief Module load entry point
  *
  * Load module configuration and applications
@@ -132,6 +174,7 @@ int load_module()
     ret |= application_register("Help", help_exec);
     ret |= application_register("Set", set_exec);
     ret |= application_register("Get", get_exec);
+    ret |= application_register("Broadcast", broadcast_exec);
     return ret;
 }
 
@@ -148,5 +191,6 @@ int unload_module()
     ret |= application_unregister("Help");
     ret |= application_unregister("Get");
     ret |= application_unregister("Set");
+    ret |= application_unregister("Broadcast");
     return ret;
 }
