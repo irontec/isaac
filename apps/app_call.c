@@ -444,6 +444,12 @@ call_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Variable: ISAAC_FORCED_CLID=%s", 
             application_get_arg(&parsed, "CLID"));
 
+    // Forced Timeout from application arguments
+    if (application_get_arg(&parsed, "TIMEOUT"))
+        message_add_header(&msg, "Variable: ISAAC_CALL_TIMEOUT=%s", 
+            application_get_arg(&parsed, "TIMEOUT"));
+
+    // Send this message to ami
     manager_write_message(manager, &msg);
 
     return 0;
