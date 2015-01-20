@@ -37,6 +37,7 @@
 #include <time.h>
 #include <libconfig.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include "app.h"
 #include "manager.h"
 #include "filter.h"
@@ -492,6 +493,7 @@ dtmf_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Channel: %s", info->dchannel);
         message_add_header(&msg, "Digit: %s", digit);
         manager_write_message(manager, &msg);
+        usleep(300 * 1000); // Wait 300 ms before accepting any other command
         session_write(sess, "DTMFOK\r\n");
     } else {
         session_write(sess, "DTMFFAILED ID NOT FOUND\r\n");
