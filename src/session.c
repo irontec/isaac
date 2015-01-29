@@ -70,11 +70,6 @@ session_create(const int fd, const struct sockaddr_in addr)
     memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
 
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
-    pthread_mutex_init(&sess->lock, &attr);
-
     // Initialize session fields
     if (addr.sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
         // Special ID for this sessions
@@ -104,16 +99,10 @@ session_create(const int fd, const struct sockaddr_in addr)
 void
 session_destroy(session_t *sess)
 {
-    filter_t *filter;
     session_t *cur, *prev = NULL;
 
     // Mark this session as leaving
     session_set_flag(sess, SESS_FLAG_LEAVING);
-
-    // Unregister all this connection filters
-    while ((filter = filter_from_session(sess, NULL))) {
-        filter_unregister(filter);
-    }
 
     // Remove this session from the list
     pthread_mutex_lock(&sessionlock);
@@ -128,6 +117,10 @@ session_destroy(session_t *sess)
         prev = cur;
         cur = cur->next;
     }
+
+    // Deallocate memory
+    isaac_free(sess);
+
     pthread_mutex_unlock(&sessionlock);
 
 }
@@ -139,10 +132,8 @@ session_finish(session_t *sess)
     int res = -1;
     if (sess) {
         // Close the session socket thread-safe way
-        pthread_mutex_lock(&sess->lock);
         shutdown(sess->fd, SHUT_RD);
         res = close(sess->fd);
-        pthread_mutex_unlock(&sess->lock);
     }
     return res;
 }
@@ -161,8 +152,6 @@ session_write(session_t *sess, const char *fmt, ...)
         return -1;
     }
 
-    pthread_mutex_lock(&sess->lock);
-
     // If session is being shutdown, we're done
     if (session_test_flag(sess, SESS_FLAG_LEAVING))
         return -1;
@@ -179,13 +168,13 @@ session_write(session_t *sess, const char *fmt, ...)
     }
 
     // LOG Debug info
-    isaac_log(LOG_DEBUG, "[Session %s] --> %s", sess->id, msgva);
+    if (!session_test_flag(sess, SESS_FLAG_LOCAL)) 
+        isaac_log(LOG_DEBUG, "[Session %s] --> %s", sess->id, msgva);
 
     // Write the built message into the socket
     if ((wbytes = send(sess->fd, msgva, strlen(msgva), 0) == -1)) {
         isaac_log(LOG_WARNING, "Unable to write on session %s: %s\n", sess->id, strerror(errno));
     }
-    pthread_mutex_unlock(&sess->lock);
     // Return written bytes
     return wbytes;
 }
@@ -275,9 +264,7 @@ session_test_flag(session_t *sess, int flag)
 {
     int ret = 0;
     if (!sess) return -1;
-    pthread_mutex_lock(&sess->lock);
     ret = sess->flags & flag;
-    pthread_mutex_unlock(&sess->lock);
     return ret;
 }
 
@@ -286,9 +273,7 @@ void
 session_set_flag(session_t *sess, int flag)
 {
     if (!sess) return;
-    pthread_mutex_lock(&sess->lock);
     sess->flags |= flag;
-    pthread_mutex_unlock(&sess->lock);
 }
 
 /*****************************************************************************/
@@ -296,9 +281,7 @@ void
 session_clear_flag(session_t *sess, int flag)
 {
     if (!sess) return;
-    pthread_mutex_lock(&sess->lock);
     sess->flags &= ~flag;
-    pthread_mutex_unlock(&sess->lock);
 }
 
 /*****************************************************************************/
@@ -307,11 +290,9 @@ void
 session_set_variable(session_t *sess, char *varname, char *varvalue)
 {
     if (!sess) return;
-    pthread_mutex_lock(&sess->lock);
     strcpy(sess->vars[sess->varcount].varname, varname);
     strcpy(sess->vars[sess->varcount].varvalue, varvalue);
     sess->varcount++;
-    pthread_mutex_unlock(&sess->lock);
 }
 
 /*****************************************************************************/
@@ -322,14 +303,12 @@ session_get_variable(session_t *sess, const char *varname)
     char *varvalue = NULL;
     if (!sess) return NULL;
     int i;
-    pthread_mutex_lock(&sess->lock);
     for (i = 0; i < sess->varcount; i++) {
         if (!strcasecmp(sess->vars[i].varname, varname)) {
             varvalue = sess->vars[i].varvalue;
             break;
         }
     }
-    pthread_mutex_unlock(&sess->lock);
     return varvalue;
 }
 

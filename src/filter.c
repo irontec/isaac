@@ -168,6 +168,23 @@ filter_unregister(filter_t *filter)
 }
 
 int
+filter_unregister_session(session_t *sess)
+{
+    filter_t *filter;
+    // Sanity check
+    if (!sess) return 1;    
+
+    pthread_mutex_lock(&filters_mutex);
+    // Unregister all this connection filters
+    while ((filter = filter_from_session(sess, NULL))) {
+        filter_unregister(filter);
+    }
+    pthread_mutex_unlock(&filters_mutex);
+
+    return 0;
+}
+
+int
 filter_destroy(filter_t *filter)
 {
     pthread_mutex_lock(&filters_mutex);
@@ -424,8 +441,6 @@ check_filters_for_message(ami_message_t *msg)
 
             // All condition matched! We have a winner!
             if (matches == cur->condcount) {
-                // We don't need to hold this lock while exec'ing the filter callback
-                pthread_mutex_unlock(&filters_mutex);
                 if (cur->type == FILTER_ASYNC) {
                     // Exec the filter callback with the current message
                     filter_exec_async(cur, msg);
@@ -433,8 +448,6 @@ check_filters_for_message(ami_message_t *msg)
                     // Store the message and leave
                     filter_exec_sync(cur, msg);
                 }
-                // Lock the filters before going on                
-                pthread_mutex_lock(&filters_mutex);
             }
        }
 

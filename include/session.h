@@ -85,8 +85,6 @@ struct session
     struct timeval last_cmd_time;
     //! Session running thread
     pthread_t thread;
-    //! Session lock
-    pthread_mutex_t lock;
     //! Sessions linked list
     session_t *next;
 };

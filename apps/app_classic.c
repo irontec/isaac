@@ -40,12 +40,10 @@ int
 classic_print(filter_t *filter, ami_message_t *msg)
 {
     int i;
-    pthread_mutex_lock(&filter->sess->lock);
     for (i = 0; i < msg->hdrcount; i++) {
         session_write(filter->sess, "%s\r\n", msg->headers[i]);
     }
     session_write(filter->sess, "\r\n\r\n");
-    pthread_mutex_unlock(&filter->sess->lock);
     return 0;
 }
 
@@ -98,7 +96,6 @@ classic_exec(session_t *sess, app_t *app, const char *args)
     // Check the action of the message
     if (!strcasecmp(action, "Login")) {
         // Send a fake response
-        pthread_mutex_lock(&sess->lock);
         session_write(sess, "Response: Success\r\n");
         session_write(sess, "Message: Authentication accepted\r\n");
         session_write(sess, "\r\n\r\n");
@@ -106,21 +103,16 @@ classic_exec(session_t *sess, app_t *app, const char *args)
         session_write(sess, "Privilege: system,all\r\n");
         session_write(sess, "Status: Fully Booted\r\n");
         session_write(sess, "\r\n\r\n");
-        pthread_mutex_unlock(&sess->lock);
         filter_t *filter = filter_create_async(sess, classic_print);
         filter_register(filter);
     } else if (!strcasecmp(action, "Events")) {
-        pthread_mutex_lock(&sess->lock);
         session_write(sess, "Response: Success\r\n");
         session_write(sess, "Events: Off\r\n");
         session_write(sess, "\r\n\r\n");
-        pthread_mutex_unlock(&sess->lock);
     } else if (!strcasecmp(action, "Logoff")) {
-        pthread_mutex_lock(&sess->lock);
         session_write(sess, "Response: Goodbye\r\n");
         session_write(sess, "Message: Thanks for all the fish.\r\n");
         session_write(sess, "\r\n\r\n");
-        pthread_mutex_unlock(&sess->lock);
         session_finish(sess);
     } else {
         sleep(2);

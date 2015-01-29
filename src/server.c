@@ -40,6 +40,7 @@
 #include "server.h"
 #include "session.h"
 #include "app.h"
+#include "filter.h"
 
 //! Server socket
 int server_sock = 0;
@@ -221,12 +222,13 @@ manage_session(void *session)
     if (!session_test_flag(session, SESS_FLAG_LOCAL)) 
         isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
 
+
+    // Remove all filters for this session
+    filter_unregister_session(sess);
+
     // Deallocate session memory
     session_finish(sess);
     session_destroy(sess);
-
-    // Leave the thread gracefully
-    pthread_exit(NULL);
 
     return NULL;
 }

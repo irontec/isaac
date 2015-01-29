@@ -283,6 +283,14 @@ extern int
 filter_unregister(filter_t *filter);
 
 /**
+ * @brief Unregister all fiters from a session
+ *
+ * @param sess Session owning the filters
+ */
+extern int
+filter_unregister_session(session_t *sess);
+
+/**
  * @brief Remove a filter from the filters list.
  *
  * Main function for destroying a filter and remove it from the filter list.
