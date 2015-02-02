@@ -14,6 +14,7 @@ import sys
 import os
 import commands
 import socket
+import pyodbc
 import syslog
 import ConfigParser as cfgparser
 
@@ -55,15 +56,34 @@ def main():
 
     ## Check if Isaac can handle PING request
     try:
+        # Default command to test
+        command = "PING"
+
+        # Connect to Isaac
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((isaac_bind_addr, isaac_bind_port ))
         sock.settimeout(20)
+
+        # Connect to database
+        cnxn = pyodbc.connect('DSN=asterisk')
+        cursor = cnxn.cursor()
+
+        # Get the first agent with 1234 password
+        cursor.execute("SELECT login_num from karma_usuarios as k INNER JOIN shared_agents_interfaces as s ON k.login_num = s.agent WHERE pass = encrypt('1234', SUBSTRING_INDEX(pass, '$', 3))");
+        row = cursor.fetchone()
+        cnxn.commit()
+
+        # If we found a valid agent, use login command
+        if row:
+            command = "LOGIN %s 1234" % row.login_num
+
         # Receive the welcome banner 
         sock.recv(256)
         # Send OPTIONS message
-        sock.send("PING\n")
+        sock.send(command+"\n")
         # Expect response (An error probably)
         sock.recv(256)
+
         # If no expcetion has been found by now, we assume everything
         # is fine, so, close socket and leave
     except socket.error:
@@ -73,7 +93,7 @@ def main():
         log(syslog.LOG_ERR, "[MON] Timeout to our PING request")
         sys.exit(1)
     except:
-        log(syslog.LOG_ERR, "[MON] Uncaught exception sending PING request: %s" % sys.exc_info()[0])
+        log(syslog.LOG_ERR, "[MON] Uncaught exception sending %s request: %s" % (command, sys.exc_info()[0]))
         sys.exit(1)
     finally:
         sock.close()

@@ -320,6 +320,7 @@ load_module()
     int res = 0;
     res |= application_register("Login", login_exec);
     res |= application_register("Logout", logout_exec);
+    res |= application_register("Exit", logout_exec);
     // Create a new thread for odbc connection
     if (pthread_create(&odbc_thread, NULL, odbc_watchdog, NULL) != 0) {
         isaac_log(LOG_WARNING, "Error creating odbc thread: %s\n", strerror(errno));
@@ -341,6 +342,7 @@ unload_module()
     int res = 0;
     res |= application_unregister("LOGIN");
     res |= application_unregister("LOGOUT");
+    res |= application_unregister("EXIT");
     res |= pthread_join(odbc_thread, NULL);
     return res;
 }
