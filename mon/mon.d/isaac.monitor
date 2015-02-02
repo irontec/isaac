@@ -69,7 +69,7 @@ def main():
         cursor = cnxn.cursor()
 
         # Get the first agent with 1234 password
-        cursor.execute("SELECT login_num from karma_usuarios as k INNER JOIN shared_agents_interfaces as s ON k.login_num = s.agent WHERE pass = encrypt('1234', SUBSTRING_INDEX(pass, '$', 3))");
+        cursor.execute("SELECT login_num from karma_usuarios as k INNER JOIN shared_agents_interfaces as s ON k.login_num = s.agent WHERE pass = encrypt('1234', SUBSTRING_INDEX(pass, '$', 3)) LIMIT 1");
         row = cursor.fetchone()
         cnxn.commit()
 
