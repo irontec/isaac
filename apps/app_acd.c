@@ -36,6 +36,7 @@
 #include <libconfig.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "app.h"
 #include "log.h"
 #include "util.h"
@@ -129,10 +130,12 @@ popenRWE(int *rwepipe, const char *exe, const char * const argv[])
         // Close the other part, we wont send anything
         close(err[0]);
         execvp(exe, (char**) argv);
+        isaac_log(LOG_ERROR, "Error executing %s: %s\n", exe, strerror(errno));
     } else {
         // Error, close both sides of the pipe
         close(err[0]);
         close(err[1]);
+        isaac_log(LOG_ERROR, "Error creating spawn: %s\n", strerror(errno));
         return -1;
     }
 
