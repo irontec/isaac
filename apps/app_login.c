@@ -182,9 +182,6 @@ peer_status_check(filter_t *filter, ami_message_t *msg)
     return 0;
 }
 
-
-
-
 /**
  * @brief Check Login attempt against asterisk database
  *
@@ -288,6 +285,88 @@ login_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
+ * @brief Callback for device status functions
+ *
+ * Send information of Hint changed to the session
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
+int
+devicestatus_changed(filter_t *filter, ami_message_t *msg)
+{
+    session_t *sess = filter->sess;
+    int status = atoi(message_get_header(msg, "Status"));
+
+    // Send new device status
+    switch(status) {
+    case 0:
+        session_write(sess, "DEVICESTATE IDLE\r\n");
+        break;
+    case 1:
+        session_write(sess, "DEVICESTATE INUSE\r\n");
+        break;
+    case 8:
+        session_write(sess, "DEVICESTATE RINGING\r\n");
+        break;
+    default:
+        session_write(sess, "DEVICESTATE NOTHANDLED\r\n");
+        break;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Request Device Status change information
+ *
+ * @param sess  Session structure running the application
+ * @param app The application structure
+ * @param args  Application arguments
+ * @return 0 in case of login success, 1 otherwise
+ */
+int
+devicestatus_exec(session_t *sess, app_t *app, const char *args)
+{
+    // If session is not authenticated, show an error
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+    
+    const char *agent = session_get_variable(sess, "AGENT");
+    const char *interface = session_get_variable(sess, "INTERFACE");
+
+    // If session is already showing devicestatus, leave
+    if (session_get_variable(sess, "DEVICESTATUS")) {
+        return session_write(sess, "DEVICESTATUS Already displaying status for device %s\r\n", agent);
+    }
+
+    // Add a filter for handling device state changes
+    filter_t *devicefilter = filter_create_async(sess, devicestatus_changed);
+    filter_new_condition(devicefilter, MATCH_EXACT , "Context", "cc-hints");
+    filter_new_condition(devicefilter, MATCH_EXACT , "Hint", interface);
+    filter_new_condition(devicefilter, MATCH_EXACT , "Exten", agent);
+    filter_register(devicefilter);
+
+    // Mark this session to avoid multiple device status
+    session_set_variable(sess, "DEVICESTATUS", "1");
+
+    // Some feedback
+    session_write(sess, "DEVICESTATUS for %s will be printed\r\n", agent);
+
+    // Initial status
+    ami_message_t devicemsg;
+    memset(&devicemsg, 0, sizeof(ami_message_t));
+    message_add_header(&devicemsg, "Action: ExtensionState");
+    message_add_header(&devicemsg, "Exten: %s", agent);
+    message_add_header(&devicemsg, "Context: cc-hints");
+    manager_write_message(manager, &devicemsg);
+
+    return 0;
+}
+
+/**
  * @brief Logout given session
  *
  * Simple function to close the session connection in a gently way,
@@ -321,6 +400,7 @@ load_module()
     res |= application_register("Login", login_exec);
     res |= application_register("Logout", logout_exec);
     res |= application_register("Exit", logout_exec);
+    res |= application_register("DEVICESTATUS", devicestatus_exec);
     // Create a new thread for odbc connection
     if (pthread_create(&odbc_thread, NULL, odbc_watchdog, NULL) != 0) {
         isaac_log(LOG_WARNING, "Error creating odbc thread: %s\n", strerror(errno));
@@ -342,6 +422,7 @@ unload_module()
     int res = 0;
     res |= application_unregister("LOGIN");
     res |= application_unregister("LOGOUT");
+    res |= application_unregister("DEVICESTATUS");
     res |= application_unregister("EXIT");
     res |= pthread_join(odbc_thread, NULL);
     return res;
