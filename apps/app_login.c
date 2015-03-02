@@ -310,6 +310,9 @@ devicestatus_changed(filter_t *filter, ami_message_t *msg)
     case 8:
         session_write(sess, "DEVICESTATE RINGING\r\n");
         break;
+    case 16:
+        session_write(sess, "DEVICESTATE ONHOLD\r\n");
+        break;
     default:
         session_write(sess, "DEVICESTATE NOTHANDLED\r\n");
         break;

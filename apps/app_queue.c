@@ -41,6 +41,36 @@
 #include "log.h"
 
 /**
+ * @brief Show all queues for current session
+ *
+ * Print a list of all qeues the memeber is in
+ *
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
+int
+queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
+{
+    session_t *sess = filter->sess;
+    const char *event = message_get_header(msg, "Event");
+    const char *queuename = message_get_header(msg, "Queue");
+
+    if (!strcasecmp(event, "QueueMember")) {
+        const char *interface = session_get_variable(sess, "INTERFACE");
+        if (!strcasecmp(interface, message_get_header(msg, "StateInterface"))) {
+            session_write(sess, "%s ", queuename);
+        }
+    } else if (!strcasecmp(event, "QueueStatusComplete")) {
+        session_write(sess, "\r\n");
+        filter_unregister(filter);
+    }
+
+    return 0;
+}
+
+/**
  * @brief Print queue calls count
  *
  * When a new call enters or leaves a queue a message will be printed to the sessions
@@ -87,20 +117,35 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
 
     // Get queuename to monitor
     if (sscanf(args, "%s", queuename) != 1) {
-        return INVALID_ARGUMENTS;
+        // Send the initial banner
+        session_write(sess, "QUEUEINFOOK ");
+
+        // Filter QueueMember and QueueStatusComplete responses
+        filter_t *queuefilter = filter_create_async(sess, queueinfo_print_queues);
+        filter_new_condition(queuefilter, MATCH_REGEX , "Event", "QueueMember|QueueStatusComplete");
+        filter_new_condition(queuefilter, MATCH_EXACT , "ActionID", "QueueStatus%s", sess->id);
+        filter_register(queuefilter);
+
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: QueueStatus");
+        message_add_header(&msg, "ActionID: QueueStatus%s", sess->id);
+        manager_write_message(manager, &msg);
+        return 0;
     }
 
     // Check we have a valid quene name
     filter_t *namefilter = filter_create_sync(sess);
-    filter_new_condition(namefilter, MATCH_REGEX , "Event", "QueueSummary|QueueSummaryComplete");
+    filter_new_condition(namefilter, MATCH_EXACT , "Event", "QueueParams");
     filter_new_condition(namefilter, MATCH_EXACT , "ActionID", sess->id);
+    filter_new_condition(namefilter, MATCH_EXACT , "Queue", queuename);
     filter_register(namefilter);
 
     // Construct a Request message
     ami_message_t msg;
     memset(&msg, 0, sizeof(ami_message_t));
-    message_add_header(&msg, "Action: QueueSummary");
-    message_add_header(&msg, "Queue: %s", queuename);
+    message_add_header(&msg, "Action: QueueStatus");
     message_add_header(&msg, "ActionID: %s", sess->id);
     manager_write_message(manager, &msg);
 
@@ -109,12 +154,6 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     if (filter_run(namefilter, 10000, &retmsg) != 0) {
         // No response Boo!
         session_write(sess, "QUEUEINFOFAIL Unable to get queuedata of %s\r\n", queuename);
-        return 0;
-    }
-
-    // No data from this queue
-    if (!isaac_strcasecmp(message_get_header(&retmsg, "Event"), "QueueSummaryComplete")) {
-        session_write(sess, "QUEUEINFOFAIL Queue %s does not exist.\r\n", queuename);
         return 0;
     }
 
@@ -136,6 +175,9 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
 
     // Check with uniqueid mode
     session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queuename);
+
+    // Printi intial queue status
+    session_write(sess, "QUEUEINFO %s %s\r\n", queuename,  message_get_header(&retmsg, "Calls"));
 
     return 0;
 }
