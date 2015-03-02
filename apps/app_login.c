@@ -339,7 +339,7 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
 
     // If session is already showing devicestatus, leave
     if (session_get_variable(sess, "DEVICESTATUS")) {
-        return session_write(sess, "DEVICESTATUS Already displaying status for device %s\r\n", agent);
+        return session_write(sess, "DEVICESTATUSOK Already displaying status for device %s\r\n", agent);
     }
 
     // Add a filter for handling device state changes
@@ -353,7 +353,7 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
     session_set_variable(sess, "DEVICESTATUS", "1");
 
     // Some feedback
-    session_write(sess, "DEVICESTATUS for %s will be printed\r\n", agent);
+    session_write(sess, "DEVICESTATUSOK for %s will be printed\r\n", agent);
 
     // Initial status
     ami_message_t devicemsg;
