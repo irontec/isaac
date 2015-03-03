@@ -55,8 +55,8 @@ typedef struct session_iterator session_iter_t;
  */
 struct session_var
 {
-    char varname[80];
-    char varvalue[512];
+    char varname[128];
+    char varvalue[8192];
 };
 
 /**
