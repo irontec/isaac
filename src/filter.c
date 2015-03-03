@@ -187,6 +187,7 @@ filter_unregister_session(session_t *sess)
 int
 filter_destroy(filter_t *filter)
 {
+    int i;
     pthread_mutex_lock(&filters_mutex);
     // Sanity check
     if (!filter) return 1;
@@ -211,6 +212,13 @@ filter_destroy(filter_t *filter)
             if (filter_get_userdata(cur) == userdata) break;
         }
         if (!cur) isaac_free(userdata);
+    }
+
+    // Deallocate filter conditions
+    for (i=0; i < filter->condcount; i++) {
+        if (filter->conds[i].type == MATCH_REGEX) {
+            regfree(&filter->conds[i].regex);
+        }
     }
 
     // Deallocate filter memory
