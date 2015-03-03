@@ -200,7 +200,7 @@ manage_session(void *session)
 
             if ((app = application_find(action))) {
                 // Run the application
-                if ((ret = application_run(app, session, args)) != 0) {
+                if ((ret = application_run(app, sess, args)) != 0) {
                     // If a generic error has occurred write it to the client
                     if (ret > 100) session_write(sess, "ERROR %s\r\n", apperr2str(ret));
                 }

@@ -38,6 +38,24 @@ AC_CHECK_LIB([edit], [history], [], [
     AC_MSG_ERROR(libedit library is required to comile Isaac.)
 ])
 
+####
+#### LUA Support
+####
+AC_ARG_WITH([lua],
+    AS_HELP_STRING([--with-lua], [Enable LUA modules support]),
+    [AC_SUBST(WITH_OPENSSL, $withval)],
+    [AC_SUBST(WITH_OPENSSL, no)]
+)
+
+AS_IF([test "x$WITH_LUA" == "xyes"], [
+	AC_CHECK_LIB([lua5.1], [luaL_openlibs], [], [
+	    AC_MSG_ERROR([ You need to have lua installed to compile isaac with lua support])
+	])
+	AC_DEFINE([WITH_LUA],[],[Compile With Lua compatibility])
+], [])
+
+AM_CONDITIONAL([WITH_LUA], [test "x$WITH_LUA" == "xyes"])
+
 #######################################################################
 # Check for REQUIRED header files
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h stdint.h stdlib.h string.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h])

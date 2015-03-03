@@ -56,7 +56,7 @@ typedef struct session_iterator session_iter_t;
 struct session_var
 {
     char varname[80];
-    char varvalue[80];
+    char varvalue[512];
 };
 
 /**
@@ -236,6 +236,12 @@ session_set_variable(session_t *sess, char *varname, char *varvalue);
  */
 const char *
 session_get_variable(session_t *sess, const char *varname);
+
+/**
+ * \brief Get index value of a given variable
+ */
+int
+session_variable_idx(session_t *sess, const char *varname);
 
 extern session_iter_t *
 session_iterator_new();

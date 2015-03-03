@@ -290,9 +290,16 @@ void
 session_set_variable(session_t *sess, char *varname, char *varvalue)
 {
     if (!sess) return;
-    strcpy(sess->vars[sess->varcount].varname, varname);
-    strcpy(sess->vars[sess->varcount].varvalue, varvalue);
-    sess->varcount++;
+
+    int id = session_variable_idx(sess, varname);
+    if (id == -1) {
+        strcpy(sess->vars[sess->varcount].varname, varname);
+        strcpy(sess->vars[sess->varcount].varvalue, varvalue);
+        sess->varcount++;
+    } else{
+        strcpy(sess->vars[id].varname, varname);
+        strcpy(sess->vars[id].varvalue, varvalue);
+    }
 }
 
 /*****************************************************************************/
@@ -310,6 +317,19 @@ session_get_variable(session_t *sess, const char *varname)
         }
     }
     return varvalue;
+}
+
+int
+session_variable_idx(session_t *sess, const char *varname)
+{
+    if (!sess) return 0;
+    int i;
+    for (i = 0; i < sess->varcount; i++) {
+        if (!strcasecmp(sess->vars[i].varname, varname)) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 /*****************************************************************************/

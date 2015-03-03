@@ -14,6 +14,8 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
+
+
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
@@ -31,73 +33,124 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-subdir = .
-DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
-	$(top_srcdir)/configure depcomp install-sh missing
+app_login_PROGRAMS = app_login.so$(EXEEXT)
+app_acd_PROGRAMS = app_acd.so$(EXEEXT)
+app_status_PROGRAMS = app_status.so$(EXEEXT)
+app_ping_PROGRAMS = app_ping.so$(EXEEXT)
+app_utils_PROGRAMS = app_utils.so$(EXEEXT)
+app_call_PROGRAMS = app_call.so$(EXEEXT)
+app_queue_PROGRAMS = app_queue.so$(EXEEXT)
+@WITH_LUA_TRUE@res_lua_PROGRAMS = res_lua.so$(EXEEXT)
+app_classic_PROGRAMS = app_classic.so$(EXEEXT)
+subdir = apps
+DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
- configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
-CONFIG_HEADER = config.h
+CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-SOURCES =
-DIST_SOURCES =
-RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
-	html-recursive info-recursive install-data-recursive \
-	install-dvi-recursive install-exec-recursive \
-	install-html-recursive install-info-recursive \
-	install-pdf-recursive install-ps-recursive install-recursive \
-	installcheck-recursive installdirs-recursive pdf-recursive \
-	ps-recursive uninstall-recursive
-RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
-  distclean-recursive maintainer-clean-recursive
-AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
-	$(RECURSIVE_CLEAN_TARGETS:-recursive=) tags TAGS ctags CTAGS \
-	distdir dist dist-all distcheck
+am__installdirs = "$(DESTDIR)$(app_acddir)" "$(DESTDIR)$(app_calldir)" \
+	"$(DESTDIR)$(app_classicdir)" "$(DESTDIR)$(app_logindir)" \
+	"$(DESTDIR)$(app_pingdir)" "$(DESTDIR)$(app_queuedir)" \
+	"$(DESTDIR)$(app_statusdir)" "$(DESTDIR)$(app_utilsdir)" \
+	"$(DESTDIR)$(res_luadir)" "$(DESTDIR)$(app_acd_sodir)"
+PROGRAMS = $(app_acd_PROGRAMS) $(app_call_PROGRAMS) \
+	$(app_classic_PROGRAMS) $(app_login_PROGRAMS) \
+	$(app_ping_PROGRAMS) $(app_queue_PROGRAMS) \
+	$(app_status_PROGRAMS) $(app_utils_PROGRAMS) \
+	$(res_lua_PROGRAMS)
+am_app_acd_so_OBJECTS = app_acd_so-app_acd.$(OBJEXT)
+app_acd_so_OBJECTS = $(am_app_acd_so_OBJECTS)
+app_acd_so_LDADD = $(LDADD)
+app_acd_so_LINK = $(CCLD) $(app_acd_so_CFLAGS) $(CFLAGS) \
+	$(app_acd_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_call_so_OBJECTS = app_call_so-app_call.$(OBJEXT)
+app_call_so_OBJECTS = $(am_app_call_so_OBJECTS)
+app_call_so_LDADD = $(LDADD)
+app_call_so_LINK = $(CCLD) $(app_call_so_CFLAGS) $(CFLAGS) \
+	$(app_call_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_classic_so_OBJECTS = app_classic_so-app_classic.$(OBJEXT)
+app_classic_so_OBJECTS = $(am_app_classic_so_OBJECTS)
+app_classic_so_LDADD = $(LDADD)
+app_classic_so_LINK = $(CCLD) $(app_classic_so_CFLAGS) $(CFLAGS) \
+	$(app_classic_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_login_so_OBJECTS = app_login_so-app_login.$(OBJEXT)
+app_login_so_OBJECTS = $(am_app_login_so_OBJECTS)
+app_login_so_LDADD = $(LDADD)
+app_login_so_LINK = $(CCLD) $(app_login_so_CFLAGS) $(CFLAGS) \
+	$(app_login_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_ping_so_OBJECTS = app_ping_so-app_ping.$(OBJEXT)
+app_ping_so_OBJECTS = $(am_app_ping_so_OBJECTS)
+app_ping_so_LDADD = $(LDADD)
+app_ping_so_LINK = $(CCLD) $(app_ping_so_CFLAGS) $(CFLAGS) \
+	$(app_ping_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_queue_so_OBJECTS = app_queue_so-app_queue.$(OBJEXT)
+app_queue_so_OBJECTS = $(am_app_queue_so_OBJECTS)
+app_queue_so_LDADD = $(LDADD)
+app_queue_so_LINK = $(CCLD) $(app_queue_so_CFLAGS) $(CFLAGS) \
+	$(app_queue_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_status_so_OBJECTS = app_status_so-app_status.$(OBJEXT)
+app_status_so_OBJECTS = $(am_app_status_so_OBJECTS)
+app_status_so_LDADD = $(LDADD)
+app_status_so_LINK = $(CCLD) $(app_status_so_CFLAGS) $(CFLAGS) \
+	$(app_status_so_LDFLAGS) $(LDFLAGS) -o $@
+am_app_utils_so_OBJECTS = app_utils_so-app_utils.$(OBJEXT)
+app_utils_so_OBJECTS = $(am_app_utils_so_OBJECTS)
+app_utils_so_LDADD = $(LDADD)
+app_utils_so_LINK = $(CCLD) $(app_utils_so_CFLAGS) $(CFLAGS) \
+	$(app_utils_so_LDFLAGS) $(LDFLAGS) -o $@
+am__res_lua_so_SOURCES_DIST = res_lua.c
+@WITH_LUA_TRUE@am_res_lua_so_OBJECTS = res_lua_so-res_lua.$(OBJEXT)
+res_lua_so_OBJECTS = $(am_res_lua_so_OBJECTS)
+res_lua_so_LDADD = $(LDADD)
+res_lua_so_LINK = $(CCLD) $(res_lua_so_CFLAGS) $(CFLAGS) \
+	$(res_lua_so_LDFLAGS) $(LDFLAGS) -o $@
+DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+am__depfiles_maybe = depfiles
+am__mv = mv -f
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+SOURCES = $(app_acd_so_SOURCES) $(app_call_so_SOURCES) \
+	$(app_classic_so_SOURCES) $(app_login_so_SOURCES) \
+	$(app_ping_so_SOURCES) $(app_queue_so_SOURCES) \
+	$(app_status_so_SOURCES) $(app_utils_so_SOURCES) \
+	$(res_lua_so_SOURCES)
+DIST_SOURCES = $(app_acd_so_SOURCES) $(app_call_so_SOURCES) \
+	$(app_classic_so_SOURCES) $(app_login_so_SOURCES) \
+	$(app_ping_so_SOURCES) $(app_queue_so_SOURCES) \
+	$(app_status_so_SOURCES) $(app_utils_so_SOURCES) \
+	$(am__res_lua_so_SOURCES_DIST)
+am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
+am__vpath_adj = case $$p in \
+    $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
+    *) f=$$p;; \
+  esac;
+am__strip_dir = f=`echo $$p | sed -e 's|^.*/||'`;
+am__install_max = 40
+am__nobase_strip_setup = \
+  srcdirstrip=`echo "$(srcdir)" | sed 's/[].[^$$\\*|]/\\\\&/g'`
+am__nobase_strip = \
+  for p in $$list; do echo "$$p"; done | sed -e "s|$$srcdirstrip/||"
+am__nobase_list = $(am__nobase_strip_setup); \
+  for p in $$list; do echo "$$p $$p"; done | \
+  sed "s| $$srcdirstrip/| |;"' / .*\//!s/ .*/ ./; s,\( .*\)/[^/]*$$,\1,' | \
+  $(AWK) 'BEGIN { files["."] = "" } { files[$$2] = files[$$2] " " $$1; \
+    if (++n[$$2] == $(am__install_max)) \
+      { print $$2, files[$$2]; n[$$2] = 0; files[$$2] = "" } } \
+    END { for (dir in files) print dir, files[dir] }'
+am__base_list = \
+  sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
+  sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
+DATA = $(app_acd_so_DATA)
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = $(SUBDIRS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-distdir = $(PACKAGE)-$(VERSION)
-top_distdir = $(distdir)
-am__remove_distdir = \
-  { test ! -d "$(distdir)" \
-    || { find "$(distdir)" -type d ! -perm -200 -exec chmod u+w {} ';' \
-         && rm -fr "$(distdir)"; }; }
-am__relativize = \
-  dir0=`pwd`; \
-  sed_first='s,^\([^/]*\)/.*$$,\1,'; \
-  sed_rest='s,^[^/]*/*,,'; \
-  sed_last='s,^.*/\([^/]*\)$$,\1,'; \
-  sed_butlast='s,/*[^/]*$$,,'; \
-  while test -n "$$dir1"; do \
-    first=`echo "$$dir1" | sed -e "$$sed_first"`; \
-    if test "$$first" != "."; then \
-      if test "$$first" = ".."; then \
-        dir2=`echo "$$dir0" | sed -e "$$sed_last"`/"$$dir2"; \
-        dir0=`echo "$$dir0" | sed -e "$$sed_butlast"`; \
-      else \
-        first2=`echo "$$dir2" | sed -e "$$sed_first"`; \
-        if test "$$first2" = "$$first"; then \
-          dir2=`echo "$$dir2" | sed -e "$$sed_rest"`; \
-        else \
-          dir2="../$$dir2"; \
-        fi; \
-        dir0="$$dir0"/"$$first"; \
-      fi; \
-    fi; \
-    dir1=`echo "$$dir1" | sed -e "$$sed_rest"`; \
-  done; \
-  reldir="$$dir2"
-DIST_ARCHIVES = $(distdir).tar.gz
-GZIP_ENV = --best
-distuninstallcheck_listfiles = find . -type f -print
-distcleancheck_listfiles = find . -type f -print
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
 AUTOCONF = @AUTOCONF@
@@ -146,6 +199,7 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
+WITH_OPENSSL = @WITH_OPENSSL@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -197,132 +251,621 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = src apps conf mon
-all: config.h
-	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+appsdir = @isaacmoddir@
+appsCFLAGS = -I@top_srcdir@/include -fPIC -g -Wall
+appsLDFLAGS = -shared -Wl,-E
+app_login_so_SOURCES = app_login.c
+app_login_so_CFLAGS = $(appsCFLAGS) 
+app_login_so_LDFLAGS = $(appsLDFLAGS) -lodbc
+app_logindir = $(appsdir)
+app_acd_so_SOURCES = app_acd.c
+app_acd_so_CFLAGS = $(appsCFLAGS) -DACDCONF=\"@isaacconfdir@/acd.conf\"
+app_acd_so_LDFLAGS = $(appsLDFLAGS)
+app_acd_so_DATA = acd.php
+app_acddir = $(appsdir)
+app_acd_sodir = $(appsdir)
+app_status_so_SOURCES = app_status.c
+app_status_so_CFLAGS = $(appsCFLAGS)
+app_status_so_LDFLAGS = $(appsLDFLAGS)
+app_statusdir = $(appsdir)
+app_ping_so_SOURCES = app_ping.c
+app_ping_so_CFLAGS = $(appsCFLAGS)
+app_ping_so_LDFLAGS = $(appsLDFLAGS)
+app_pingdir = $(appsdir)
+app_utils_so_SOURCES = app_utils.c
+app_utils_so_CFLAGS = $(appsCFLAGS)
+app_utils_so_LDFLAGS = $(appsLDFLAGS)
+app_utilsdir = $(appsdir)
+app_call_so_SOURCES = app_call.c
+app_call_so_CFLAGS = $(appsCFLAGS) -DCALLCONF=\"@isaacconfdir@/call.conf\"
+app_call_so_LDFLAGS = $(appsLDFLAGS)
+app_calldir = $(appsdir)
+app_queue_so_SOURCES = app_queue.c
+app_queue_so_CFLAGS = $(appsCFLAGS) 
+app_queue_so_LDFLAGS = $(appsLDFLAGS)
+app_queuedir = $(appsdir)
+@WITH_LUA_TRUE@res_lua_so_SOURCES = res_lua.c
+@WITH_LUA_TRUE@res_lua_so_CFLAGS = $(appsCFLAGS) -I/usr/include/lua5.1 -DMODDIR=\"@isaacmoddir@\" 
+@WITH_LUA_TRUE@res_lua_so_LDFLAGS = $(appsLDFLAGS) -llua5.1
+#res_lua_so_DATA = test.lua 
+#res_lua_sodir = $(appsdir)
+@WITH_LUA_TRUE@res_luadir = $(appsdir)
+app_classic_so_SOURCES = app_classic.c
+app_classic_so_CFLAGS = $(appsCFLAGS)
+app_classic_so_LDFLAGS = $(appsLDFLAGS)
+app_classicdir = $(appsdir)
+all: all-am
 
 .SUFFIXES:
-am--refresh:
-	@:
+.SUFFIXES: .c .o .obj
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
-	      echo ' cd $(srcdir) && $(AUTOMAKE) --foreign'; \
-	      $(am__cd) $(srcdir) && $(AUTOMAKE) --foreign \
-		&& exit 0; \
+	      ( cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh ) \
+	        && { if test -f $@; then exit 0; else break; fi; }; \
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign apps/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign Makefile
+	  $(AUTOMAKE) --foreign apps/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
 	  *config.status*) \
-	    echo ' $(SHELL) ./config.status'; \
-	    $(SHELL) ./config.status;; \
+	    cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh;; \
 	  *) \
-	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe)'; \
-	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
+	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)'; \
+	    cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe);; \
 	esac;
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
-	$(SHELL) ./config.status --recheck
+	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 
 $(top_srcdir)/configure:  $(am__configure_deps)
-	$(am__cd) $(srcdir) && $(AUTOCONF)
+	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
-	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
+	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
+install-app_acdPROGRAMS: $(app_acd_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_acddir)" || $(MKDIR_P) "$(DESTDIR)$(app_acddir)"
+	@list='$(app_acd_PROGRAMS)'; test -n "$(app_acddir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_acddir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_acddir)$$dir" || exit $$?; \
+	    } \
+	; done
 
-config.h: stamp-h1
-	@if test ! -f $@; then \
-	  rm -f stamp-h1; \
-	  $(MAKE) $(AM_MAKEFLAGS) stamp-h1; \
-	else :; fi
+uninstall-app_acdPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_acd_PROGRAMS)'; test -n "$(app_acddir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_acddir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_acddir)" && rm -f $$files
 
-stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
-	@rm -f stamp-h1
-	cd $(top_builddir) && $(SHELL) ./config.status config.h
-$(srcdir)/config.h.in:  $(am__configure_deps) 
-	($(am__cd) $(top_srcdir) && $(AUTOHEADER))
-	rm -f stamp-h1
-	touch $@
+clean-app_acdPROGRAMS:
+	-test -z "$(app_acd_PROGRAMS)" || rm -f $(app_acd_PROGRAMS)
+install-app_callPROGRAMS: $(app_call_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_calldir)" || $(MKDIR_P) "$(DESTDIR)$(app_calldir)"
+	@list='$(app_call_PROGRAMS)'; test -n "$(app_calldir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_calldir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_calldir)$$dir" || exit $$?; \
+	    } \
+	; done
 
-distclean-hdr:
-	-rm -f config.h stamp-h1
+uninstall-app_callPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_call_PROGRAMS)'; test -n "$(app_calldir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_calldir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_calldir)" && rm -f $$files
 
-# This directory's subdirectories are mostly independent; you can cd
-# into them and run `make' without going through this Makefile.
-# To change the values of `make' variables: instead of editing Makefiles,
-# (1) if the variable is set in `config.status', edit `config.status'
-#     (which will cause the Makefiles to be regenerated when you run `make');
-# (2) otherwise, pass the desired values on the `make' command line.
-$(RECURSIVE_TARGETS):
-	@fail= failcom='exit 1'; \
-	for f in x $$MAKEFLAGS; do \
-	  case $$f in \
-	    *=* | --[!k]*);; \
-	    *k*) failcom='fail=yes';; \
-	  esac; \
-	done; \
-	dot_seen=no; \
-	target=`echo $@ | sed s/-recursive//`; \
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  echo "Making $$target in $$subdir"; \
-	  if test "$$subdir" = "."; then \
-	    dot_seen=yes; \
-	    local_target="$$target-am"; \
-	  else \
-	    local_target="$$target"; \
-	  fi; \
-	  ($(am__cd) $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
-	  || eval $$failcom; \
-	done; \
-	if test "$$dot_seen" = "no"; then \
-	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
-	fi; test -z "$$fail"
+clean-app_callPROGRAMS:
+	-test -z "$(app_call_PROGRAMS)" || rm -f $(app_call_PROGRAMS)
+install-app_classicPROGRAMS: $(app_classic_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_classicdir)" || $(MKDIR_P) "$(DESTDIR)$(app_classicdir)"
+	@list='$(app_classic_PROGRAMS)'; test -n "$(app_classicdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_classicdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_classicdir)$$dir" || exit $$?; \
+	    } \
+	; done
 
-$(RECURSIVE_CLEAN_TARGETS):
-	@fail= failcom='exit 1'; \
-	for f in x $$MAKEFLAGS; do \
-	  case $$f in \
-	    *=* | --[!k]*);; \
-	    *k*) failcom='fail=yes';; \
-	  esac; \
-	done; \
-	dot_seen=no; \
-	case "$@" in \
-	  distclean-* | maintainer-clean-*) list='$(DIST_SUBDIRS)' ;; \
-	  *) list='$(SUBDIRS)' ;; \
-	esac; \
-	rev=''; for subdir in $$list; do \
-	  if test "$$subdir" = "."; then :; else \
-	    rev="$$subdir $$rev"; \
-	  fi; \
-	done; \
-	rev="$$rev ."; \
-	target=`echo $@ | sed s/-recursive//`; \
-	for subdir in $$rev; do \
-	  echo "Making $$target in $$subdir"; \
-	  if test "$$subdir" = "."; then \
-	    local_target="$$target-am"; \
-	  else \
-	    local_target="$$target"; \
-	  fi; \
-	  ($(am__cd) $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
-	  || eval $$failcom; \
-	done && test -z "$$fail"
-tags-recursive:
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  test "$$subdir" = . || ($(am__cd) $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
+uninstall-app_classicPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_classic_PROGRAMS)'; test -n "$(app_classicdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_classicdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_classicdir)" && rm -f $$files
+
+clean-app_classicPROGRAMS:
+	-test -z "$(app_classic_PROGRAMS)" || rm -f $(app_classic_PROGRAMS)
+install-app_loginPROGRAMS: $(app_login_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_logindir)" || $(MKDIR_P) "$(DESTDIR)$(app_logindir)"
+	@list='$(app_login_PROGRAMS)'; test -n "$(app_logindir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_logindir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_logindir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_loginPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_login_PROGRAMS)'; test -n "$(app_logindir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_logindir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_logindir)" && rm -f $$files
+
+clean-app_loginPROGRAMS:
+	-test -z "$(app_login_PROGRAMS)" || rm -f $(app_login_PROGRAMS)
+install-app_pingPROGRAMS: $(app_ping_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_pingdir)" || $(MKDIR_P) "$(DESTDIR)$(app_pingdir)"
+	@list='$(app_ping_PROGRAMS)'; test -n "$(app_pingdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_pingdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_pingdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_pingPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_ping_PROGRAMS)'; test -n "$(app_pingdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_pingdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_pingdir)" && rm -f $$files
+
+clean-app_pingPROGRAMS:
+	-test -z "$(app_ping_PROGRAMS)" || rm -f $(app_ping_PROGRAMS)
+install-app_queuePROGRAMS: $(app_queue_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_queuedir)" || $(MKDIR_P) "$(DESTDIR)$(app_queuedir)"
+	@list='$(app_queue_PROGRAMS)'; test -n "$(app_queuedir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_queuedir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_queuedir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_queuePROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_queue_PROGRAMS)'; test -n "$(app_queuedir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_queuedir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_queuedir)" && rm -f $$files
+
+clean-app_queuePROGRAMS:
+	-test -z "$(app_queue_PROGRAMS)" || rm -f $(app_queue_PROGRAMS)
+install-app_statusPROGRAMS: $(app_status_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_statusdir)" || $(MKDIR_P) "$(DESTDIR)$(app_statusdir)"
+	@list='$(app_status_PROGRAMS)'; test -n "$(app_statusdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_statusdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_statusdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_statusPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_status_PROGRAMS)'; test -n "$(app_statusdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_statusdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_statusdir)" && rm -f $$files
+
+clean-app_statusPROGRAMS:
+	-test -z "$(app_status_PROGRAMS)" || rm -f $(app_status_PROGRAMS)
+install-app_utilsPROGRAMS: $(app_utils_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_utilsdir)" || $(MKDIR_P) "$(DESTDIR)$(app_utilsdir)"
+	@list='$(app_utils_PROGRAMS)'; test -n "$(app_utilsdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(app_utilsdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(app_utilsdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-app_utilsPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_utils_PROGRAMS)'; test -n "$(app_utilsdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_utilsdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_utilsdir)" && rm -f $$files
+
+clean-app_utilsPROGRAMS:
+	-test -z "$(app_utils_PROGRAMS)" || rm -f $(app_utils_PROGRAMS)
+install-res_luaPROGRAMS: $(res_lua_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(res_luadir)" || $(MKDIR_P) "$(DESTDIR)$(res_luadir)"
+	@list='$(res_lua_PROGRAMS)'; test -n "$(res_luadir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(res_luadir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(res_luadir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-res_luaPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(res_lua_PROGRAMS)'; test -n "$(res_luadir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(res_luadir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(res_luadir)" && rm -f $$files
+
+clean-res_luaPROGRAMS:
+	-test -z "$(res_lua_PROGRAMS)" || rm -f $(res_lua_PROGRAMS)
+app_acd.so$(EXEEXT): $(app_acd_so_OBJECTS) $(app_acd_so_DEPENDENCIES) 
+	@rm -f app_acd.so$(EXEEXT)
+	$(app_acd_so_LINK) $(app_acd_so_OBJECTS) $(app_acd_so_LDADD) $(LIBS)
+app_call.so$(EXEEXT): $(app_call_so_OBJECTS) $(app_call_so_DEPENDENCIES) 
+	@rm -f app_call.so$(EXEEXT)
+	$(app_call_so_LINK) $(app_call_so_OBJECTS) $(app_call_so_LDADD) $(LIBS)
+app_classic.so$(EXEEXT): $(app_classic_so_OBJECTS) $(app_classic_so_DEPENDENCIES) 
+	@rm -f app_classic.so$(EXEEXT)
+	$(app_classic_so_LINK) $(app_classic_so_OBJECTS) $(app_classic_so_LDADD) $(LIBS)
+app_login.so$(EXEEXT): $(app_login_so_OBJECTS) $(app_login_so_DEPENDENCIES) 
+	@rm -f app_login.so$(EXEEXT)
+	$(app_login_so_LINK) $(app_login_so_OBJECTS) $(app_login_so_LDADD) $(LIBS)
+app_ping.so$(EXEEXT): $(app_ping_so_OBJECTS) $(app_ping_so_DEPENDENCIES) 
+	@rm -f app_ping.so$(EXEEXT)
+	$(app_ping_so_LINK) $(app_ping_so_OBJECTS) $(app_ping_so_LDADD) $(LIBS)
+app_queue.so$(EXEEXT): $(app_queue_so_OBJECTS) $(app_queue_so_DEPENDENCIES) 
+	@rm -f app_queue.so$(EXEEXT)
+	$(app_queue_so_LINK) $(app_queue_so_OBJECTS) $(app_queue_so_LDADD) $(LIBS)
+app_status.so$(EXEEXT): $(app_status_so_OBJECTS) $(app_status_so_DEPENDENCIES) 
+	@rm -f app_status.so$(EXEEXT)
+	$(app_status_so_LINK) $(app_status_so_OBJECTS) $(app_status_so_LDADD) $(LIBS)
+app_utils.so$(EXEEXT): $(app_utils_so_OBJECTS) $(app_utils_so_DEPENDENCIES) 
+	@rm -f app_utils.so$(EXEEXT)
+	$(app_utils_so_LINK) $(app_utils_so_OBJECTS) $(app_utils_so_LDADD) $(LIBS)
+res_lua.so$(EXEEXT): $(res_lua_so_OBJECTS) $(res_lua_so_DEPENDENCIES) 
+	@rm -f res_lua.so$(EXEEXT)
+	$(res_lua_so_LINK) $(res_lua_so_OBJECTS) $(res_lua_so_LDADD) $(LIBS)
+
+mostlyclean-compile:
+	-rm -f *.$(OBJEXT)
+
+distclean-compile:
+	-rm -f *.tab.c
+
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_acd_so-app_acd.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_call_so-app_call.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_classic_so-app_classic.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_login_so-app_login.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_ping_so-app_ping.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_queue_so-app_queue.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_status_so-app_status.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/app_utils_so-app_utils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/res_lua_so-res_lua.Po@am__quote@
+
+.c.o:
+@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ $<
+
+.c.obj:
+@am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+@am__fastdepCC_TRUE@	$(am__mv) $$depbase.Tpo $$depbase.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+app_acd_so-app_acd.o: app_acd.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -MT app_acd_so-app_acd.o -MD -MP -MF $(DEPDIR)/app_acd_so-app_acd.Tpo -c -o app_acd_so-app_acd.o `test -f 'app_acd.c' || echo '$(srcdir)/'`app_acd.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_acd_so-app_acd.Tpo $(DEPDIR)/app_acd_so-app_acd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_acd.c' object='app_acd_so-app_acd.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -c -o app_acd_so-app_acd.o `test -f 'app_acd.c' || echo '$(srcdir)/'`app_acd.c
+
+app_acd_so-app_acd.obj: app_acd.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -MT app_acd_so-app_acd.obj -MD -MP -MF $(DEPDIR)/app_acd_so-app_acd.Tpo -c -o app_acd_so-app_acd.obj `if test -f 'app_acd.c'; then $(CYGPATH_W) 'app_acd.c'; else $(CYGPATH_W) '$(srcdir)/app_acd.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_acd_so-app_acd.Tpo $(DEPDIR)/app_acd_so-app_acd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_acd.c' object='app_acd_so-app_acd.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_acd_so_CFLAGS) $(CFLAGS) -c -o app_acd_so-app_acd.obj `if test -f 'app_acd.c'; then $(CYGPATH_W) 'app_acd.c'; else $(CYGPATH_W) '$(srcdir)/app_acd.c'; fi`
+
+app_call_so-app_call.o: app_call.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.o -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.o `test -f 'app_call.c' || echo '$(srcdir)/'`app_call.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_call.c' object='app_call_so-app_call.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -c -o app_call_so-app_call.o `test -f 'app_call.c' || echo '$(srcdir)/'`app_call.c
+
+app_call_so-app_call.obj: app_call.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -MT app_call_so-app_call.obj -MD -MP -MF $(DEPDIR)/app_call_so-app_call.Tpo -c -o app_call_so-app_call.obj `if test -f 'app_call.c'; then $(CYGPATH_W) 'app_call.c'; else $(CYGPATH_W) '$(srcdir)/app_call.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_call_so-app_call.Tpo $(DEPDIR)/app_call_so-app_call.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_call.c' object='app_call_so-app_call.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_call_so_CFLAGS) $(CFLAGS) -c -o app_call_so-app_call.obj `if test -f 'app_call.c'; then $(CYGPATH_W) 'app_call.c'; else $(CYGPATH_W) '$(srcdir)/app_call.c'; fi`
+
+app_classic_so-app_classic.o: app_classic.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_classic_so_CFLAGS) $(CFLAGS) -MT app_classic_so-app_classic.o -MD -MP -MF $(DEPDIR)/app_classic_so-app_classic.Tpo -c -o app_classic_so-app_classic.o `test -f 'app_classic.c' || echo '$(srcdir)/'`app_classic.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_classic_so-app_classic.Tpo $(DEPDIR)/app_classic_so-app_classic.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_classic.c' object='app_classic_so-app_classic.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_classic_so_CFLAGS) $(CFLAGS) -c -o app_classic_so-app_classic.o `test -f 'app_classic.c' || echo '$(srcdir)/'`app_classic.c
+
+app_classic_so-app_classic.obj: app_classic.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_classic_so_CFLAGS) $(CFLAGS) -MT app_classic_so-app_classic.obj -MD -MP -MF $(DEPDIR)/app_classic_so-app_classic.Tpo -c -o app_classic_so-app_classic.obj `if test -f 'app_classic.c'; then $(CYGPATH_W) 'app_classic.c'; else $(CYGPATH_W) '$(srcdir)/app_classic.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_classic_so-app_classic.Tpo $(DEPDIR)/app_classic_so-app_classic.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_classic.c' object='app_classic_so-app_classic.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_classic_so_CFLAGS) $(CFLAGS) -c -o app_classic_so-app_classic.obj `if test -f 'app_classic.c'; then $(CYGPATH_W) 'app_classic.c'; else $(CYGPATH_W) '$(srcdir)/app_classic.c'; fi`
+
+app_login_so-app_login.o: app_login.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -MT app_login_so-app_login.o -MD -MP -MF $(DEPDIR)/app_login_so-app_login.Tpo -c -o app_login_so-app_login.o `test -f 'app_login.c' || echo '$(srcdir)/'`app_login.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_login_so-app_login.Tpo $(DEPDIR)/app_login_so-app_login.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_login.c' object='app_login_so-app_login.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -c -o app_login_so-app_login.o `test -f 'app_login.c' || echo '$(srcdir)/'`app_login.c
+
+app_login_so-app_login.obj: app_login.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -MT app_login_so-app_login.obj -MD -MP -MF $(DEPDIR)/app_login_so-app_login.Tpo -c -o app_login_so-app_login.obj `if test -f 'app_login.c'; then $(CYGPATH_W) 'app_login.c'; else $(CYGPATH_W) '$(srcdir)/app_login.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_login_so-app_login.Tpo $(DEPDIR)/app_login_so-app_login.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_login.c' object='app_login_so-app_login.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_login_so_CFLAGS) $(CFLAGS) -c -o app_login_so-app_login.obj `if test -f 'app_login.c'; then $(CYGPATH_W) 'app_login.c'; else $(CYGPATH_W) '$(srcdir)/app_login.c'; fi`
+
+app_ping_so-app_ping.o: app_ping.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -MT app_ping_so-app_ping.o -MD -MP -MF $(DEPDIR)/app_ping_so-app_ping.Tpo -c -o app_ping_so-app_ping.o `test -f 'app_ping.c' || echo '$(srcdir)/'`app_ping.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_ping_so-app_ping.Tpo $(DEPDIR)/app_ping_so-app_ping.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_ping.c' object='app_ping_so-app_ping.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -c -o app_ping_so-app_ping.o `test -f 'app_ping.c' || echo '$(srcdir)/'`app_ping.c
+
+app_ping_so-app_ping.obj: app_ping.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -MT app_ping_so-app_ping.obj -MD -MP -MF $(DEPDIR)/app_ping_so-app_ping.Tpo -c -o app_ping_so-app_ping.obj `if test -f 'app_ping.c'; then $(CYGPATH_W) 'app_ping.c'; else $(CYGPATH_W) '$(srcdir)/app_ping.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_ping_so-app_ping.Tpo $(DEPDIR)/app_ping_so-app_ping.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_ping.c' object='app_ping_so-app_ping.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_ping_so_CFLAGS) $(CFLAGS) -c -o app_ping_so-app_ping.obj `if test -f 'app_ping.c'; then $(CYGPATH_W) 'app_ping.c'; else $(CYGPATH_W) '$(srcdir)/app_ping.c'; fi`
+
+app_queue_so-app_queue.o: app_queue.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queue_so_CFLAGS) $(CFLAGS) -MT app_queue_so-app_queue.o -MD -MP -MF $(DEPDIR)/app_queue_so-app_queue.Tpo -c -o app_queue_so-app_queue.o `test -f 'app_queue.c' || echo '$(srcdir)/'`app_queue.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_queue_so-app_queue.Tpo $(DEPDIR)/app_queue_so-app_queue.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_queue.c' object='app_queue_so-app_queue.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queue_so_CFLAGS) $(CFLAGS) -c -o app_queue_so-app_queue.o `test -f 'app_queue.c' || echo '$(srcdir)/'`app_queue.c
+
+app_queue_so-app_queue.obj: app_queue.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queue_so_CFLAGS) $(CFLAGS) -MT app_queue_so-app_queue.obj -MD -MP -MF $(DEPDIR)/app_queue_so-app_queue.Tpo -c -o app_queue_so-app_queue.obj `if test -f 'app_queue.c'; then $(CYGPATH_W) 'app_queue.c'; else $(CYGPATH_W) '$(srcdir)/app_queue.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_queue_so-app_queue.Tpo $(DEPDIR)/app_queue_so-app_queue.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_queue.c' object='app_queue_so-app_queue.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_queue_so_CFLAGS) $(CFLAGS) -c -o app_queue_so-app_queue.obj `if test -f 'app_queue.c'; then $(CYGPATH_W) 'app_queue.c'; else $(CYGPATH_W) '$(srcdir)/app_queue.c'; fi`
+
+app_status_so-app_status.o: app_status.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -MT app_status_so-app_status.o -MD -MP -MF $(DEPDIR)/app_status_so-app_status.Tpo -c -o app_status_so-app_status.o `test -f 'app_status.c' || echo '$(srcdir)/'`app_status.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_status_so-app_status.Tpo $(DEPDIR)/app_status_so-app_status.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_status.c' object='app_status_so-app_status.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -c -o app_status_so-app_status.o `test -f 'app_status.c' || echo '$(srcdir)/'`app_status.c
+
+app_status_so-app_status.obj: app_status.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -MT app_status_so-app_status.obj -MD -MP -MF $(DEPDIR)/app_status_so-app_status.Tpo -c -o app_status_so-app_status.obj `if test -f 'app_status.c'; then $(CYGPATH_W) 'app_status.c'; else $(CYGPATH_W) '$(srcdir)/app_status.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_status_so-app_status.Tpo $(DEPDIR)/app_status_so-app_status.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_status.c' object='app_status_so-app_status.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_status_so_CFLAGS) $(CFLAGS) -c -o app_status_so-app_status.obj `if test -f 'app_status.c'; then $(CYGPATH_W) 'app_status.c'; else $(CYGPATH_W) '$(srcdir)/app_status.c'; fi`
+
+app_utils_so-app_utils.o: app_utils.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_utils_so_CFLAGS) $(CFLAGS) -MT app_utils_so-app_utils.o -MD -MP -MF $(DEPDIR)/app_utils_so-app_utils.Tpo -c -o app_utils_so-app_utils.o `test -f 'app_utils.c' || echo '$(srcdir)/'`app_utils.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_utils_so-app_utils.Tpo $(DEPDIR)/app_utils_so-app_utils.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_utils.c' object='app_utils_so-app_utils.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_utils_so_CFLAGS) $(CFLAGS) -c -o app_utils_so-app_utils.o `test -f 'app_utils.c' || echo '$(srcdir)/'`app_utils.c
+
+app_utils_so-app_utils.obj: app_utils.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_utils_so_CFLAGS) $(CFLAGS) -MT app_utils_so-app_utils.obj -MD -MP -MF $(DEPDIR)/app_utils_so-app_utils.Tpo -c -o app_utils_so-app_utils.obj `if test -f 'app_utils.c'; then $(CYGPATH_W) 'app_utils.c'; else $(CYGPATH_W) '$(srcdir)/app_utils.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/app_utils_so-app_utils.Tpo $(DEPDIR)/app_utils_so-app_utils.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='app_utils.c' object='app_utils_so-app_utils.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(app_utils_so_CFLAGS) $(CFLAGS) -c -o app_utils_so-app_utils.obj `if test -f 'app_utils.c'; then $(CYGPATH_W) 'app_utils.c'; else $(CYGPATH_W) '$(srcdir)/app_utils.c'; fi`
+
+res_lua_so-res_lua.o: res_lua.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -MT res_lua_so-res_lua.o -MD -MP -MF $(DEPDIR)/res_lua_so-res_lua.Tpo -c -o res_lua_so-res_lua.o `test -f 'res_lua.c' || echo '$(srcdir)/'`res_lua.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/res_lua_so-res_lua.Tpo $(DEPDIR)/res_lua_so-res_lua.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='res_lua.c' object='res_lua_so-res_lua.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -c -o res_lua_so-res_lua.o `test -f 'res_lua.c' || echo '$(srcdir)/'`res_lua.c
+
+res_lua_so-res_lua.obj: res_lua.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -MT res_lua_so-res_lua.obj -MD -MP -MF $(DEPDIR)/res_lua_so-res_lua.Tpo -c -o res_lua_so-res_lua.obj `if test -f 'res_lua.c'; then $(CYGPATH_W) 'res_lua.c'; else $(CYGPATH_W) '$(srcdir)/res_lua.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/res_lua_so-res_lua.Tpo $(DEPDIR)/res_lua_so-res_lua.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='res_lua.c' object='res_lua_so-res_lua.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(res_lua_so_CFLAGS) $(CFLAGS) -c -o res_lua_so-res_lua.obj `if test -f 'res_lua.c'; then $(CYGPATH_W) 'res_lua.c'; else $(CYGPATH_W) '$(srcdir)/res_lua.c'; fi`
+install-app_acd_soDATA: $(app_acd_so_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(app_acd_sodir)" || $(MKDIR_P) "$(DESTDIR)$(app_acd_sodir)"
+	@list='$(app_acd_so_DATA)'; test -n "$(app_acd_sodir)" || list=; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(app_acd_sodir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(app_acd_sodir)" || exit $$?; \
 	done
-ctags-recursive:
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  test "$$subdir" = . || ($(am__cd) $$subdir && $(MAKE) $(AM_MAKEFLAGS) ctags); \
-	done
+
+uninstall-app_acd_soDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(app_acd_so_DATA)'; test -n "$(app_acd_sodir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	test -n "$$files" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(app_acd_sodir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(app_acd_sodir)" && rm -f $$files
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -334,24 +877,11 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	mkid -fID $$unique
 tags: TAGS
 
-TAGS: tags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) \
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	set x; \
 	here=`pwd`; \
-	if ($(ETAGS) --etags-include --version) >/dev/null 2>&1; then \
-	  include_option=--etags-include; \
-	  empty_fix=.; \
-	else \
-	  include_option=--include; \
-	  empty_fix=; \
-	fi; \
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  if test "$$subdir" = .; then :; else \
-	    test ! -f $$subdir/TAGS || \
-	      set "$$@" "$$include_option=$$here/$$subdir/TAGS"; \
-	  fi; \
-	done; \
-	list='$(SOURCES) $(HEADERS) config.h.in $(LISP) $(TAGS_FILES)'; \
+	list='$(SOURCES) $(HEADERS)  $(LISP) $(TAGS_FILES)'; \
 	unique=`for i in $$list; do \
 	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
 	  done | \
@@ -369,9 +899,9 @@ TAGS: tags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) \
 	  fi; \
 	fi
 ctags: CTAGS
-CTAGS: ctags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) \
+CTAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
-	list='$(SOURCES) $(HEADERS) config.h.in $(LISP) $(TAGS_FILES)'; \
+	list='$(SOURCES) $(HEADERS)  $(LISP) $(TAGS_FILES)'; \
 	unique=`for i in $$list; do \
 	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
 	  done | \
@@ -390,8 +920,6 @@ distclean-tags:
 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
 
 distdir: $(DISTFILES)
-	$(am__remove_distdir)
-	test -d "$(distdir)" || mkdir "$(distdir)"
 	@srcdirstrip=`echo "$(srcdir)" | sed 's/[].[^$$\\*]/\\\\&/g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's/[].[^$$\\*]/\\\\&/g'`; \
 	list='$(DISTFILES)'; \
@@ -421,163 +949,22 @@ distdir: $(DISTFILES)
 	    || exit 1; \
 	  fi; \
 	done
-	@list='$(DIST_SUBDIRS)'; for subdir in $$list; do \
-	  if test "$$subdir" = .; then :; else \
-	    test -d "$(distdir)/$$subdir" \
-	    || $(MKDIR_P) "$(distdir)/$$subdir" \
-	    || exit 1; \
-	  fi; \
-	done
-	@list='$(DIST_SUBDIRS)'; for subdir in $$list; do \
-	  if test "$$subdir" = .; then :; else \
-	    dir1=$$subdir; dir2="$(distdir)/$$subdir"; \
-	    $(am__relativize); \
-	    new_distdir=$$reldir; \
-	    dir1=$$subdir; dir2="$(top_distdir)"; \
-	    $(am__relativize); \
-	    new_top_distdir=$$reldir; \
-	    echo " (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir="$$new_top_distdir" distdir="$$new_distdir" \\"; \
-	    echo "     am__remove_distdir=: am__skip_length_check=: am__skip_mode_fix=: distdir)"; \
-	    ($(am__cd) $$subdir && \
-	      $(MAKE) $(AM_MAKEFLAGS) \
-	        top_distdir="$$new_top_distdir" \
-	        distdir="$$new_distdir" \
-		am__remove_distdir=: \
-		am__skip_length_check=: \
-		am__skip_mode_fix=: \
-	        distdir) \
-	      || exit 1; \
-	  fi; \
-	done
-	-test -n "$(am__skip_mode_fix)" \
-	|| find "$(distdir)" -type d ! -perm -755 \
-		-exec chmod u+rwx,go+rx {} \; -o \
-	  ! -type d ! -perm -444 -links 1 -exec chmod a+r {} \; -o \
-	  ! -type d ! -perm -400 -exec chmod a+r {} \; -o \
-	  ! -type d ! -perm -444 -exec $(install_sh) -c -m a+r {} {} \; \
-	|| chmod -R a+r "$(distdir)"
-dist-gzip: distdir
-	tardir=$(distdir) && $(am__tar) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).tar.gz
-	$(am__remove_distdir)
-
-dist-bzip2: distdir
-	tardir=$(distdir) && $(am__tar) | bzip2 -9 -c >$(distdir).tar.bz2
-	$(am__remove_distdir)
-
-dist-lzma: distdir
-	tardir=$(distdir) && $(am__tar) | lzma -9 -c >$(distdir).tar.lzma
-	$(am__remove_distdir)
-
-dist-xz: distdir
-	tardir=$(distdir) && $(am__tar) | xz -c >$(distdir).tar.xz
-	$(am__remove_distdir)
-
-dist-tarZ: distdir
-	tardir=$(distdir) && $(am__tar) | compress -c >$(distdir).tar.Z
-	$(am__remove_distdir)
-
-dist-shar: distdir
-	shar $(distdir) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).shar.gz
-	$(am__remove_distdir)
-
-dist-zip: distdir
-	-rm -f $(distdir).zip
-	zip -rq $(distdir).zip $(distdir)
-	$(am__remove_distdir)
-
-dist dist-all: distdir
-	tardir=$(distdir) && $(am__tar) | GZIP=$(GZIP_ENV) gzip -c >$(distdir).tar.gz
-	$(am__remove_distdir)
-
-# This target untars the dist file and tries a VPATH configuration.  Then
-# it guarantees that the distribution is self-contained by making another
-# tarfile.
-distcheck: dist
-	case '$(DIST_ARCHIVES)' in \
-	*.tar.gz*) \
-	  GZIP=$(GZIP_ENV) gzip -dc $(distdir).tar.gz | $(am__untar) ;;\
-	*.tar.bz2*) \
-	  bzip2 -dc $(distdir).tar.bz2 | $(am__untar) ;;\
-	*.tar.lzma*) \
-	  lzma -dc $(distdir).tar.lzma | $(am__untar) ;;\
-	*.tar.xz*) \
-	  xz -dc $(distdir).tar.xz | $(am__untar) ;;\
-	*.tar.Z*) \
-	  uncompress -c $(distdir).tar.Z | $(am__untar) ;;\
-	*.shar.gz*) \
-	  GZIP=$(GZIP_ENV) gzip -dc $(distdir).shar.gz | unshar ;;\
-	*.zip*) \
-	  unzip $(distdir).zip ;;\
-	esac
-	chmod -R a-w $(distdir); chmod u+w $(distdir)
-	mkdir $(distdir)/_build
-	mkdir $(distdir)/_inst
-	chmod a-w $(distdir)
-	test -d $(distdir)/_build || exit 0; \
-	dc_install_base=`$(am__cd) $(distdir)/_inst && pwd | sed -e 's,^[^:\\/]:[\\/],/,'` \
-	  && dc_destdir="$${TMPDIR-/tmp}/am-dc-$$$$/" \
-	  && am__cwd=`pwd` \
-	  && $(am__cd) $(distdir)/_build \
-	  && ../configure --srcdir=.. --prefix="$$dc_install_base" \
-	    $(DISTCHECK_CONFIGURE_FLAGS) \
-	  && $(MAKE) $(AM_MAKEFLAGS) \
-	  && $(MAKE) $(AM_MAKEFLAGS) dvi \
-	  && $(MAKE) $(AM_MAKEFLAGS) check \
-	  && $(MAKE) $(AM_MAKEFLAGS) install \
-	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
-	  && $(MAKE) $(AM_MAKEFLAGS) uninstall \
-	  && $(MAKE) $(AM_MAKEFLAGS) distuninstallcheck_dir="$$dc_install_base" \
-	        distuninstallcheck \
-	  && chmod -R a-w "$$dc_install_base" \
-	  && ({ \
-	       (cd ../.. && umask 077 && mkdir "$$dc_destdir") \
-	       && $(MAKE) $(AM_MAKEFLAGS) DESTDIR="$$dc_destdir" install \
-	       && $(MAKE) $(AM_MAKEFLAGS) DESTDIR="$$dc_destdir" uninstall \
-	       && $(MAKE) $(AM_MAKEFLAGS) DESTDIR="$$dc_destdir" \
-	            distuninstallcheck_dir="$$dc_destdir" distuninstallcheck; \
-	      } || { rm -rf "$$dc_destdir"; exit 1; }) \
-	  && rm -rf "$$dc_destdir" \
-	  && $(MAKE) $(AM_MAKEFLAGS) dist \
-	  && rm -rf $(DIST_ARCHIVES) \
-	  && $(MAKE) $(AM_MAKEFLAGS) distcleancheck \
-	  && cd "$$am__cwd" \
-	  || exit 1
-	$(am__remove_distdir)
-	@(echo "$(distdir) archives ready for distribution: "; \
-	  list='$(DIST_ARCHIVES)'; for i in $$list; do echo $$i; done) | \
-	  sed -e 1h -e 1s/./=/g -e 1p -e 1x -e '$$p' -e '$$x'
-distuninstallcheck:
-	@$(am__cd) '$(distuninstallcheck_dir)' \
-	&& test `$(distuninstallcheck_listfiles) | wc -l` -le 1 \
-	   || { echo "ERROR: files left after uninstall:" ; \
-	        if test -n "$(DESTDIR)"; then \
-	          echo "  (check DESTDIR support)"; \
-	        fi ; \
-	        $(distuninstallcheck_listfiles) ; \
-	        exit 1; } >&2
-distcleancheck: distclean
-	@if test '$(srcdir)' = . ; then \
-	  echo "ERROR: distcleancheck can only run from a VPATH build" ; \
-	  exit 1 ; \
-	fi
-	@test `$(distcleancheck_listfiles) | wc -l` -eq 0 \
-	  || { echo "ERROR: files left in build directory after distclean:" ; \
-	       $(distcleancheck_listfiles) ; \
-	       exit 1; } >&2
 check-am: all-am
-check: check-recursive
-all-am: Makefile config.h
-installdirs: installdirs-recursive
-installdirs-am:
-install: install-recursive
-install-exec: install-exec-recursive
-install-data: install-data-recursive
-uninstall: uninstall-recursive
+check: check-am
+all-am: Makefile $(PROGRAMS) $(DATA)
+installdirs:
+	for dir in "$(DESTDIR)$(app_acddir)" "$(DESTDIR)$(app_calldir)" "$(DESTDIR)$(app_classicdir)" "$(DESTDIR)$(app_logindir)" "$(DESTDIR)$(app_pingdir)" "$(DESTDIR)$(app_queuedir)" "$(DESTDIR)$(app_statusdir)" "$(DESTDIR)$(app_utilsdir)" "$(DESTDIR)$(res_luadir)" "$(DESTDIR)$(app_acd_sodir)"; do \
+	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
+	done
+install: install-am
+install-exec: install-exec-am
+install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 
-installcheck: installcheck-recursive
+installcheck: installcheck-am
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
 	  install_sh_PROGRAM="$(INSTALL_STRIP_PROGRAM)" INSTALL_STRIP_FLAG=-s \
@@ -594,92 +981,115 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-clean: clean-recursive
+clean: clean-am
 
-clean-am: clean-generic mostlyclean-am
+clean-am: clean-app_acdPROGRAMS clean-app_callPROGRAMS \
+	clean-app_classicPROGRAMS clean-app_loginPROGRAMS \
+	clean-app_pingPROGRAMS clean-app_queuePROGRAMS \
+	clean-app_statusPROGRAMS clean-app_utilsPROGRAMS clean-generic \
+	clean-res_luaPROGRAMS mostlyclean-am
 
-distclean: distclean-recursive
-	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
+distclean: distclean-am
+	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
-distclean-am: clean-am distclean-generic distclean-hdr distclean-tags
+distclean-am: clean-am distclean-compile distclean-generic \
+	distclean-tags
 
-dvi: dvi-recursive
+dvi: dvi-am
 
 dvi-am:
 
-html: html-recursive
+html: html-am
 
 html-am:
 
-info: info-recursive
+info: info-am
 
 info-am:
 
-install-data-am:
+install-data-am: install-app_acdPROGRAMS install-app_acd_soDATA \
+	install-app_callPROGRAMS install-app_classicPROGRAMS \
+	install-app_loginPROGRAMS install-app_pingPROGRAMS \
+	install-app_queuePROGRAMS install-app_statusPROGRAMS \
+	install-app_utilsPROGRAMS install-res_luaPROGRAMS
 
-install-dvi: install-dvi-recursive
+install-dvi: install-dvi-am
 
 install-dvi-am:
 
 install-exec-am:
 
-install-html: install-html-recursive
+install-html: install-html-am
 
 install-html-am:
 
-install-info: install-info-recursive
+install-info: install-info-am
 
 install-info-am:
 
 install-man:
 
-install-pdf: install-pdf-recursive
+install-pdf: install-pdf-am
 
 install-pdf-am:
 
-install-ps: install-ps-recursive
+install-ps: install-ps-am
 
 install-ps-am:
 
 installcheck-am:
 
-maintainer-clean: maintainer-clean-recursive
-	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf $(top_srcdir)/autom4te.cache
+maintainer-clean: maintainer-clean-am
+	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
-mostlyclean: mostlyclean-recursive
+mostlyclean: mostlyclean-am
 
-mostlyclean-am: mostlyclean-generic
+mostlyclean-am: mostlyclean-compile mostlyclean-generic
 
-pdf: pdf-recursive
+pdf: pdf-am
 
 pdf-am:
 
-ps: ps-recursive
+ps: ps-am
 
 ps-am:
 
-uninstall-am:
+uninstall-am: uninstall-app_acdPROGRAMS uninstall-app_acd_soDATA \
+	uninstall-app_callPROGRAMS uninstall-app_classicPROGRAMS \
+	uninstall-app_loginPROGRAMS uninstall-app_pingPROGRAMS \
+	uninstall-app_queuePROGRAMS uninstall-app_statusPROGRAMS \
+	uninstall-app_utilsPROGRAMS uninstall-res_luaPROGRAMS
 
-.MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all \
-	ctags-recursive install-am install-strip tags-recursive
+.MAKE: install-am install-strip
 
-.PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
-	all all-am am--refresh check check-am clean clean-generic \
-	ctags ctags-recursive dist dist-all dist-bzip2 dist-gzip \
-	dist-lzma dist-shar dist-tarZ dist-xz dist-zip distcheck \
-	distclean distclean-generic distclean-hdr distclean-tags \
-	distcleancheck distdir distuninstallcheck dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs installdirs-am maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-generic pdf \
-	pdf-am ps ps-am tags tags-recursive uninstall uninstall-am
+.PHONY: CTAGS GTAGS all all-am check check-am clean \
+	clean-app_acdPROGRAMS clean-app_callPROGRAMS \
+	clean-app_classicPROGRAMS clean-app_loginPROGRAMS \
+	clean-app_pingPROGRAMS clean-app_queuePROGRAMS \
+	clean-app_statusPROGRAMS clean-app_utilsPROGRAMS clean-generic \
+	clean-res_luaPROGRAMS ctags distclean distclean-compile \
+	distclean-generic distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am \
+	install-app_acdPROGRAMS install-app_acd_soDATA \
+	install-app_callPROGRAMS install-app_classicPROGRAMS \
+	install-app_loginPROGRAMS install-app_pingPROGRAMS \
+	install-app_queuePROGRAMS install-app_statusPROGRAMS \
+	install-app_utilsPROGRAMS install-data install-data-am \
+	install-dvi install-dvi-am install-exec install-exec-am \
+	install-html install-html-am install-info install-info-am \
+	install-man install-pdf install-pdf-am install-ps \
+	install-ps-am install-res_luaPROGRAMS install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
+	uninstall-am uninstall-app_acdPROGRAMS \
+	uninstall-app_acd_soDATA uninstall-app_callPROGRAMS \
+	uninstall-app_classicPROGRAMS uninstall-app_loginPROGRAMS \
+	uninstall-app_pingPROGRAMS uninstall-app_queuePROGRAMS \
+	uninstall-app_statusPROGRAMS uninstall-app_utilsPROGRAMS \
+	uninstall-res_luaPROGRAMS
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

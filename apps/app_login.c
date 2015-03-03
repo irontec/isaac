@@ -394,7 +394,7 @@ logout_exec(session_t *sess, app_t *app, const char *args)
  * Load module configuration and applications
  *
  * @retval 0 if all applications and configuration has been loaded
- * @retval -1 if any application fails to register or configuration can not be readed
+ * @retval 1 if any application fails to register or configuration can not be readed
  */
 int
 load_module()

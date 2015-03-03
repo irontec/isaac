@@ -608,6 +608,9 @@ isaacinitdir
 isaaccfile
 isaacconfdir
 LIBOBJS
+WITH_LUA_FALSE
+WITH_LUA_TRUE
+WITH_OPENSSL
 LN_S
 am__fastdepCXX_FALSE
 am__fastdepCXX_TRUE
@@ -699,6 +702,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_dependency_tracking
+with_lua
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1330,6 +1334,11 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-lua              Enable LUA modules support
 
 Some influential environment variables:
   CC          C compiler command
@@ -5958,6 +5967,87 @@ else
 fi
 
 
+####
+#### LUA Support
+####
+
+# Check whether --with-lua was given.
+if test "${with_lua+set}" = set; then :
+  withval=$with_lua; WITH_OPENSSL=$withval
+
+else
+  WITH_OPENSSL=no
+
+
+fi
+
+
+if test "x$WITH_LUA" == "xyes"; then :
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaL_openlibs in -llua5.1" >&5
+$as_echo_n "checking for luaL_openlibs in -llua5.1... " >&6; }
+if test "${ac_cv_lib_lua5_1_luaL_openlibs+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-llua5.1  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char luaL_openlibs ();
+int
+main ()
+{
+return luaL_openlibs ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_lua5_1_luaL_openlibs=yes
+else
+  ac_cv_lib_lua5_1_luaL_openlibs=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lua5_1_luaL_openlibs" >&5
+$as_echo "$ac_cv_lib_lua5_1_luaL_openlibs" >&6; }
+if test "x$ac_cv_lib_lua5_1_luaL_openlibs" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBLUA5_1 1
+_ACEOF
+
+  LIBS="-llua5.1 $LIBS"
+
+else
+
+	    as_fn_error $? " You need to have lua installed to compile isaac with lua support" "$LINENO" 5
+
+fi
+
+
+$as_echo "#define WITH_LUA /**/" >>confdefs.h
+
+
+fi
+
+ if test "x$WITH_LUA" == "xyes"; then
+  WITH_LUA_TRUE=
+  WITH_LUA_FALSE='#'
+else
+  WITH_LUA_TRUE='#'
+  WITH_LUA_FALSE=
+fi
+
+
 #######################################################################
 # Check for REQUIRED header files
 for ac_header in arpa/inet.h fcntl.h netdb.h stdint.h stdlib.h string.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h
@@ -6601,6 +6691,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCXX_TRUE}" && test -z "${am__fastdepCXX_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCXX\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${WITH_LUA_TRUE}" && test -z "${WITH_LUA_FALSE}"; then
+  as_fn_error $? "conditional \"WITH_LUA\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

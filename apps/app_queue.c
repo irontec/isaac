@@ -53,6 +53,7 @@
 int
 queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
 {
+    char response[512];
     session_t *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
     const char *queuename = message_get_header(msg, "Queue");
@@ -60,10 +61,11 @@ queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
     if (!strcasecmp(event, "QueueMember")) {
         const char *interface = session_get_variable(sess, "INTERFACE");
         if (!strcasecmp(interface, message_get_header(msg, "StateInterface"))) {
-            session_write(sess, "%s ", queuename);
+            sprintf(response, "%s %s", session_get_variable(sess, "QUEUEINFO_RESPONSE"), queuename);
+            session_set_variable(sess, "QUEUEINFO_RESPONSE", response);
         }
     } else if (!strcasecmp(event, "QueueStatusComplete")) {
-        session_write(sess, "\r\n");
+        session_write(sess, "%s\r\n", session_get_variable(sess, "QUEUEINFO_RESPONSE"));
         filter_unregister(filter);
     }
 
@@ -118,7 +120,7 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     // Get queuename to monitor
     if (sscanf(args, "%s", queuename) != 1) {
         // Send the initial banner
-        session_write(sess, "QUEUEINFOOK ");
+        session_set_variable(sess, "QUEUEINFO_RESPONSE", "QUEUEINFOOK");
 
         // Filter QueueMember and QueueStatusComplete responses
         filter_t *queuefilter = filter_create_async(sess, queueinfo_print_queues);
