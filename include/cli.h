@@ -44,6 +44,7 @@
 #include <sys/un.h>
 #include <pthread.h>
 
+#define CLI_BANNER "Isaac - Ivozng Simplified Asterisk AMI Connector"
 /**
  * @brief Return values for CLI commands
  *

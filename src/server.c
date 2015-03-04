@@ -41,6 +41,7 @@
 #include "session.h"
 #include "app.h"
 #include "filter.h"
+#include "cli.h"
 
 //! Server socket
 int server_sock = 0;
@@ -107,7 +108,8 @@ stop_server()
     // Stop the socket from receiving new connections
     shutdown(server_sock, SHUT_RDWR);
     // Wait for the accept thread to finish
-    pthread_join(accept_thread, NULL);
+    if (accept_thread)
+        pthread_join(accept_thread, NULL);
 
     return 0;
 }
@@ -184,7 +186,7 @@ manage_session(void *session)
         isaac_log(LOG_DEBUG, "[Session %s] Received connection from %s [ID %ld].\n", sess->id, sess->addrstr, TID);
 
     // Write the welcome banner
-    if (session_write(sess, "%s/%s\r\n", APP_LNAME, APP_VERSION) == -1) {
+    if (session_write(sess, "%s/%s\r\n", CLI_BANNER, PACKAGE_VERSION) == -1) {
         isaac_log(LOG_ERROR, "Error sending welcome banner.");
         return NULL;
     }

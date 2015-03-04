@@ -55,7 +55,7 @@ int debug = 0;
 void
 version()
 {
-    printf("%s: Version %s, (C) 2013 Irontec S.L. \n", APP_NAME, APP_VERSION);
+    printf("%s: Version %s, (C) 2013 Irontec S.L. \n", PACKAGE_NAME, PACKAGE_VERSION);
     printf("Created by Ivan Alonso [aka Kaian] <kaian@irontec.com>\n");
 }
 
@@ -306,7 +306,7 @@ main(int argc, char *argv[])
     }
 
     // All subsystems Up!
-    isaac_log(LOG_NONE, "\e[1;37m%s Ready.\e[0m\n", APP_NAME);
+    isaac_log(LOG_NONE, "\e[1;37m%s Ready.\e[0m\n", PACKAGE_NAME);
 
     // Wait here until any signal is sent
     pause();

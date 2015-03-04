@@ -361,7 +361,7 @@ remote_prompt(EditLine *e)
 {
     char cli_promt[50];
     // Write application name into the prompt. Be proud!
-    sprintf(cli_promt, "%s*CLI> ", APP_NAME);
+    sprintf(cli_promt, "%s*CLI> ", PACKAGE_NAME);
     return strdup(cli_promt);
 }
 

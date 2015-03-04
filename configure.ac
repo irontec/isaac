@@ -1,15 +1,12 @@
-AC_PREREQ([2.6])
-AC_INIT([Isaac], [0.1], [kaian@irontec.com])
-AM_INIT_AUTOMAKE([-Werror foreign])
-#AM_SILENT_RULES([yes])
+AC_PREREQ([2.59])
+AC_INIT([isaac], [0.1], [kaian@irontec.com], [isaac], [http://www.irontec.com/])
+AM_INIT_AUTOMAKE([1.9])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE([subdir-objects])
-
-AC_COPYRIGHT("Irontec")
-AC_REVISION("$Revision: 188")
+AC_COPYRIGHT("Irontec S.L.")
 
 # Define _GNU_SOURCE etc.
-AC_USE_SYSTEM_EXTENSIONS
+m4_ifdef([AC_USE_SYSTEM_EXTENSIONS], [AC_USE_SYSTEM_EXTENSIONS])
 
 # Checks for programs.
 AC_PROG_CC
@@ -56,49 +53,25 @@ AS_IF([test "x$WITH_LUA" == "xyes"], [
 
 AM_CONDITIONAL([WITH_LUA], [test "x$WITH_LUA" == "xyes"])
 
-#######################################################################
-# Check for REQUIRED header files
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h stdint.h stdlib.h string.h sys/file.h sys/socket.h sys/time.h syslog.h unistd.h])
+AC_SUBST([isaac_moddir],[${libdir}/isaac])
+AC_SUBST([isaac_confdir],[${sysconfdir}/isaac])
+AC_SUBST([isaac_statedir],[${localstatedir}/run])
 
-#######################################################################
-# Checks for typedefs, structures, and compiler characteristics.
-AC_TYPE_PID_T
-AC_TYPE_SIZE_T
-
-# Checks for library functions.
-AC_FUNC_FORK
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
-AC_CHECK_FUNCS([bzero inet_ntoa gethostbyname gettimeofday socket strcasecmp strchr strcspn strdup strerror strncasecmp strstr])
-
-# Program defines
-AC_DEFINE_UNQUOTED([APP_NAME], ["${PACKAGE_NAME}"], [Application name])
-AC_DEFINE_UNQUOTED([APP_LNAME], ["Isaac - Ivozng Simplified Asterisk AMI Connector"], [Long name of the package])
-AC_DEFINE_UNQUOTED([APP_VERSION], ["${PACKAGE_VERSION}"], [Application version])
+### AC_DEFINE([CONFDIR],  	[${sysconfdir}/isaac], [Configuration files directory])
+### AC_DEFINE([CFILE], 		[${sysconfdir}/isaac/isaac.conf], [Isaac configuration file])
+### AC_DEFINE([MODDIR], 	[${libdir}/isaac], [Loadable modules directory])
+### AC_DEFINE([PIDFILE], 	[${localstatedir}/run/isaac.pid], [Pid file location])
+### AC_DEFINE([CLI_SOCKET],	[${localstatedir}/run/isaac.sock], [CLI socket file location])
 
 # Set directories and files
-AC_SUBST([isaacconfdir],[${sysconfdir}/isaac])
-AC_SUBST([isaaccfile],[${isaacconfdir}/isaac.conf])
-AC_SUBST([isaacinitdir],[${sysconfdir}/init.d/])
-AC_SUBST([isaacmoddir],[${libdir}/isaac])
-AC_SUBST([isaacmondir],[${libdir}/mon/mon.d])
-AC_SUBST([isaacmonalertdir],[${libdir}/mon/alert.d])
-AC_SUBST([isaacpid],[${localstatedir}/run/isaac.pid])
-AC_SUBST([isaacsock],[${localstatedir}/run/isaac.sock])
-
-
-######################################################################
-# DOXYGEN SUPPORT
-######################################################################
-#DX_HTML_FEATURE([ON])
-#DX_CHM_FEATURE([OFF])
-#DX_CHI_FEATURE([OFF])
-#DX_MAN_FEATURE([OFF])
-#DX_RTF_FEATURE([OFF])
-#DX_XML_FEATURE([OFF])
-#DX_PDF_FEATURE([OFF])
-#DX_PS_FEATURE([OFF])
-#DX_INIT_DOXYGEN([$PACKAGE_NAME],[Doxyfile])
+# AC_SUBST([isaacconfdir],[${sysconfdir}/isaac])
+# AC_SUBST([isaaccfile],[${isaacconfdir}/isaac.conf])
+# AC_SUBST([isaacinitdir],[${sysconfdir}/init.d/])
+# AC_SUBST([isaac_moddir],[${libdir}/isaac])
+# AC_SUBST([isaacmondir],[${libdir}/mon/mon.d])
+# AC_SUBST([isaacmonalertdir],[${libdir}/mon/alert.d])
+# AC_SUBST([isaacpid],[${localstatedir}/run/isaac.pid])
+# AC_SUBST([isaacsock],[${localstatedir}/run/isaac.sock])
 
 ######################################################################
 
@@ -127,12 +100,12 @@ if test "x${silent}" != "xyes" ; then
 fi
 
 
-AC_MSG_NOTICE
+AC_MSG_NOTICE()
 AC_MSG_NOTICE( ====================================================== )
 AC_MSG_NOTICE(   Isaac configure finished                             )
 AC_MSG_NOTICE(  ----------------------------------------------------  )
 AC_MSG_NOTICE( ====================================================== )
-AC_MSG_NOTICE
+AC_MSG_NOTICE()
 
 
 AC_CONFIG_FILES([Makefile])

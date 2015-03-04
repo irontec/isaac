@@ -139,7 +139,8 @@ cli_server_stop()
     while (clilist) {
         cli_destroy(clilist);
     }
-    pthread_join(cli_accept_thread, NULL);
+    if (cli_accept_thread)
+        pthread_join(cli_accept_thread, NULL);
 }
 
 void
@@ -999,7 +1000,7 @@ handle_core_show_version(cli_entry_t *entry, int cmd, cli_args_t *args)
     }
 
     // Print the version string
-    cli_write(args->cli, "%s v%s\n", APP_LNAME, APP_VERSION);
+    cli_write(args->cli, "%s v%s\n", CLI_BANNER, PACKAGE_VERSION);
 
     return CLI_SUCCESS;
 }
@@ -1023,8 +1024,8 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
     isaac_tvelap(isaac_tvsub(isaac_tvnow(), stats.startuptime), 0, running);
     isaac_tvelap(isaac_tvsub(isaac_tvnow(), manager->connectedtime), 0, manconnected);
 
-    cli_write(args->cli, "\n%s Core settings\n----------------------\n", APP_NAME);
-    cli_write(args->cli, "   %-20s: %s\n", "Version", APP_VERSION);
+    cli_write(args->cli, "\n%s Core settings\n----------------------\n", PACKAGE_NAME);
+    cli_write(args->cli, "   %-20s: %s\n", "Version", PACKAGE_VERSION);
     cli_write(args->cli, "   %-20s: %d (%s)\n", "Log Type", config.logtype, "syslog");
     cli_write(args->cli, "   %-20s: %d\n", "Log Level", config.loglevel);
     cli_write(args->cli, "   %-20s: %s\n", "Log Tag", config.logtag);
