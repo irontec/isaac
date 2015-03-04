@@ -33,7 +33,7 @@ app_utilsdir = @isaac_moddir@
 
 app_call_PROGRAMS = app_call.so
 app_call_so_SOURCES = app_call.c
-app_call_so_CFLAGS = -DCALLCONF=\"@isaacconfdir@/call.conf\" $(AM_CFLAGS)
+app_call_so_CFLAGS = -DCALLCONF=\"@isaac_confdir@/call.conf\" $(AM_CFLAGS)
 app_calldir = @isaac_moddir@
 
 app_queue_PROGRAMS = app_queue.so

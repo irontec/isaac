@@ -106,7 +106,7 @@ cli_server_start()
 
     // Bind socket to local address
     if (bind(cli_sock, (struct sockaddr *) &sunaddr, sizeof(sunaddr)) < 0) {
-        isaac_log(LOG_ERROR, "Cannot bind to listener socket!: %s\n", strerror(errno));
+        isaac_log(LOG_ERROR, "Cannot bind to listener socket %s!: %s\n", CLI_SOCKET, strerror(errno));
         return -1;
     }
 
