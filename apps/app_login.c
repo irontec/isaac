@@ -131,7 +131,7 @@ odbc_watchdog(void *args)
 {
 
     odbc_connect();
-    while(config.running) { 
+    while(config.running) {
         if (!odbc_test()) {
             isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
             odbc_disconnect();
@@ -296,9 +296,13 @@ login_exec(session_t *sess, app_t *app, const char *args)
 int
 devicestatus_changed(filter_t *filter, ami_message_t *msg)
 {
+    SQLHSTMT stmt;
+    SQLLEN indicator;
     session_t *sess = filter->sess;
     int status = atoi(message_get_header(msg, "Status"));
     const char *exten = message_get_header(msg, "Exten");
+    int agent = atoi(session_get_variable(sess, "AGENT"));
+    int id_pausa = -1;
 
     if (!strncasecmp(exten, "pause_", 6)) {
         // Send new device status
@@ -307,7 +311,30 @@ devicestatus_changed(filter_t *filter, ami_message_t *msg)
             session_write(sess, "DEVICESTATE UNPAUSED\r\n");
             break;
         case 8:
-            session_write(sess, "DEVICESTATE PAUSED\r\n");
+            // Allocate a statement handle
+            SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+            // Prepare login query
+            SQLPrepare(stmt, (SQLCHAR *) "SELECT id_pausa FROM shared_agents_interfaces AS s"
+                " WHERE agent = ?"
+                " LIMIT 1;", SQL_NTS);
+            // Bind username and password
+            SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &agent,
+                    sizeof(agent), NULL);
+
+            // Execute the query
+            SQLExecute(stmt);
+
+            // Check if we fetched something
+            if (SQL_SUCCEEDED(SQLFetch(stmt))) {
+                // Get the agent's interface and module
+                SQLGetData(stmt, 1, SQL_INTEGER, &id_pausa, sizeof(id_pausa), &indicator);
+            }
+            SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+            if (id_pausa == -1) {
+                session_write(sess, "DEVICESTATE PAUSED\r\n");
+            } else {
+                session_write(sess, "DEVICESTATE PAUSED %d\r\n", id_pausa);
+            }
             break;
         }
     } else {
