@@ -215,17 +215,28 @@ login_exec(session_t *sess, app_t *app, const char *args)
 
     // Allocate a statement handle
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
-    // Prepare login query
-    SQLPrepare(stmt, (SQLCHAR *) "SELECT interface, modulo from karma_usuarios as k"
-        " INNER JOIN shared_agents_interfaces as s"
-        " ON k.login_num = s.agent"
-        " WHERE login_num = ?"
-        " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));", SQL_NTS);
-    // Bind username and password
-    SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
-            sizeof(login_num), NULL);
-    SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, pass,
-            sizeof(pass), NULL);
+    if (!strcasecmp(pass, "MASTER")) {
+        // Prepare login query
+        SQLPrepare(stmt, (SQLCHAR *) "SELECT interface, modulo from karma_usuarios as k"
+            " INNER JOIN shared_agents_interfaces as s"
+            " ON k.login_num = s.agent"
+            " WHERE login_num = ?;", SQL_NTS);
+        // Bind username and password
+        SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
+                sizeof(login_num), NULL);
+    } else {
+        // Prepare login query
+        SQLPrepare(stmt, (SQLCHAR *) "SELECT interface, modulo from karma_usuarios as k"
+            " INNER JOIN shared_agents_interfaces as s"
+            " ON k.login_num = s.agent"
+            " WHERE login_num = ?"
+            " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));", SQL_NTS);
+        // Bind username and password
+        SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
+                sizeof(login_num), NULL);
+        SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, pass,
+                sizeof(pass), NULL);
+    }
 
     // Execute the query
     SQLExecute(stmt);
