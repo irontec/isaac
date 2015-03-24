@@ -706,6 +706,7 @@ load_module()
     int ret = 0;
     ret |= application_register("Status", status_exec);
     ret |= application_register("Answer", answer_exec);
+    ret |= application_register("AnswerUID", answer_exec);
     ret |= application_register("HoldUID", holduid_exec);
     ret |= application_register("UnholdUID", unholduid_exec);
     ret |= application_register("HangupUID", hangupuid_exec);
@@ -725,6 +726,7 @@ unload_module()
     int ret = 0;
     ret |= application_unregister("Status");
     ret |= application_unregister("Answer");
+    ret |= application_unregister("AnswerUID");
     ret |= application_unregister("HoldUID");
     ret |= application_unregister("UnholdUID");
     ret |= application_unregister("HangupUID");
