@@ -173,6 +173,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Initialize
+    memset(line, 0, BSIZE);
     memset(extraparams, 0, 256);
     memset(action, 0, 20);
     memset(interface, 0, 40);
