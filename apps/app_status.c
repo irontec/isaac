@@ -54,6 +54,8 @@ struct app_status_info
 {
     //! Platform of the Queue receiving the call
     char plat[120];
+    //! Queue receiving the call
+    char queue[150];
     //! CallerID num of the incoming call
     char clidnum[20];
     //! UniqueID from incoming call
@@ -255,11 +257,13 @@ status_print(filter_t *filter, ami_message_t *msg)
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "Hangup") 
     || !isaac_strcmp(event, "IsaacTransfer")) {
         sprintf(statusevent, "EXTERNALCALLSTATUS ");
-        if (session_get_variable(sess, "STATUSWUID")) 
+        if (session_get_variable(sess, "STATUSWUID"))
             sprintf(statusevent + strlen(statusevent), "%s ", info->uniqueid);
         if (session_get_variable(sess, "STATUSDEBUG"))
             sprintf(statusevent + strlen(statusevent), "%s %s ", info->agent_channel, info->channel);
         sprintf(statusevent + strlen(statusevent), "%s ", info->plat);
+        if (session_get_variable(sess, "STATUSWQUEUE"))
+            sprintf(statusevent + strlen(statusevent), "%s ", info->queue);
         sprintf(statusevent + strlen(statusevent), "%s ", info->clidnum);
     }
 
@@ -422,14 +426,21 @@ status_call(filter_t *filter, ami_message_t *msg)
  */
 int
 status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
-    char value[100]; 
-    char plat[120], clidnum[20], uniqueid[20], channel[80];
+    char value[512];
+    char plat[120], clidnum[20], uniqueid[20], channel[80], queue[150];
 
     // Copy __ISAAC_MONITOR value
     isaac_strcpy(value, message_get_header(msg, "Value"));
 
-    if(sscanf(value, "%[^!]!%[^!]!%[^!]!%s", plat, clidnum, channel, uniqueid)) {
-        isaac_log(LOG_NOTICE, "[Session %s] Detected ISAAC_MONITOR on channel %s: %s\n",
+    // Initialize al variables
+    memset(plat, 0, sizeof(plat));
+    memset(clidnum, 0, sizeof(clidnum));
+    memset(uniqueid, 0, sizeof(uniqueid));
+    memset(channel, 0, sizeof(channel));
+    memset(queue, 0, sizeof(queue));
+
+    if(sscanf(value, "%[^!]!%[^!]!%[^!]!%[^!]!%s", plat, clidnum, channel, uniqueid, queue)) {
+        isaac_log(LOG_DEBUG, "[Session %s] Detected ISAAC_MONITOR on channel %s: %s\n",
             filter->sess->id,
             message_get_header(msg, "Channel"),
             message_get_header(msg, "Value"));
@@ -440,6 +451,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
         isaac_strcpy(info->clidnum, clidnum);
         isaac_strcpy(info->channel, channel);
         isaac_strcpy(info->uniqueid, uniqueid);
+        isaac_strcpy(info->queue, queue);
         info->answered = false;
 
         filter_t *channelfilter = filter_create_async(filter->sess, status_call);
@@ -451,9 +463,6 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     }
     return 0;
 }
-
-
-
 
 /**
  * @brief Status command callback
@@ -491,20 +500,32 @@ status_exec(session_t *sess, app_t *app, const char *args)
     filter_new_condition(channelfilter, MATCH_REGEX, "Channel", "Local/%s@agentes", agent, interface);
     filter_register(channelfilter);
 
+    // Parse rest of status arguments
+    app_args_t parsed;
+    application_parse_args(args, &parsed);
+
+    // Check if debug is enabled
+    if (!isaac_strcmp(application_get_arg(&parsed, "DEBUG"), "1"))
+        session_set_variable(sess, "STATUSDEBUG", "1");
+
     // Check with uniqueid mode
-    if (args) {
-        if (strstr(args, "DEBUG")) {
-            session_set_variable(sess, "STATUSDEBUG", "1");
-        }
+    if (!isaac_strcmp(application_get_arg(&parsed, "WUID"), "1"))
+        session_set_variable(sess, "STATUSWUID", "1");
 
-        if (strstr(args, "WUID")) {
-            session_set_variable(sess, "STATUSWUID", "1");        
-            session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID info).\r\n", agent);
-        } else {
-            session_write(sess, "STATUSOK Agent %s status will be printed.\r\n", agent);
-        }
+    // Check with uniqueid mode
+    if (!isaac_strcmp(application_get_arg(&parsed, "WQUEUE"), "1"))
+        session_set_variable(sess, "STATUSWQUEUE", "1");
+
+
+    if (session_get_variable(sess, "STATUSWUID") && session_get_variable(sess, "STATUSWQUEUE")) {
+        session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID and Queue info).\r\n", agent);
+    } else if (session_get_variable(sess, "STATUSWUID")) {
+        session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID info).\r\n", agent);
+    } else if (session_get_variable(sess, "STATUSWQUEUE")) {
+        session_write(sess, "STATUSOK Agent %s status will be printed (With Queue info).\r\n", agent);
+    } else {
+        session_write(sess, "STATUSOK Agent %s status will be printed .\r\n", agent);
     }
-
 
     session_set_variable(sess, "APPSTATUS", "1");
 
