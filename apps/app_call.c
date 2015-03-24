@@ -255,6 +255,16 @@ call_state(filter_t *filter, ami_message_t *msg)
         } else {
             isaac_strcpy(state, "UNHOLD");
         }
+
+        // In this case, the channel that receives the Hold event is the
+        // one that is being hold, not holding. So we should swap the
+        // AGENT <-> REMOVE value
+        if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
+            isaac_strcpy(from, "REMOTE");
+        } else {
+            isaac_strcpy(from, "AGENT");
+        }
+
     } else if (!strcasecmp(event, "Newstate")) {
         // Print status message depending on Channel Status
         const char *chanstate = message_get_header(msg, "ChannelState");
