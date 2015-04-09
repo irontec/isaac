@@ -38,6 +38,7 @@
 #include "cfg.h"
 #include "cli.h"
 #include "remote.h"
+#include "server.h"
 #include "util.h"
 
 //! Isaac configuration options
@@ -73,6 +74,8 @@ void
 quit(int exitcode)
 {
     printf("Signal %d received\n", exitcode);
+    // Stop server thread
+    stop_server();
     // Stop CLI server thread
     cli_server_stop();
     // Stop manager thread
