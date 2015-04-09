@@ -191,6 +191,11 @@ main(int argc, char *argv[])
     if (cli_server_start() != 0) {
         quit(EXIT_FAILURE);
     }
+    
+        // Start server thread
+    if (start_server(config.listenaddr, config.listenport) == -1) {
+        quit(EXIT_FAILURE);
+    }
 
     // All subsystems Up!
     isaac_log(LOG_NONE, "\e[1;37m%s Ready.\e[0m\n", PACKAGE_NAME);

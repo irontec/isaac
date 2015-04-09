@@ -37,6 +37,7 @@ case "$1" in
   stop)
 	log_begin_msg "Stopping $DESC: $NAME"
 	rm -f /var/run/isaac.pid
+	rm -f /var/run/isaac.sock
 	start-stop-daemon --stop --oknodo --exec "$DAEMON"
 	log_end_msg 0
 	;;
