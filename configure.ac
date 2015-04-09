@@ -1,6 +1,7 @@
 AC_PREREQ([2.59])
 AC_INIT([isaac], [0.1], [kaian@irontec.com], [isaac], [http://www.irontec.com/])
 AM_INIT_AUTOMAKE([1.9])
+AM_INIT_AUTOMAKE([subdir-objects])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS([config.h])
 AC_COPYRIGHT("Irontec S.L.")
@@ -15,6 +16,7 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_EGREP
 AC_LANG(C)
+AM_PROG_CC_C_O
  
 #######################################################################
 # Check for other REQUIRED libraries
@@ -28,16 +30,14 @@ AC_CHECK_LIB([pthread], [pthread_create], [], [
 ])
 
 AC_CHECK_LIB([config], [config_init], [], [
-    AC_MSG_ERROR(libconfig library is required to comile Isaac.)
+    AC_MSG_ERROR(libconfig library is required to compile Isaac.)
 ])
 
 AC_CHECK_LIB([edit], [history], [], [
-    AC_MSG_ERROR(libedit library is required to comile Isaac.)
+    AC_MSG_ERROR(libedit library is required to compile Isaac.)
 ])
 
-####
 #### LUA Support
-####
 AC_ARG_WITH([lua],
     AS_HELP_STRING([--with-lua], [Enable LUA modules support]),
     [AC_SUBST(WITH_OPENSSL, $withval)],
@@ -57,48 +57,23 @@ AC_SUBST([isaac_moddir],[${libdir}/isaac])
 AC_SUBST([isaac_confdir],[${sysconfdir}/isaac])
 AC_SUBST([isaac_statedir],[${localstatedir}/run])
 
-### AC_DEFINE([CONFDIR],  	[${sysconfdir}/isaac], [Configuration files directory])
-### AC_DEFINE([CFILE], 		[${sysconfdir}/isaac/isaac.conf], [Isaac configuration file])
-### AC_DEFINE([MODDIR], 	[${libdir}/isaac], [Loadable modules directory])
-### AC_DEFINE([PIDFILE], 	[${localstatedir}/run/isaac.pid], [Pid file location])
-### AC_DEFINE([CLI_SOCKET],	[${localstatedir}/run/isaac.sock], [CLI socket file location])
-
-# Set directories and files
-# AC_SUBST([isaacconfdir],[${sysconfdir}/isaac])
-# AC_SUBST([isaaccfile],[${isaacconfdir}/isaac.conf])
-# AC_SUBST([isaacinitdir],[${sysconfdir}/init.d/])
-# AC_SUBST([isaac_moddir],[${libdir}/isaac])
-# AC_SUBST([isaacmondir],[${libdir}/mon/mon.d])
-# AC_SUBST([isaacmonalertdir],[${libdir}/mon/alert.d])
-# AC_SUBST([isaacpid],[${localstatedir}/run/isaac.pid])
-# AC_SUBST([isaacsock],[${localstatedir}/run/isaac.sock])
-
 ######################################################################
+# Print Logo
+AC_ARG_ENABLE(logo,
+    AC_HELP_STRING(--disable-logo, [Disable Irontec Logo from Summary menu]),
+    [ enable_logo=$enableval],
+    [ enable_logo=yes])
 
-if test "x${silent}" != "xyes" ; then
-    echo
-    echo '             OZZZO                 ' 
-    echo '             OZZZO                 ' 
-    echo '         .:  OZZZO  :.             ' 
-    echo '       :DDD. OZZZO  DDD~           ' 
-    echo '     :DDDDD. OZZZO  DDDDD:         ' 
-    echo '    DDDDDDD. OZZZO  DDDDDDD.       ' 
-    echo '  .DDDDDD    OZZZO   .DDDDDD.      ' 
-    echo '  ODDDD?.    OZZZO    .~DDDDZ.     ' 
-    echo '  DDDDD.     OZZZO      8DDDD      ' 
-    echo ' ,DDDD.      .....       DDDD,     ' 
-    echo ' ~DDDD                   DDDD+     ' 
-    echo ' :DDDD.                  DDDD,     ' 
-    echo '  DDDDD                 8DDDD.     ' 
-    echo '  ODDDD?               ~DDDDZ      ' 
-    echo '  .DDDDDD.           .DDDDDD.      ' 
-    echo '   .DDDDDD8.       .8DDDDDD        ' 
-    echo '    .:DDDDDDDDDDDDDDDDDDD:.        ' 
-    echo '      .~DDDDDDDDDDDDDDD~.          ' 
-    echo '         .:DDDDDDDDD,.             ' 
-    echo
-fi
-
+AS_IF([test "x$enable_logo" == "xyes"], [
+    echo ''
+    echo ' ██╗██████╗  ██████╗ ███╗   ██╗████████╗███████╗ ██████╗'
+    echo ' ██║██╔══██╗██╔═══██╗████╗  ██║╚══██╔══╝██╔════╝██╔════╝'
+    echo ' ██║██████╔╝██║   ██║██╔██╗ ██║   ██║   █████╗  ██║     '
+    echo ' ██║██╔══██╗██║   ██║██║╚██╗██║   ██║   ██╔══╝  ██║     '
+    echo ' ██║██║  ██║╚██████╔╝██║ ╚████║   ██║   ███████╗╚██████╗'
+    echo ' ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝'
+    echo ''
+])
 
 AC_MSG_NOTICE()
 AC_MSG_NOTICE( ====================================================== )
@@ -110,8 +85,10 @@ AC_MSG_NOTICE()
 
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([src/Makefile])
-AC_CONFIG_FILES([apps/Makefile])
+AC_CONFIG_FILES([modules/Makefile])
 AC_CONFIG_FILES([conf/Makefile])
-AC_CONFIG_FILES([mon/Makefile])
+AC_CONFIG_FILES([extra/Makefile])
+AC_CONFIG_FILES([extra/mon/Makefile])
+AC_CONFIG_FILES([ivozng/Makefile])
 
 AC_OUTPUT

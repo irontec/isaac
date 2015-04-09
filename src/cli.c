@@ -57,10 +57,6 @@ pthread_t cli_accept_thread;
 //! Socket for accepting new CLI client connections
 int cli_sock;
 
-/// Binary running in CLI client mode flag.
-/** Flag defined in @ref isaac.c to determine if binary is being executed as CLI client. */
-extern int opt_remote;
-
 /**
  * @brief List with all default CLI commands
  *

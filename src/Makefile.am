@@ -1,14 +1,12 @@
 AM_CFLAGS= \
-	-I@top_srcdir@/include \
 	-DMODDIR=\"@isaac_moddir@\" \
-	-DPIDFILE=\"@isaac_statedir@/isaac.pid\" \
-	-DCFILE=\"@isaac_confdir@/isaac.conf\" \
+	-DCONFDIR=\"@isaac_confdir@\" \
 	-DCLI_SOCKET=\"@isaac_statedir@/isaac.sock\" \
 	-Wl,-E -Wall -Werror -g 
 
 bin_PROGRAMS = isaac
-isaac_SOURCES = isaac.c manager.c filter.c session.c server.c app.c module.c log.c pidfile.c cli.c remote.c util.c
-isaac_LDFLAGS = -rdynamic 
+isaac_SOURCES = main.c cfg.c manager.c filter.c session.c app.c module.c log.c cli.c remote.c util.c
+isaac_LDFLAGS = -rdynamic
 
 if WITH_LUA
 isaac_LDFLAGS += -llua5.1
