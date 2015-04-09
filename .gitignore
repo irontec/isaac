@@ -16,3 +16,7 @@ install-sh
 missing
 stamp-h1
 src/isaac
+.project
+.cproject
+.autotools
+.settings

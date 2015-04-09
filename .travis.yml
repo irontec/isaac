@@ -1,0 +1,18 @@
+language: c
+compiler:
+  - clang
+  - gcc
+notifications:
+  recipients:
+    - kaian@irontec.com
+before_script:
+    - sudo apt-get update
+install:
+    - sudo apt-get install -y libconfig8-dev libedit-dev
+script: 
+    - ./bootstrap.sh
+    - ./configure 
+    - make
+branches:
+  only:
+    - master
