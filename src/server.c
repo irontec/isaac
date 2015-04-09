@@ -34,7 +34,6 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <errno.h>
-#include "isaac.h"
 #include "util.h"
 #include "log.h"
 #include "server.h"
@@ -42,11 +41,16 @@
 #include "app.h"
 #include "filter.h"
 #include "cli.h"
+#include "cfg.h"
 
+//! General isaac configuration
+extern cfg_t config;
 //! Server socket
 int server_sock = 0;
 //! Server accept connections thread
 pthread_t accept_thread;
+//! Running flag
+int running;
 
 int
 start_server(const char *addrstr, const int port)
@@ -103,6 +107,8 @@ start_server(const char *addrstr, const int port)
 int
 stop_server()
 {
+    // Mark ourselfs as not running
+    running = 1;
     // Say bye to all the sessions
     session_finish_all("Isaac has been stopped.");
     // Stop the socket from receiving new connections
@@ -127,8 +133,11 @@ accept_connections(void *sock)
     // Give some feedback about us
     isaac_log(LOG_VERBOSE, "Launched server thread [ID %ld].\n", TID);
 
+    // Start running
+    running = 1;
+
     // Begin accepting connections
-    while (config.running) {
+    while (running) {
         // Accept the next connections
         clilen = sizeof(cliaddr);
         if ((clifd = accept(server_sock, (struct sockaddr *) &cliaddr, &clilen)) == -1) {
