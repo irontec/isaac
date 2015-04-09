@@ -12,6 +12,10 @@ install-ivozng: ivozng-install
 ivozng-install: ivozng
 	cd ivozng && $(MAKE) $(AM_MAKEFLAGS) install
 
+install-extra: extra-install	
+extra-install: 
+	cd extra && $(MAKE) $(AM_MAKEFLAGS) install
+
 clean-local:
 	cd ivozng && $(MAKE) $(AM_MAKEFLAGS) clean
 	

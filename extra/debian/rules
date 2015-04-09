@@ -14,6 +14,7 @@ clean:
 
 build: 
 	dh_testdir
+	dh_autoreconf
 	dh_auto_configure
 	dh_auto_build
 	#dh_auto_test
@@ -24,6 +25,7 @@ install:
 	dh_prep
 	dh_installdirs
 	dh_auto_install	
+	$(MAKE) DESTDIR=`pwd`/debian/`dh_listpackages` ivozng-install conf extra
 
 # Build architecture-independent files here.
 binary-indep: build install
