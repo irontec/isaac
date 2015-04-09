@@ -2,7 +2,7 @@
 
 Isaac (Ivozng simplified Asterisk AMI Connector) is a small application that serves as interface and translator for Asterisk Manager Interface (aka AMI).
  
-This interface has a little big problem: It broadcast all events to all clients, no matter if they are interested or not in the information.
+Asterisk Manager Interface has a little big problem: It broadcast all events to all clients, no matter if they are interested or not in the information.
 
 Issac uses a small protocol, where each command is called action and must be implemented in loadable module.
 
