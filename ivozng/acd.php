@@ -7,8 +7,8 @@ define("DB_CON", "asterisk");
 require_once(BASE_URL."autoload.php");
 
 $server="http://127.0.0.1:8088";    // The server to connect to
-$amiuser="ironadmin";
-$password="adminsecret";
+$amiuser="ADMIN_USER";
+$password="ADMIN_SECRET";
 
 if ($argc < 4) {
 	echo "ACD NOT ENOUGH PARAMETERS\n";
