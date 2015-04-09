@@ -25,7 +25,7 @@
  * @brief Source code for functions defined in log.h
  */
 
-#include "isaac.h"
+#include "config.h"
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -34,7 +34,12 @@
 #include "log.h"
 #include "cli.h"
 #include "util.h"
+#include "cfg.h"
 
+//! General isaac configuration
+extern cfg_t config;
+//! Debug configuration
+extern int debug;
 //! Pointer for File descriptor. Only used if logtype is LOG_TYPE_FILE
 FILE *logfile;
 //! Log lock. Avoid printing more than messages at a time

@@ -28,7 +28,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <poll.h>
-#include "isaac.h"
 #include "manager.h"
 #include "filter.h"
 #include "log.h"
@@ -38,6 +37,9 @@
 manager_t *manager;
 //! Manager accept connections thread
 pthread_t manager_thread;
+
+// Running flag
+int running;
 
 int
 manager_read_header(manager_t *man, char *output)
@@ -268,8 +270,11 @@ manager_read_thread(void *man)
     // Give some feedback about us
     isaac_log(LOG_VERBOSE, "Launched manager thread [ID %ld].\n", TID);
 
+    // Marks us as running
+    running = 1;
+
     // Start reading messages
-    while (config.running) {
+    while (running) {
         if (!manager->connected) {
             // Close all sessions
             session_finish_all("Asterisk has gone.");
@@ -289,7 +294,7 @@ manager_read_thread(void *man)
             check_filters_for_message(&msg);
         } else if (res < 0) {
             // If no error, maybe we are shutting down?
-            if (!config.running) break;
+            if (!running) break;
             // Something bad has happened with our socket :(
             isaac_log(LOG_WARNING, "Manager read error %s [%d]\n", strerror(errno), errno);
             // Try to connect again
@@ -352,6 +357,8 @@ start_manager(const char* addrstr, const int port, const char* username, const c
 int
 stop_manager()
 {
+    // Marks us as not running
+    running = 0;
     // Disconnect manager socket
     shutdown(manager->fd, SHUT_RDWR);
     // Wait for the accept thread to finish

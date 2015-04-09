@@ -2,7 +2,9 @@ AM_CFLAGS= \
 	-fPIC -g \
 	-Wno-unused-result \
 	-Wall \
-	-I@top_srcdir@/include
+	-I@top_srcdir@/src \
+	-DMODDIR=\"@isaac_moddir@\" \
+	-DCONFDIR=\"@isaac_confdir@\"
 	
 AM_LDFLAGS= \
 	-shared -Wl,-E
@@ -14,7 +16,6 @@ app_logindir = @isaac_moddir@
 
 app_acd_PROGRAMS = app_acd.so
 app_acd_so_SOURCES = app_acd.c
-app_acd_so_CFLAGS = -DACDCONF=\"@isaac_confdir@/acd.conf\" $(AM_CFLAGS)
 app_acd_so_DATA = acd.php
 app_acddir = @isaac_moddir@
 app_acd_sodir = @isaac_moddir@
@@ -33,7 +34,6 @@ app_utilsdir = @isaac_moddir@
 
 app_call_PROGRAMS = app_call.so
 app_call_so_SOURCES = app_call.c
-app_call_so_CFLAGS = -DCALLCONF=\"@isaac_confdir@/call.conf\" $(AM_CFLAGS)
 app_calldir = @isaac_moddir@
 
 app_queue_PROGRAMS = app_queue.so
@@ -43,7 +43,7 @@ app_queuedir = @isaac_moddir@
 if WITH_LUA
 res_lua_PROGRAMS = res_lua.so
 res_lua_so_SOURCES = res_lua.c
-res_lua_so_CFLAGS = -I/usr/include/lua5.1 -DMODDIR=\"@isaacmoddir@\" $(AM_CFLAGS)
+res_lua_so_CFLAGS = -I/usr/include/lua5.1 $(AM_CFLAGS)
 res_lua_so_LDFLAGS = $(AM_LDFLAGS) -llua5.1
 res_luadir = $(appsdir)
 endif

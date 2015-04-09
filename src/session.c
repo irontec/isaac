@@ -37,7 +37,6 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
-#include "isaac.h"
 #include "manager.h"
 #include "filter.h"
 #include "session.h"
@@ -48,6 +47,8 @@
 session_t *sessions;
 //! Session List (and ID) lock
 pthread_mutex_t sessionlock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+//! Session Counter
+int sessioncnt;
 //! Last created session id
 unsigned int last_sess_id = 0;
 
@@ -80,7 +81,7 @@ session_create(const int fd, const struct sockaddr_in addr)
         // Create a new session id 
         sprintf(sess->id, "%d", last_sess_id++);
         // Increase session count in stats
-        stats.sessioncnt++;
+        sessioncnt++;
     }
 
     //session_set_flag(sess, SESS_FLAG_DEBUG);

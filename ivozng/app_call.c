@@ -44,6 +44,8 @@
 #include "log.h"
 #include "util.h"
 
+#define CALLCONF CONFDIR "/call.conf"
+
 /**
  * @brief Module configuration readed from CALLCONF file
  *

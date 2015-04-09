@@ -32,8 +32,7 @@
  * ** database and tables directly from odbc driver                      **
  * ************************************************************************
  */
-
-#include "isaac.h"
+#include <stdlib.h>
 #include "app.h"
 #include "filter.h"
 #include "log.h"
@@ -48,6 +47,7 @@
 static SQLHENV env;
 static SQLHDBC dbc;
 pthread_t odbc_thread;
+int running;
 
 /**
  * @brief Test if odbc connection is Up
@@ -129,15 +129,19 @@ odbc_disconnect()
 void *
 odbc_watchdog(void *args)
 {
-
+    int i;
     odbc_connect();
-    while(config.running) {
+    while(running) {
         if (!odbc_test()) {
             isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
             odbc_disconnect();
             odbc_connect();
         }
-        sleep(3);
+        for (i = 0; i < 6; i++) {
+            if (running)
+                usleep(500 * 1000);
+        }
+
     } 
     odbc_disconnect();
     return NULL;
@@ -456,6 +460,10 @@ int
 load_module()
 {
     int res = 0;
+
+    // Mark ourself as running
+    running = 1;
+
     res |= application_register("Login", login_exec);
     res |= application_register("Logout", logout_exec);
     res |= application_register("Exit", logout_exec);
@@ -479,10 +487,16 @@ int
 unload_module()
 {
     int res = 0;
+
+    // Mark ourself as running
+    running = 0;
+
     res |= application_unregister("LOGIN");
     res |= application_unregister("LOGOUT");
     res |= application_unregister("DeviceStatus");
     res |= application_unregister("EXIT");
+
+    // Wait threads to end
     res |= pthread_join(odbc_thread, NULL);
     return res;
 }

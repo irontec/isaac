@@ -35,7 +35,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include <unistd.h>
-#include "isaac.h"
+#include "cfg.h"
 #include "cli.h"
 #include "util.h"
 #include "log.h"
@@ -56,6 +56,12 @@ pthread_mutex_t entrieslock;
 pthread_t cli_accept_thread;
 //! Socket for accepting new CLI client connections
 int cli_sock;
+//! General flag to stop cli server
+int running;
+//! Starting time, used to count the uptime time
+struct timeval startuptime;
+// Current configuration
+extern cfg_t config;
 
 /**
  * @brief List with all default CLI commands
@@ -126,6 +132,9 @@ cli_server_start()
 void
 cli_server_stop()
 {
+    // Mark ourselfs as not running
+    running = 0;
+
     // Stop the socket from receiving new connections
     shutdown(cli_sock, SHUT_RDWR);
     // Remove the unix socket file
@@ -151,7 +160,13 @@ cli_accept()
     // Give some feedback about us
     isaac_log(LOG_VERBOSE, "Launched cli thread [ID %ld].\n", TID);
 
-    while (config.running) {
+    // Initialize stored stats
+    startuptime = isaac_tvnow();
+
+    // Mark us as running
+    running = 1;
+
+    while (running) {
         // Get the next connection
         sunlen = sizeof(sun);
         if ((clifd = accept(cli_sock, (struct sockaddr *) &sun, &sunlen)) < 0) {
@@ -972,8 +987,8 @@ handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
     else
         return CLI_SHOWUSAGE;
 
-    if (stats.startuptime.tv_sec) {
-        isaac_tvelap(isaac_tvsub(curtime, stats.startuptime), printsec, out);
+    if (startuptime.tv_sec) {
+        isaac_tvelap(isaac_tvsub(curtime, startuptime), printsec, out);
         cli_write(args->cli, "\r%s: %s\n", "System uptime", out);
     }
 
@@ -1017,7 +1032,7 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
         return NULL;
     }
 
-    isaac_tvelap(isaac_tvsub(isaac_tvnow(), stats.startuptime), 0, running);
+    isaac_tvelap(isaac_tvsub(isaac_tvnow(), startuptime), 0, running);
     isaac_tvelap(isaac_tvsub(isaac_tvnow(), manager->connectedtime), 0, manconnected);
 
     cli_write(args->cli, "\n%s Core settings\n----------------------\n", PACKAGE_NAME);
@@ -1037,7 +1052,7 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
     cli_write(args->cli, "   %-20s: %s\n", "Address", config.listenaddr);
     cli_write(args->cli, "   %-20s: %d\n", "Port", config.listenport);
     cli_write(args->cli, "   %-20s: %d\n", "Keep-Alive", config.keepalive);
-    cli_write(args->cli, "   %-20s: %d\n", "Processed sessions", stats.sessioncnt);
+    //cli_write(args->cli, "   %-20s: %d\n", "Processed sessions", config.sessioncnt);
     cli_write(args->cli, "   %-20s: %d\n", "Hide local sessions", config.hidelocal);
     cli_write(args->cli, "\n\n");
 
@@ -1121,7 +1136,7 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     }
 
     cli_write(args->cli, "%d active sessions\n", sessioncnt);
-    cli_write(args->cli, "%d processed sessions\n", stats.sessioncnt);
+    //cli_write(args->cli, "%d processed sessions\n", config.sessioncnt);
     /* Destroy iterator after finishing */
     session_iterator_destroy(iter);
 

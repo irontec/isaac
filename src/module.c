@@ -29,11 +29,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "isaac.h"
 #include "log.h"
 #include "app.h"
 #include "module.h"
 #include "util.h"
+#include "cfg.h"
+
+//! General isaac configuration
+extern cfg_t config;
 
 //! Loaded modules list
 // We wont mutexlock this list because is only accessed on startup or

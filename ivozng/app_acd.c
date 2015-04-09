@@ -41,6 +41,7 @@
 #include "log.h"
 #include "util.h"
 
+#define ACDCONF CONFDIR "/acd.conf"
 #define BSIZE 1024
 
 /**
