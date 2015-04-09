@@ -1,3 +1,0 @@
-# Copy this to rsyslog.conf
-:syslogtag, contains, "isaac" /var/log/ivozng/isaac.log
-& ~
