@@ -318,7 +318,16 @@ devicestatus_changed(filter_t *filter, ami_message_t *msg)
     const char *exten = message_get_header(msg, "Exten");
     int agent = atoi(session_get_variable(sess, "AGENT"));
     int id_pausa = -1;
+    const char *actionid;
 
+    // If there is an ActionID header
+    if ((actionid = message_get_header(msg, "ActionID"))) {
+        // And Its not our session ID, this message is not for ours
+        if (isaac_strcmp(actionid, sess->id))
+            return 0;
+    }
+
+    // Otherwise, check status changes
     if (!strncasecmp(exten, "pause_", 6)) {
         // Send new device status
         switch(status) {
@@ -416,6 +425,7 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
     message_add_header(&devicemsg, "Action: ExtensionState");
     message_add_header(&devicemsg, "Exten: %s", agent);
     message_add_header(&devicemsg, "Context: cc-hints");
+    message_add_header(&devicemsg, "ActionID: %s", sess->id);
     manager_write_message(manager, &devicemsg);
 
     // Initial status (pause)
@@ -423,6 +433,7 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
     message_add_header(&devicemsg, "Action: ExtensionState");
     message_add_header(&devicemsg, "Exten: pause_%s", interface+4);
     message_add_header(&devicemsg, "Context: cc-hints");
+    message_add_header(&devicemsg, "ActionID: %s", sess->id);
     manager_write_message(manager, &devicemsg);
 
 
