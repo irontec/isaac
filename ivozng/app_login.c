@@ -323,7 +323,7 @@ devicestatus_changed(filter_t *filter, ami_message_t *msg)
     // If there is an ActionID header
     if ((actionid = message_get_header(msg, "ActionID"))) {
         // And Its not our session ID, this message is not for ours
-        if (isaac_strcmp(actionid, sess->id))
+        if (strlen(actionid) && strcmp(actionid, sess->id))
             return 0;
     }
 
