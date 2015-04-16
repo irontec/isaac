@@ -72,6 +72,8 @@ struct app_status_info
     char xfer_channel[80];
     //! Answered flag
     bool answered;
+    //! Holded flag
+    bool holded;
 };
 
 /**
@@ -255,7 +257,7 @@ status_print(filter_t *filter, ami_message_t *msg)
 
     // CallStatus response
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "Hangup") 
-    || !isaac_strcmp(event, "IsaacTransfer")) {
+    || !isaac_strcmp(event, "IsaacTransfer")  || !isaac_strcmp(event, "MusicOnHold")) {
         sprintf(statusevent, "EXTERNALCALLSTATUS ");
         if (session_get_variable(sess, "STATUSWUID"))
             sprintf(statusevent + strlen(statusevent), "%s ", info->uniqueid);
@@ -276,6 +278,33 @@ status_print(filter_t *filter, ami_message_t *msg)
         } else if (!isaac_strcmp(message_get_header(msg, "ChannelState"), "6")) {
             sprintf(statusevent + strlen(statusevent), "ANSWERED\r\n");
             info->answered = true;
+
+            filter_t *callfilter = filter_create_async(filter->sess, status_print);
+            filter_new_condition(callfilter, MATCH_EXACT, "Event", "MusicOnHold");
+            filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->channel);
+            filter_set_userdata(callfilter, (void*) info);
+            filter_register(callfilter);
+        }
+
+    } else if (!strcasecmp(event, "MusicOnHold")) {
+        // This filter lives only during answered calls
+        if (info->answered) {
+            // Avoid sending multiple times the same status
+            if (!info->holded && !strcasecmp(message_get_header(msg, "State"), "Start")) {
+                sprintf(statusevent + strlen(statusevent), "HOLD\r\n");
+                info->holded = 1;
+            } else if (info->holded && !strcasecmp(message_get_header(msg, "State"), "Stop")) {
+                sprintf(statusevent + strlen(statusevent), "UNHOLD\r\n");
+                info->holded = 0;
+            } else {
+                // Clear this event
+                memset(statusevent, 0, sizeof(statusevent));
+            }
+        } else {
+            // Hold filter is no longer needed
+            filter_unregister(filter);
+            // Clear this event
+            memset(statusevent, 0, sizeof(statusevent));
         }
 
     } else if (!isaac_strcmp(event, "Hangup")) {
@@ -295,6 +324,7 @@ status_print(filter_t *filter, ami_message_t *msg)
 
         // Queue call has finished for this agent
         sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
+        info->answered = false;
 
         // We dont expect more info about this filter, it's safe to unregister it here
         filter_unregister(filter);
@@ -453,6 +483,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
         isaac_strcpy(info->uniqueid, uniqueid);
         isaac_strcpy(info->queue, queue);
         info->answered = false;
+        info->holded = false;
 
         filter_t *channelfilter = filter_create_async(filter->sess, status_call);
         filter_new_condition(channelfilter, MATCH_EXACT , "Event", "Dial");
