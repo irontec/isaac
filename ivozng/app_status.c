@@ -744,6 +744,70 @@ hangupuid_exec(session_t *sess, app_t *app, const char *args)
     return 0;
 }
 
+/**
+ * @brief Playbackuid application callback
+ *
+ * Hangups a channel identified by given uniqueid
+ *
+ * @param sess Session structure that requested the application
+ * @param app The application structure
+ * @param args Aditional command line arguments (not used)
+ * @return 0 in all cases
+ */
+int
+playbackuid_exec(session_t *sess, app_t *app, const char *args)
+{
+    char uniqueid[50], filename[512], actionid[10];
+    char *channame = NULL;
+    const char *response;
+
+    // Check we are logged in.
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Parse aplication arguments
+    if (sscanf(args, "%s %s", uniqueid, filename) != 2) {
+        return INVALID_ARGUMENTS;
+    }
+
+    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+
+        // Create a filter to get playback response
+        filter_t *respfilter = filter_create_sync(sess);
+        filter_new_condition(respfilter, MATCH_EXACT , "Event", "Playback");
+        filter_new_condition(respfilter, MATCH_EXACT , "ActionID", random_actionid(actionid, 10));
+        filter_register(respfilter);
+
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Playback");
+        message_add_header(&msg, "Channel: %s", channame);
+        message_add_header(&msg, "Filename: %s", filename);
+        message_add_header(&msg, "ActionID: %s",actionid);
+        manager_write_message(manager, &msg);
+
+        // Get the response!
+        ami_message_t retmsg;
+        if (filter_run(respfilter, 5000, &retmsg) == 0) {
+            response = message_get_header(&retmsg, "Result");
+            if (!strcasecmp(response, "Success")) {
+                session_write(sess, "PLAYBACKOK File is being played\r\n");
+            } else {
+                session_write(sess, "PLAYBACKFAILED Unable to play file\r\n");
+            }
+        } else {
+            // filter didn't triggered
+            session_write(sess, "PLAYBACKFAILED Request timeout\r\n");
+        }
+    } else {
+        // Ups.
+        session_write(sess, "PLAYBACKFAILED Channel not found\r\n");
+    }
+
+    return 0;
+}
 
 /**
  * @brief Module load entry point
@@ -762,6 +826,7 @@ load_module()
     ret |= application_register("HoldUID", holduid_exec);
     ret |= application_register("UnholdUID", unholduid_exec);
     ret |= application_register("HangupUID", hangupuid_exec);
+    ret |= application_register("PlaybackUID", playbackuid_exec);
     return ret;
 }
 
@@ -782,5 +847,6 @@ unload_module()
     ret |= application_unregister("HoldUID");
     ret |= application_unregister("UnholdUID");
     ret |= application_unregister("HangupUID");
+    ret |= application_unregister("PlaybackUID");
     return ret;
 }
