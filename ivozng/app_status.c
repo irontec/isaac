@@ -77,13 +77,13 @@ struct app_status_info
 };
 
 /**
- * @brief Returns channel name for a given UniqueID
+ * @brief Returns agent channel name for a given UniqueID
  *
  * @param uniqueid Channel UniqueID
- * @returns channel name or NULL if not found
+ * @returns agent channel name or NULL if not found
  */
 char *
-find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
+find_agent_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
     filter_t *filter = NULL;
     struct app_status_info *info = NULL;
 
@@ -98,6 +98,30 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
     // No channel found with that uniqueid
     return NULL;
 }
+
+/**
+ * @brief Returns channel name for a given UniqueID
+ *
+ * @param uniqueid Channel UniqueID
+ * @returns channel name or NULL if not found
+ */
+char *
+find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
+    filter_t *filter = NULL;
+    struct app_status_info *info = NULL;
+
+    // Find the call with that uniqueid
+    while((filter = filter_from_session(sess, filter))) {
+        info = (struct app_status_info *) filter_get_userdata(filter);
+        if (info && !strcasecmp(info->uniqueid, uniqueid)) {
+            return info->channel;
+        }
+    }
+
+    // No channel found with that uniqueid
+    return NULL;
+}
+
 
 /**
  * @brief Injects messages to AMI to simulate an incoming call
@@ -589,7 +613,7 @@ answer_exec(session_t *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
 
-    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+    if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
@@ -635,7 +659,7 @@ holduid_exec(session_t *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
 
-    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+    if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
@@ -681,7 +705,7 @@ unholduid_exec(session_t *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
 
-    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+    if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
@@ -726,7 +750,7 @@ hangupuid_exec(session_t *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
 
-    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+    if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
