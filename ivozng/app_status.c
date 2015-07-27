@@ -834,6 +834,58 @@ playbackuid_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
+ * @brief SetVarUID application callback
+ *
+ *
+ */
+int
+setvaruid_exec(session_t *sess, app_t *app, const char *args)
+{
+    char uniqueid[50], options[512];
+    const char *channame = NULL;
+    const char *varname = NULL;
+    const char *varvalue = NULL;
+
+
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED))
+        return NOT_AUTHENTICATED;
+
+    // Get Call parameteres
+    if (sscanf(args, "%s %[^\n]", uniqueid, options) < 2)
+        return INVALID_ARGUMENTS;
+
+    // Check if uniqueid info is requested
+    app_args_t parsed;
+    application_parse_args(options, &parsed);
+
+
+    // Get Variable name
+    if (!(varname = application_get_arg(&parsed, "VARIABLE")) && strlen(varname))
+        return INVALID_ARGUMENTS;
+
+    // Get Variable value
+    if (!(varvalue = application_get_arg(&parsed, "VALUE")))
+        return INVALID_ARGUMENTS;
+
+    // Get target channel
+    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", channame);
+        message_add_header(&msg, "Variable: %s", varname);
+        message_add_header(&msg, "Value: %s", varvalue);
+        manager_write_message(manager, &msg);
+        session_write(sess, "SETVARUIDOK Channel variable set\r\n");
+    } else {
+        // Ups.
+        session_write(sess, "SETVARUIDFAILED Channel not found\r\n");
+    }
+    return 0;
+}
+
+/**
  * @brief Module load entry point
  *
  * Load module applications
@@ -851,6 +903,7 @@ load_module()
     ret |= application_register("UnholdUID", unholduid_exec);
     ret |= application_register("HangupUID", hangupuid_exec);
     ret |= application_register("PlaybackUID", playbackuid_exec);
+    ret |= application_register("SetVarUID", setvaruid_exec);
     return ret;
 }
 
@@ -872,5 +925,6 @@ unload_module()
     ret |= application_unregister("UnholdUID");
     ret |= application_unregister("HangupUID");
     ret |= application_unregister("PlaybackUID");
+    ret |= application_unregister("SetVarUID");
     return ret;
 }
