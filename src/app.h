@@ -41,6 +41,8 @@
 #define ACTIONID_LEN 128
 /* Define maximum argument length */
 #define ARGUMENT_LEN 128
+/* Define maximum argument count */
+#define ARGUMENT_MAX 25
 
 /** 
  * @brief Common exit codes for applications.
@@ -97,7 +99,7 @@ struct isaac_application_args
     //! Argument counter
     int count;
     //! Aplication args
-    char args[ARGUMENT_LEN][24];
+    char args[ARGUMENT_MAX][ARGUMENT_LEN];
 };
 
 /**
