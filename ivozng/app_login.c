@@ -164,24 +164,33 @@ peer_status_check(filter_t *filter, ami_message_t *msg)
     const char *interface = session_get_variable(sess, "INTERFACE");
     const char *event = message_get_header(msg, "Event");    
 
-    if (event && !strncasecmp(event, "PeerStatus", 10)) {
-        session_write(sess, "BYE Peer %s is no longer registered\r\n", interface);
-        session_finish(sess);
-    } else {
-        const char *response = message_get_header(msg, "Response");
-        if (response) {
-            const char *agent = session_get_variable(sess, "AGENT");
- 
-            if (!strncasecmp(response, "Success", 7)) {
-                // Send a success message
-                session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
-            } else {
-                // Send the Login failed message and close connection
-                session_write(sess, "LOGINFAIL %s is not registered\r\n", interface);
-                session_finish(sess);
-            }
+    if (event) {
+        if (!strncasecmp(event, "PeerStatus", 10)) {
+            session_write(sess, "BYE Peer %s is no longer registered\r\n", interface);
+            session_finish(sess);
+	    return 0;
         }
-   }
+        if (!strncasecmp(event, "ExtensionStatus", 15)) {
+            session_write(sess, "BYE Agent is no longer logged in\r\n", interface);
+            session_finish(sess);
+	    return 0;
+        }
+    } 
+
+    const char *response = message_get_header(msg, "Response");
+    if (response) {
+        const char *agent = session_get_variable(sess, "AGENT");
+ 
+        if (!strncasecmp(response, "Success", 7)) {
+            // Send a success message
+            session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
+        } else {
+            // Send the Login failed message and close connection
+            session_write(sess, "LOGINFAIL %s is not registered\r\n", interface);
+            session_finish(sess);
+        }
+    }
+   
 
     return 0;
 }
@@ -269,6 +278,20 @@ login_exec(session_t *sess, app_t *app, const char *args)
         filter_new_condition(peerfilter, MATCH_EXACT , "ActionID", interface+4);
         filter_register_oneshot(peerfilter);
 
+        // Also check for status changes
+        // Check if device is registerd
+        filter_t *peerstatusfilter = filter_create_async(sess, peer_status_check);
+        filter_new_condition(peerstatusfilter, MATCH_EXACT , "Event", "PeerStatus");
+        filter_new_condition(peerstatusfilter, MATCH_EXACT , "Peer", interface);
+        filter_new_condition(peerstatusfilter, MATCH_EXACT , "PeerStatus", "Unregistered");
+        filter_register(peerstatusfilter);
+
+        filter_t *agentstatus = filter_create_async(sess, peer_status_check);
+        filter_new_condition(agentstatus, MATCH_EXACT , "Event", "ExtensionStatus");
+        filter_new_condition(agentstatus, MATCH_EXACT , "Exten", "access_%s", interface+4);
+        filter_new_condition(agentstatus, MATCH_EXACT , "Status", "1");
+        filter_register(agentstatus);
+
         // Request Peer status right now
         ami_message_t peermsg;
         memset(&peermsg, 0, sizeof(ami_message_t));
@@ -276,14 +299,6 @@ login_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&peermsg, "Peer: %s", interface+4);
         message_add_header(&peermsg, "ActionID: %s", interface+4);
         manager_write_message(manager, &peermsg);
-
-        // Also check for status changes
-        // Check if device is registerd
-        filter_t *monitorfilter = filter_create_async(sess, peer_status_check);
-        filter_new_condition(monitorfilter, MATCH_EXACT , "Event", "PeerStatus");
-        filter_new_condition(monitorfilter, MATCH_EXACT , "Peer", interface);
-        filter_new_condition(monitorfilter, MATCH_EXACT , "PeerStatus", "Unregistered");
-        filter_register(monitorfilter);
 
         ret = 0;
     } else {
