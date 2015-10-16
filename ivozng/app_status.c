@@ -886,6 +886,42 @@ setvaruid_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
+ * @brief RedirectUID application callback
+ */
+int
+redirectuid_exec(session_t *sess, app_t *app, const char *args)
+{
+    char uniqueid[50], context[256], exten[80];
+    const char *channame = NULL;
+
+
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED))
+        return NOT_AUTHENTICATED;
+
+    // Get Call parameteres
+    if (sscanf(args, "%s %s %s", uniqueid, context, exten) < 3)
+        return INVALID_ARGUMENTS;
+
+    // Get target channel
+    if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Redirect");
+        message_add_header(&msg, "Channel: %s", channame);
+        message_add_header(&msg, "Context: %s", context);
+        message_add_header(&msg, "Exten: %s", exten);
+        message_add_header(&msg, "Priority: 1");
+        manager_write_message(manager, &msg);
+        session_write(sess, "REDIRECTUIDOK Channel redirected\r\n");
+    } else {
+        // Ups.
+        session_write(sess, "REDIRECTUIFAILED Failed to redirect channel\r\n");
+    }
+    return 0;
+}
+
+/**
  * @brief Module load entry point
  *
  * Load module applications
@@ -904,6 +940,7 @@ load_module()
     ret |= application_register("HangupUID", hangupuid_exec);
     ret |= application_register("PlaybackUID", playbackuid_exec);
     ret |= application_register("SetVarUID", setvaruid_exec);
+    ret |= application_register("RedirectUID", redirectuid_exec);
     return ret;
 }
 
@@ -926,5 +963,6 @@ unload_module()
     ret |= application_unregister("HangupUID");
     ret |= application_unregister("PlaybackUID");
     ret |= application_unregister("SetVarUID");
+    ret |= application_unregister("RedirectUID");
     return ret;
 }
