@@ -180,6 +180,9 @@ switch ($op){
             break;
         }
 
+        // Always Leave the queue
+        $iacd->queueJoinLeaveManual(false,  $cola, $priority, $r['ringinuse']);
+
         // Join/Leave Queue
         if ($iacd->queueJoinLeaveManual(($op == "JOIN"), $cola, $priority, $r['ringinuse']) == true) {
             fwrite(STDERR, "QUEUE${op}OK Successfully ${op} queue $cola\r\n");
