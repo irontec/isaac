@@ -1,4 +1,11 @@
 #!/usr/bin/make -f
 
+override_dh_auto_build:
+	${MAKE} ivozng-install
+	${MAKE} conf
+	${MAKE} extra-install
+	dh_auto_build
+
 %:
-	dh $@
+	dh $@ --with autoreconf
+ 
