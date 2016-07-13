@@ -1,0 +1,5 @@
+isaac (1.3.0) UNRELEASED; urgency=medium
+
+  * Moved to new package system. 
+
+ -- Ivan Alonso <kaian@irontec.com>  Wed, 13 Jul 2016 12:54:55 +0200
