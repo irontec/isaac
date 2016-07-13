@@ -7,8 +7,7 @@ Maintainer: Ivan Alonso <kaian@irontec.com>
 Package: isaac
 Architecture: amd64
 Section: comm
-Pre-Depends: ${misc:Pre-Depends}
-Depends: ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}
 Priority: optional
 Homepage: http://www.irontec.com
 Description: Ivozng simplified Asterisk AMI Connector

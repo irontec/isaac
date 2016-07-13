@@ -1,7 +1,6 @@
 AC_PREREQ([2.59])
 AC_INIT([isaac], [0.1], [kaian@irontec.com], [isaac], [http://www.irontec.com/])
 AM_INIT_AUTOMAKE([1.9])
-AM_INIT_AUTOMAKE([subdir-objects])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS([config.h])
 AC_COPYRIGHT("Irontec S.L.")
