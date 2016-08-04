@@ -192,7 +192,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
         // Check if whe have a pausetype
         sscanf(args, "%[^\n]", extraparams);
     } else if (!strcasecmp(app->name, "QueueJoin")) {
-        // Get Queue name
+        // Get extra arguments
         if (sscanf(args, "%[^\n]", extraparams) != 1) {
             return INVALID_ARGUMENTS;
         }
@@ -217,7 +217,7 @@ acd_exec(session_t *sess, app_t *app, const char *args)
             NULL };
 
     // Some logging
-    isaac_log(LOG_DEBUG, "Spawing PHP: %s\n", php_args[1]);
+    isaac_log(LOG_DEBUG, "Spawing PHP with args %s %s %s %s %s\n", php_args[1], php_args[2], php_args[3], php_args[4], php_args[5]);
 
     // Open the requested file, load I/O file descriptors
     pid = popenRWE(&out, php_args[0], php_args);

@@ -174,6 +174,13 @@ switch ($op){
             $priority = $r['penalty'];
         }
 
+        // Check if command specifies ringinuse
+        if (isset($args[2])) {
+            $ringinuse = 1;
+        } else {
+            $ringinuse = $r['ringinuse'];
+        }
+
         // Check we have a valid priority
         if (!is_numeric($priority)) {
             fwrite(STDERR, "QUEUE${op}FAIL Priority $priority is not numeric\r\n");
@@ -181,10 +188,10 @@ switch ($op){
         }
 
         // Always Leave the queue
-        $iacd->queueJoinLeaveManual(false,  $cola, $priority, $r['ringinuse']);
+        $iacd->queueJoinLeaveManual(false,  $cola, $priority, $ringinuse);
 
         // Join/Leave Queue
-        if ($iacd->queueJoinLeaveManual(($op == "JOIN"), $cola, $priority, $r['ringinuse']) == true) {
+        if ($iacd->queueJoinLeaveManual(($op == "JOIN"), $cola, $priority, $ringinuse) == true) {
             fwrite(STDERR, "QUEUE${op}OK Successfully ${op} queue $cola\r\n");
         } else {
             fwrite(STDERR, "QUEUE${op}FAIL Unable to ${op} queue $cola\r\n");
