@@ -147,7 +147,6 @@ int broadcast_exec(session_t *sess, app_t *app, const char *args)
     while ((cur = session_iterator_next(iter))) {
         // If there is a variable, check current session has the same value
         if (strlen(variable)) {
-            isaac_log(LOG_NOTICE, "Broadcasting condition %s=%s\n", variable, value);
             const char *cur_value = session_get_variable(cur, variable);
             if (!cur_value || strcasecmp(cur_value, value))
                 continue;
