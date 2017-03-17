@@ -74,6 +74,8 @@ struct app_status_info
     bool answered;
     //! Holded flag
     bool holded;
+    //! Direct agent
+    bool agent;
 };
 
 /**
@@ -146,6 +148,12 @@ status_inject_queue_call(filter_t *filter)
 {
 
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
+
+    /**
+     * For EXTERNALCALLAGENT events we don't require to inject events in AMI
+     * Dialplan will trigger the ISAAC_AGENT_MONITOR variable logic
+     */
+    if (info->agent) return 1;
 
     /* Construct a Request message (fake VarSet).
      * This will trigger the initial Status callback and will try to search a 
@@ -282,7 +290,11 @@ status_print(filter_t *filter, ami_message_t *msg)
     // CallStatus response
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "Hangup") 
     || !isaac_strcmp(event, "IsaacTransfer")  || !isaac_strcmp(event, "MusicOnHold")) {
-        sprintf(statusevent, "EXTERNALCALLSTATUS ");
+        if (info->agent) {
+            sprintf(statusevent, "EXTERNALCALLAGENTSTATUS ");
+        } else {
+            sprintf(statusevent, "EXTERNALCALLSTATUS ");
+        }
         if (session_get_variable(sess, "STATUSWUID"))
             sprintf(statusevent + strlen(statusevent), "%s ", info->uniqueid);
         if (session_get_variable(sess, "STATUSDEBUG"))
@@ -496,8 +508,9 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     memset(queue, 0, sizeof(queue));
 
     if(sscanf(value, "%[^!]!%[^!]!%[^!]!%[^!]!%s", plat, clidnum, channel, uniqueid, queue)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Detected ISAAC_MONITOR on channel %s: %s\n",
+        isaac_log(LOG_DEBUG, "[Session %s] Detected %s on channel %s: %s\n",
             filter->sess->id,
+            message_get_header(msg, "Variable"),
             message_get_header(msg, "Channel"),
             message_get_header(msg, "Value"));
 
@@ -511,12 +524,28 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
         info->answered = false;
         info->holded = false;
 
-        filter_t *channelfilter = filter_create_async(filter->sess, status_call);
-        filter_new_condition(channelfilter, MATCH_EXACT , "Event", "Dial");
-        filter_new_condition(channelfilter, MATCH_EXACT , "SubEvent", "Begin");
-        filter_new_condition(channelfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Channel"));
-        filter_set_userdata(channelfilter, (void*) info);
-        filter_register_oneshot(channelfilter);
+        // If variable matches agent format
+        if (!strcmp(message_get_header(msg, "Variable"), "ISAAC_AGENT_MONITOR")) {
+            // Mark this as direct to agent
+            info->agent = true;
+            // Store agent channel name
+            isaac_strcpy(info->agent_channel, message_get_header(msg, "Channel"));
+
+            // Register a Filter for notifying this call
+            filter_t *callfilter = filter_create_async(filter->sess, status_print);
+            filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer");
+            filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agent_channel);
+            filter_set_userdata(callfilter, (void*) info);
+            filter_register(callfilter);
+
+        } else {
+            filter_t *channelfilter = filter_create_async(filter->sess, status_call);
+            filter_new_condition(channelfilter, MATCH_EXACT , "Event", "Dial");
+            filter_new_condition(channelfilter, MATCH_EXACT , "SubEvent", "Begin");
+            filter_new_condition(channelfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Channel"));
+            filter_set_userdata(channelfilter, (void*) info);
+            filter_register_oneshot(channelfilter);
+        }
     }
     return 0;
 }
@@ -569,10 +598,21 @@ status_exec(session_t *sess, app_t *app, const char *args)
     if (!isaac_strcmp(application_get_arg(&parsed, "WUID"), "1"))
         session_set_variable(sess, "STATUSWUID", "1");
 
-    // Check with uniqueid mode
+    // Check with queuename mode
     if (!isaac_strcmp(application_get_arg(&parsed, "WQUEUE"), "1"))
         session_set_variable(sess, "STATUSWQUEUE", "1");
 
+    // Check with agent mode
+    if (!isaac_strcmp(application_get_arg(&parsed, "WAGENT"), "1")) {
+        session_set_variable(sess, "STATUSWAGENT", "1");
+
+        // Listen to ISAAC_MONITOR in Agent channels
+        filter_t *agentfilter = filter_create_async(sess, status_incoming_uniqueid);
+        filter_new_condition(agentfilter, MATCH_EXACT , "Event", "VarSet");
+        filter_new_condition(agentfilter, MATCH_EXACT , "Variable", "ISAAC_AGENT_MONITOR");
+        filter_new_condition(agentfilter, MATCH_REGEX, "Channel", "%s", interface);
+        filter_register(agentfilter);
+    }
 
     if (session_get_variable(sess, "STATUSWUID") && session_get_variable(sess, "STATUSWQUEUE")) {
         session_write(sess, "STATUSOK Agent %s status will be printed (With UniqueID and Queue info).\r\n", agent);
