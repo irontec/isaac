@@ -320,12 +320,31 @@ filter_set_userdata(filter_t *filter, void *userdata)
     return;
     filter->data.async.app_info = userdata;
 }
+
 void *
 filter_get_userdata(filter_t *filter)
 {
     if (!filter || filter->type != FILTER_ASYNC)
         return NULL;
     return filter->data.async.app_info;
+}
+
+void *
+filter_from_userdata(session_t *sess, void *userdata)
+{
+    filter_t *filter = NULL;
+    // Sanity check
+    if (!sess) return NULL;
+
+    pthread_mutex_lock(&filters_mutex);
+    // Unregister all this connection filters
+    while ((filter = filter_from_session(sess, filter))) {
+        if (filter_get_userdata(filter) == userdata)
+            break;
+    }
+    pthread_mutex_unlock(&filters_mutex);
+
+    return filter;
 }
 
 filter_t *

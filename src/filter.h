@@ -366,6 +366,15 @@ extern void *
 filter_get_userdata(filter_t *filter);
 
 /**
+ * @brief Get next filter in session using <userdata>
+ *
+ * @param sess Session owning the filters
+ * @param userdata Pointer to the custom information
+ */
+extern void *
+filter_from_userdata(session_t *sess, void *userdata);
+
+/**
  * @brief Get the next filter for the given session
  *
  * This is a simple iterator for session filters. It can be used

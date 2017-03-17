@@ -350,9 +350,11 @@ status_print(filter_t *filter, ami_message_t *msg)
         sprintf(statusevent + strlen(statusevent), "HANGUP\r\n");
         info->answered = false;
 
-        // We dont expect more info about this filter, it's safe to unregister it here
-        filter_unregister(filter);
-
+        // Unregister all filters of current channel
+        filter = NULL;
+        while ((filter = filter_from_userdata(sess, info))) {
+            filter_unregister(filter);
+        }
     } else if (!isaac_strcmp(event, "IsaacTransfer")) {
         // Queue call has been transfered
         sprintf(statusevent + strlen(statusevent), "TRANSFERRED\r\n");
