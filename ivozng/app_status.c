@@ -163,7 +163,7 @@ status_inject_queue_call(filter_t *filter)
     memset(&usermsg, 0, sizeof(ami_message_t));
     message_add_header(&usermsg, "Event: VarSet");
     message_add_header(&usermsg, "Variable: __ISAAC_MONITOR");
-    message_add_header(&usermsg, "Value: %s!%s!%s!%s", info->plat, info->clidnum, info->channel, info->uniqueid);
+    message_add_header(&usermsg, "Value: %s!%s!%s!%s!%s", info->plat, info->clidnum, info->channel, info->uniqueid, info->queue);
     message_add_header(&usermsg, "Channel: Local/%s@agentes", info->xfer_agent);
     filter_inject_message(filter, &usermsg);
 
