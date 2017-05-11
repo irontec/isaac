@@ -444,7 +444,7 @@ status_print(filter_t *filter, ami_message_t *msg)
                 } else {
                     // Oh, transfering to someone not logged in
                     isaac_log(LOG_WARNING, "[Session %s] Ignoring transfer injection to %s. It does not have any Isaac sessions Up.\n",
-                        interface);
+                        filter->sess->id, interface);
                 }
             }
         }
