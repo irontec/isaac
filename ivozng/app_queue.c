@@ -31,6 +31,7 @@
  *
  */
 
+#include <libconfig.h>
 #include <stdlib.h>
 #include <string.h>
 #include "app.h"
@@ -39,6 +40,63 @@
 #include "filter.h"
 #include "util.h"
 #include "log.h"
+
+
+#define QUEUECONF CONFDIR "/queue.conf"
+
+/**
+ * @brief Module configuration readed from QUEUECONF file
+ *
+ * @see read_queue_config
+ */
+struct app_queue_config
+{
+    //! Max timeout in milliseconds QUEUEINFO will wait
+    int queueinfo_timeout;
+} queue_config;
+
+
+/**
+ * @brief Read module configure options
+ *
+ * This function will read QUEUECONF file and fill app_quque_conf
+ * structure.
+ *
+ * @param cfile Full path to configuration file
+ * @return 0 in case of read success, -1 otherwise
+ */
+int
+read_queue_config(const char *cfile)
+{
+    config_t cfg;
+    long int intvalue;
+
+    // Initialize configuration
+    config_init(&cfg);
+
+    // Set default values
+    queue_config.queueinfo_timeout = 10000;
+
+    // Read configuraiton file
+    if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
+        isaac_log(LOG_WARNING, "Error parsing configuration file %s on line %d: %s\n", cfile,
+                config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return -1;
+    }
+
+    // Max time queueinfo will wait
+    if (config_lookup_int(&cfg, "queueinfo.timeoutms", &intvalue) == CONFIG_TRUE) {
+        queue_config.queueinfo_timeout = intvalue;
+    }
+
+    // Dealloc libconfig structure
+    config_destroy(&cfg);
+
+    isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
+    return 0;
+}
+
 
 /**
  * @brief Show all queues for current session
@@ -153,7 +211,7 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
 
     // Get the response!
     ami_message_t retmsg;
-    if (filter_run(namefilter, 10000, &retmsg) != 0) {
+    if (filter_run(namefilter, queue_config.queueinfo_timeout, &retmsg) != 0) {
         // No response Boo!
         session_write(sess, "QUEUEINFOFAIL Unable to get queuedata of %s\r\n", queuename);
         return 0;
@@ -285,6 +343,11 @@ int
 load_module()
 {
     int ret = 0;
+
+    if (read_queue_config(QUEUECONF) != 0) {
+        isaac_log(LOG_WARNING, "Failed to read app_queue config file %s. Using defaults.\n", QUEUECONF);
+    }
+
     ret |= application_register("QueueInfo", queueinfo_exec);
     ret |= application_register("QueueShow", queueshow_exec);
     return ret;
