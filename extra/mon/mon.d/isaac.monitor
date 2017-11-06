@@ -1,22 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-
 """
 Isaac monitor script for Mon. It does the following checks:
     * Check if Isaac process exists
     * Check if we can connect to 6238 TCP port 
     * Check if we get a response for a PING request
 """
-
-# Script Imports
-import sys
-import os
 import commands
-import socket
 import pyodbc
+import socket
+import sys
 import syslog
-import ConfigParser as cfgparser
 
 isaac_bind_addr = "127.0.0.1"
 isaac_bind_port = 6238
@@ -39,68 +34,97 @@ def log(severity, msg):
 "  main() - Do isaac checks
 "
 *************************************************************************"""
-def main():
-    ## Check if Isaac process is running
-    try:
-        ast_pid = commands.getoutput("pgrep -x isaac")            # Match isaac exactly
-    except os.error:
-        log(syslog.LOG_ERR, "[MON] Isaac process not found")
-        ast_pid = ''            
-    except:
-        log(syslog.LOG_ERR, "[MON] Uncaught exception checking  proccess %s" % sys.exc_info()[0])
-    
-    if ast_pid == '':
-        log(syslog.LOG_ERR, "[MON] Isaac process is not running")
-        sys.exit(1)
-    
 
-    ## Check if Isaac can handle PING request
-    try:
-        # Default command to test
-        command = "PING"
+def getPid():
+    (status, output) = commands.getstatusoutput("pgrep -x isaac")  # Match isaac exactly
+    if status == 0:
+        if output == '':
+            return False
+        else:
+            return output
+    else:
+        log(syslog.LOG_WARNING, "[MON] Uncaught exception checking process (%s - %s)" % (status, output))
+        return False
 
+def getAgent():
+    # Connect to database
+    cnxn = pyodbc.connect('DSN=asterisk')
+    cursor = cnxn.cursor()
+
+    # Get the first agent with 1234 password
+    cursor.execute(
+        "SELECT login_num from karma_usuarios as k INNER JOIN shared_agents_interfaces as s ON k.login_num = s.agent WHERE pass = encrypt('1234', SUBSTRING_INDEX(pass, '$', 3)) LIMIT 1");
+    row = cursor.fetchone()
+    cnxn.commit()
+
+    # If we found a valid agent, use login command
+    if row:
+        return row.login_num
+    else:
+        return False
+
+def executeCommand(command):
+    log(syslog.LOG_INFO, "[MON] Execute command: '%s'" % (command))
+
+    command_ok = True
+
+    try:
         # Connect to Isaac
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((isaac_bind_addr, isaac_bind_port ))
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.connect((isaac_bind_addr, isaac_bind_port))
         sock.settimeout(20)
 
-        # Connect to database
-        cnxn = pyodbc.connect('DSN=asterisk')
-        cursor = cnxn.cursor()
 
-        # Get the first agent with 1234 password
-        cursor.execute("SELECT login_num from karma_usuarios as k INNER JOIN shared_agents_interfaces as s ON k.login_num = s.agent WHERE pass = encrypt('1234', SUBSTRING_INDEX(pass, '$', 3)) LIMIT 1");
-        row = cursor.fetchone()
-        cnxn.commit()
-
-        # If we found a valid agent, use login command
-        if row:
-            command = "LOGIN %s 1234" % row.login_num
-
-        # Receive the welcome banner 
+        # Receive the welcome banner
         sock.recv(256)
         # Send OPTIONS message
-        sock.send(command+"\n")
+        sock.send(command + "\n")
         # Expect response (An error probably)
         sock.recv(256)
 
-        # If no expcetion has been found by now, we assume everything
+        # If no exception has been found by now, we assume everything
         # is fine, so, close socket and leave
-    except socket.error:
-        log(syslog.LOG_ERR, "[MON] Couldn't connect to Isaac port")
-        sys.exit(1)
-    except socket.timeout, msg:
-        log(syslog.LOG_ERR, "[MON] Timeout to our PING request")
-        sys.exit(1)
+    except socket.timeout as e:
+        log(syslog.LOG_ERR, "[MON] Socket timeout after 20 seconds (%s)" % e)
+        command_ok = False
+    except socket.error as e:
+        log(syslog.LOG_ERR, "[MON] Couldn't connect to Isaac port (%s)" % e)
+        command_ok = False
     except:
         log(syslog.LOG_ERR, "[MON] Uncaught exception sending %s request: %s" % (command, sys.exc_info()[0]))
-        sys.exit(1)
+        command_ok = False
+    else:
+        log(syslog.LOG_INFO, "[MON] Command '%s' success" % (command))
     finally:
         sock.close()
 
+    return command_ok
+
+def main():
+    pid = getPid()
+    if pid:
+        log(syslog.LOG_INFO, "[MON] isaac running (PID: %s)" % (pid))
+    else:
+        log(syslog.LOG_ERR, "[MON] Isaac process is not running")
+        sys.exit(1)
+
+    ## Check if Isaac can handle LOGIN/PING request
+    agent = getAgent()
+    if agent:
+        isaac_ok = executeCommand("LOGIN %s 1234" % agent)
+        executeCommand("PING")
+    else:
+        isaac_ok = executeCommand("PING")
+        log(syslog.LOG_WARNING, "[MON] LOGIN not checked as no agent found")
+
+
     # Just tell everyone you've been working
-    log(syslog.LOG_NOTICE, "[MON] All core checks done.")
-    sys.exit(0)
+    if isaac_ok:
+        log(syslog.LOG_NOTICE, "[MON] All core checks done.")
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 """*************************************************************************
 " init_point - wrapper for main() function
@@ -108,6 +132,4 @@ def main():
 *************************************************************************"""
 if __name__ == "__main__":
     main()
-
-
 
