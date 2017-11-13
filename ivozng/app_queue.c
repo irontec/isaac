@@ -53,6 +53,8 @@ struct app_queue_config
 {
     //! Max timeout in milliseconds QUEUEINFO will wait
     int queueinfo_timeout;
+    //! Validate queue names in QUEUEINFO command
+    int queueinfo_validate;
 } queue_config;
 
 
@@ -76,6 +78,7 @@ read_queue_config(const char *cfile)
 
     // Set default values
     queue_config.queueinfo_timeout = 10000;
+    queue_config.queueinfo_validate = 1;
 
     // Read configuraiton file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
@@ -88,6 +91,11 @@ read_queue_config(const char *cfile)
     // Max time queueinfo will wait
     if (config_lookup_int(&cfg, "queueinfo.timeoutms", &intvalue) == CONFIG_TRUE) {
         queue_config.queueinfo_timeout = intvalue;
+    }
+
+    // Validate queueinfo queue names
+    if (config_lookup_int(&cfg, "queueinfo.validate", &intvalue) == CONFIG_TRUE) {
+        queue_config.queueinfo_validate = intvalue;
     }
 
     // Dealloc libconfig structure
@@ -166,6 +174,9 @@ queueinfo_print(filter_t *filter, ami_message_t *msg)
 int
 queueinfo_exec(session_t *sess, app_t *app, const char *args)
 {
+    // Return message
+    ami_message_t retmsg;
+
     // Store variable name to flag a queue being watched
     char queuevar[256];
     char queuename[256];
@@ -195,26 +206,27 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
         return 0;
     }
 
-    // Check we have a valid quene name
-    filter_t *namefilter = filter_create_sync(sess);
-    filter_new_condition(namefilter, MATCH_EXACT , "Event", "QueueParams");
-    filter_new_condition(namefilter, MATCH_EXACT , "ActionID", sess->id);
-    filter_new_condition(namefilter, MATCH_EXACT , "Queue", queuename);
-    filter_register(namefilter);
+    // Check if queue name needs to be validated
+    if (queue_config.queueinfo_validate) {
+        // Check we have a valid quene name
+        filter_t *namefilter = filter_create_sync(sess);
+        filter_new_condition(namefilter, MATCH_EXACT , "Event", "QueueParams");
+        filter_new_condition(namefilter, MATCH_EXACT , "ActionID", sess->id);
+        filter_new_condition(namefilter, MATCH_EXACT , "Queue", queuename);
+        filter_register(namefilter);
 
-    // Construct a Request message
-    ami_message_t msg;
-    memset(&msg, 0, sizeof(ami_message_t));
-    message_add_header(&msg, "Action: QueueStatus");
-    message_add_header(&msg, "ActionID: %s", sess->id);
-    manager_write_message(manager, &msg);
+        // Construct a Request message
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: QueueStatus");
+        message_add_header(&msg, "ActionID: %s", sess->id);
+        manager_write_message(manager, &msg);
 
-    // Get the response!
-    ami_message_t retmsg;
-    if (filter_run(namefilter, queue_config.queueinfo_timeout, &retmsg) != 0) {
-        // No response Boo!
-        session_write(sess, "QUEUEINFOFAIL Unable to get queuedata of %s\r\n", queuename);
-        return 0;
+        if (filter_run(namefilter, queue_config.queueinfo_timeout, &retmsg) != 0) {
+            // No response Boo!
+            session_write(sess, "QUEUEINFOFAIL Unable to get queuedata of %s\r\n", queuename);
+            return 0;
+        }
     }
 
     // Check we havent run this application before
