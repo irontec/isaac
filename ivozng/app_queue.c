@@ -248,9 +248,12 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     // Check with uniqueid mode
     session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queuename);
 
-    // Printi intial queue status
-    session_write(sess, "QUEUEINFO %s %s\r\n", queuename,  message_get_header(&retmsg, "Calls"));
-
+    // If queue has been validated
+    if (queue_config.queueinfo_validate) {
+        // Printi intial queue status
+        session_write(sess, "QUEUEINFO %s %s\r\n", queuename,  message_get_header(&retmsg, "Calls"));
+    }
+    
     return 0;
 }
 
