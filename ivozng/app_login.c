@@ -32,6 +32,7 @@
  * ** database and tables directly from odbc driver                      **
  * ************************************************************************
  */
+#include "config.h"
 #include <stdlib.h>
 #include "app.h"
 #include "filter.h"
@@ -47,6 +48,7 @@
 static SQLHENV env;
 static SQLHDBC dbc;
 pthread_t odbc_thread;
+pthread_mutex_t odbc_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 int running;
 
 /**
@@ -62,10 +64,12 @@ odbc_test()
     int res = 0;
     SQLHSTMT stmt;
     // Execute simple statement to test if 'conn' is still OK
+    pthread_mutex_lock(&odbc_lock);
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     SQLExecDirect(stmt, (SQLCHAR*)"SELECT 1;", SQL_NTS);
     res = SQL_SUCCEEDED(SQLFetch(stmt));
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    pthread_mutex_unlock(&odbc_lock);
     return res; 
 }
 
@@ -83,6 +87,7 @@ odbc_connect()
     
     // Dont connect if we're already connected
     if (odbc_test()) { return 1; }
+    pthread_mutex_lock(&odbc_lock);
     // Allocate an environment handle
     SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
     // We want ODBC 3 support */
@@ -93,6 +98,7 @@ odbc_connect()
     // You will need to change mydsn to one you have created and tested */
     SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
             SQL_DRIVER_COMPLETE);
+    pthread_mutex_unlock(&odbc_lock);
     
     // Check the connection is working
     if(odbc_test()) {
@@ -112,11 +118,12 @@ odbc_connect()
 int
 odbc_disconnect()
 {
-
     // Disconnect ODBC driver and cleanup
+    pthread_mutex_lock(&odbc_lock);
     SQLDisconnect(dbc);
     SQLFreeHandle(SQL_HANDLE_DBC, dbc);
     SQLFreeHandle(SQL_HANDLE_ENV, env);
+    pthread_mutex_unlock(&odbc_lock);
     return 1;   
 }
 
@@ -225,8 +232,8 @@ login_exec(session_t *sess, app_t *app, const char *args)
     if (sscanf(args, "%d %s", &login_num, pass) != 2) {
         return INVALID_ARGUMENTS;
     }
-
     // Allocate a statement handle
+    pthread_mutex_lock(&odbc_lock);
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     if (!strcasecmp(pass, "MASTER")) {
         // Prepare login query
@@ -311,6 +318,7 @@ login_exec(session_t *sess, app_t *app, const char *args)
     }
 
    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+   pthread_mutex_unlock(&odbc_lock);
    return ret;
 }
 
