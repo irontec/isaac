@@ -51,7 +51,7 @@ load_modules()
     DIR *moddir;
     struct dirent *l;
     char *ext; // File extension (incling dot)
-    char lfullfile[256];
+    char lfullfile[512];
     module_t *module;
     int modcnt = 0, i;
 

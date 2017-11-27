@@ -180,6 +180,10 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     // Store variable name to flag a queue being watched
     char queuevar[256];
     char queuename[256];
+    char options[246];
+
+    // Validate queue name
+    int validate;
 
     // Check we are logged in.
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -187,7 +191,7 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Get queuename to monitor
-    if (sscanf(args, "%s", queuename) != 1) {
+    if (sscanf(args, "%s  %[^\n]", queuename, options) < 1) {
         // Send the initial banner
         session_set_variable(sess, "QUEUEINFO_RESPONSE", "QUEUEINFOOK");
 
@@ -206,8 +210,21 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
         return 0;
     }
 
+    // Check command options
+    app_args_t parsed;
+    application_parse_args(options, &parsed);
+
+    // Command requested validation
+    if (!isaac_strcmp(application_get_arg(&parsed, "VALIDATE"), "1")) {
+        validate = 1;
+    } else if (!isaac_strcmp(application_get_arg(&parsed, "VALIDATE"), "0")) {
+        validate = 0;
+    } else {
+        validate = queue_config.queueinfo_validate;
+    }
+
     // Check if queue name needs to be validated
-    if (queue_config.queueinfo_validate) {
+    if (validate) {
         // Check we have a valid quene name
         filter_t *namefilter = filter_create_sync(sess);
         filter_new_condition(namefilter, MATCH_EXACT , "Event", "QueueParams");
@@ -249,7 +266,7 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queuename);
 
     // If queue has been validated
-    if (queue_config.queueinfo_validate) {
+    if (validate) {
         // Printi intial queue status
         session_write(sess, "QUEUEINFO %s %s\r\n", queuename,  message_get_header(&retmsg, "Calls"));
     }

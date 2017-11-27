@@ -469,7 +469,7 @@ cli_complete_number(const char *partial, unsigned int min, unsigned int max, int
     int i, count = 0;
     unsigned int prospective[2];
     unsigned int part = strtoul(partial, NULL, 10);
-    char next[12];
+    char next[15];
 
     if (part < min || part > max) {
         return NULL;
