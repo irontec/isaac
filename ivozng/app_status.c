@@ -523,6 +523,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
         isaac_strcpy(info->queue, queue);
         info->answered = false;
         info->holded = false;
+        info->agent = false;
 
         // If variable matches agent format
         if (!strcmp(message_get_header(msg, "Variable"), "ISAAC_AGENT_MONITOR")) {
