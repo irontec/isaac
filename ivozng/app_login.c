@@ -33,6 +33,7 @@
  * ************************************************************************
  */
 #include "config.h"
+#include <libconfig.h>
 #include <stdlib.h>
 #include "app.h"
 #include "filter.h"
@@ -44,12 +45,75 @@
 #include <pthread.h>
 #include <errno.h>
 
+#define LOGINCONF CONFDIR "/login.conf"
+
+
 // Share the connection between all threads. This seems to be thread-safe
 static SQLHENV env;
 static SQLHDBC dbc;
 pthread_t odbc_thread;
 pthread_mutex_t odbc_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 int running;
+
+/**
+ * @brief Module configuration readed from LOGINCONF file
+ *
+ * @see read_login_config
+ */
+struct app_login_config
+{
+    //! Registered flag. 1 = Check Device is registered on login, 0 = don't check
+    int validate_registered;
+    //! Unregistered flag. 1 = Logout on Unregister event, 0 = ignore Unregister event
+    int check_unregistered;
+} login_config;
+
+
+/**
+ * @brief Read module configure options
+ *
+ * This function will read LOGINCONF file and fill app_login_conf
+ * structure. Most of these values are using during login action process
+ * @see login_exec
+ *
+ * @param cfile Full path to configuration file
+ * @return 0 in case of read success, -1 otherwise
+ */
+int
+read_login_config(const char *cfile)
+{
+    config_t cfg;
+    const char *value;
+    long int intvalue;
+
+    // Initialize configuration
+    config_init(&cfg);
+
+    // Read configuraiton file
+    if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
+        isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
+                  config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return -1;
+    }
+
+    // Register variable (0,1) for enforcing registered status on login
+    if (config_lookup_int(&cfg, "login.register", &intvalue) == CONFIG_TRUE) {
+        login_config.validate_registered = intvalue;
+    }
+
+    // Unregister variable (0,1) for checking Unregister event
+    if (config_lookup_int(&cfg, "logout.unregister", &intvalue) == CONFIG_TRUE) {
+        login_config.check_unregistered = intvalue;
+    }
+
+    // Dealloc libconfig structure
+    config_destroy(&cfg);
+
+    isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
+    return 0;
+}
+
 
 /**
  * @brief Test if odbc connection is Up
@@ -280,18 +344,15 @@ login_exec(session_t *sess, app_t *app, const char *args)
             session_set_variable(sess, "ROL", "USUARIO");
         }
 
-        // Check if device is registerd
-        filter_t *peerfilter = filter_create_async(sess, peer_status_check);
-        filter_new_condition(peerfilter, MATCH_EXACT , "ActionID", interface+4);
-        filter_register_oneshot(peerfilter);
-
         // Also check for status changes
         // Check if device is registerd
-        filter_t *peerstatusfilter = filter_create_async(sess, peer_status_check);
-        filter_new_condition(peerstatusfilter, MATCH_EXACT , "Event", "PeerStatus");
-        filter_new_condition(peerstatusfilter, MATCH_EXACT , "Peer", interface);
-        filter_new_condition(peerstatusfilter, MATCH_EXACT , "PeerStatus", "Unregistered");
-        filter_register(peerstatusfilter);
+        if (login_config.check_unregistered) {
+            filter_t *peerstatusfilter = filter_create_async(sess, peer_status_check);
+            filter_new_condition(peerstatusfilter, MATCH_EXACT , "Event", "PeerStatus");
+            filter_new_condition(peerstatusfilter, MATCH_EXACT , "Peer", interface);
+            filter_new_condition(peerstatusfilter, MATCH_EXACT , "PeerStatus", "Unregistered");
+            filter_register(peerstatusfilter);
+        }
 
         filter_t *agentstatus = filter_create_async(sess, peer_status_check);
         filter_new_condition(agentstatus, MATCH_EXACT , "Event", "ExtensionStatus");
@@ -299,13 +360,22 @@ login_exec(session_t *sess, app_t *app, const char *args)
         filter_new_condition(agentstatus, MATCH_EXACT , "Status", "1");
         filter_register(agentstatus);
 
-        // Request Peer status right now
-        ami_message_t peermsg;
-        memset(&peermsg, 0, sizeof(ami_message_t));
-        message_add_header(&peermsg, "Action: SIPshowpeer");
-        message_add_header(&peermsg, "Peer: %s", interface+4);
-        message_add_header(&peermsg, "ActionID: %s", interface+4);
-        manager_write_message(manager, &peermsg);
+        if (login_config.validate_registered) {
+            // Check if device is registerd
+            filter_t *peerfilter = filter_create_async(sess, peer_status_check);
+            filter_new_condition(peerfilter, MATCH_EXACT , "ActionID", interface+4);
+            filter_register_oneshot(peerfilter);
+
+            // Request Peer status right now
+            ami_message_t peermsg;
+            memset(&peermsg, 0, sizeof(ami_message_t));
+            message_add_header(&peermsg, "Action: SIPshowpeer");
+            message_add_header(&peermsg, "Peer: %s", interface+4);
+            message_add_header(&peermsg, "ActionID: %s", interface+4);
+            manager_write_message(manager, &peermsg);
+        } else {
+            session_write(sess, "LOGINOK Welcome back %s SIP/%s\r\n", agent, interface+4);
+        }
 
         ret = 0;
     } else {
@@ -494,6 +564,10 @@ int
 load_module()
 {
     int res = 0;
+    if (read_login_config(LOGINCONF) != 0) {
+        isaac_log(LOG_ERROR, "Failed to read app_login config file %s\n", LOGINCONF);
+        return -1;
+    }
 
     // Mark ourself as running
     running = 1;
