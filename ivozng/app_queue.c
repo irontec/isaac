@@ -51,8 +51,6 @@
  */
 struct app_queue_config
 {
-    //! Max timeout in milliseconds QUEUEINFO will wait
-    int queueinfo_timeout;
     //! Validate queue names in QUEUEINFO command
     int queueinfo_validate;
     //! Max timeout in milliseconds QUEUEAGENTS will wait
@@ -81,7 +79,6 @@ read_queue_config(const char *cfile)
     config_init(&cfg);
 
     // Set default values
-    queue_config.queueinfo_timeout = 5000;
     queue_config.queueinfo_validate = 1;
     queue_config.queueagents_timeout = 5000;
     queue_config.queueagents_validate = 1;
@@ -92,11 +89,6 @@ read_queue_config(const char *cfile)
                 config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         return -1;
-    }
-
-    // Max time queueinfo will wait
-    if (config_lookup_int(&cfg, "queueinfo.timeoutms", &intvalue) == CONFIG_TRUE) {
-        queue_config.queueinfo_timeout = intvalue;
     }
 
     // Validate queueinfo queue names
@@ -196,6 +188,51 @@ queueagents_print(filter_t *filter, ami_message_t *msg)
     return 0;
 }
 
+
+/**
+ * @brief Validate queue name and print queued calls
+ *
+ * This callback is used when VALIDATE options is passed to QUEUEINFO command
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
+int
+queueinfo_validate_queue(filter_t *filter, ami_message_t *msg)
+{
+    char queuevar[512];
+    session_t *sess = filter->sess;
+    const char *event = message_get_header(msg, "Event");
+    char *queuename = filter_get_userdata(filter);
+
+    sprintf(queuevar, "QUEUEINFO_%s_VALIDATED", queuename);
+
+    if (!strcasecmp(event, "QueueParams")) {
+        // Queue exists and it is valid, print OK message
+        session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queuename);
+        // Print queued calls
+        session_write(sess, "QUEUEINFO %s %s\r\n", queuename,  message_get_header(msg, "Calls"));
+        // Mark this queue as validated
+        session_set_variable(sess, queuevar, "1");
+
+        // Register a Filter to get All generated channels for
+        filter_t *queuefilter = filter_create_async(sess, queueinfo_print);
+        filter_new_condition(queuefilter, MATCH_REGEX , "Event", "Join|Leave");
+        filter_new_condition(queuefilter, MATCH_EXACT , "Queue", queuename);
+        filter_register(queuefilter);
+
+    } else if (!strcasecmp(event, "QueueStatusComplete")) {
+        // Check if we have already validated this queue (we have received QueueParams before QueueStatusComplete)
+        if (!session_get_variable(sess, queuevar)) {
+            session_write(sess, "QUEUEINFOFAIL Unable to get queuedata of %s\r\n", queuename);
+        }
+        filter_unregister(filter);
+    }
+
+    return 0;
+}
+
 /**
  * @brief Request Queue information
  *
@@ -211,11 +248,8 @@ queueagents_print(filter_t *filter, ami_message_t *msg)
 int
 queueinfo_exec(session_t *sess, app_t *app, const char *args)
 {
-    // Return message
-    ami_message_t retmsg;
-
     // Store variable name to flag a queue being watched
-    char queuevar[256];
+    char queuevar[512];
     char queuename[256];
     char options[246];
 
@@ -247,6 +281,16 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
         return 0;
     }
 
+    // Check we havent run this application before
+    sprintf(queuevar, "QUEUEINFO_%s", queuename);
+    if (session_get_variable(sess, queuevar)) {
+        session_write(sess, "QUEUEINFOOK Already showing info for queue %s\r\n", queuename);
+        return 0;
+    } else {
+        // Store we're monitoring this queue
+        session_set_variable(sess, queuevar, queuename);
+    }
+
     // Check command options
     app_args_t parsed;
     application_parse_args(options, &parsed);
@@ -263,51 +307,30 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
     // Check if queue name needs to be validated
     if (validate) {
         // Check we have a valid quene name
-        filter_t *namefilter = filter_create_sync(sess);
-        filter_new_condition(namefilter, MATCH_EXACT , "Event", "QueueParams");
-        filter_new_condition(namefilter, MATCH_EXACT , "ActionID", sess->id);
-        filter_new_condition(namefilter, MATCH_EXACT , "Queue", queuename);
-        filter_register(namefilter);
+        filter_t *queuevalidatefilter = filter_create_async(sess, queueinfo_validate_queue);
+        filter_new_condition(queuevalidatefilter, MATCH_REGEX , "Event", "QueueParams|QueueStatusComplete");
+        filter_new_condition(queuevalidatefilter, MATCH_EXACT , "ActionID", "QueueValidate%s%s", queuename, sess->id);
+        filter_set_userdata(queuevalidatefilter, strdup(queuename));
+        filter_register(queuevalidatefilter);
 
         // Construct a Request message
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: QueueStatus");
-        message_add_header(&msg, "ActionID: %s", sess->id);
+        message_add_header(&msg, "Queue: %s", queuename);
+        message_add_header(&msg, "ActionID: QueueValidate%s%s", queuename, sess->id);
         manager_write_message(manager, &msg);
-
-        if (filter_run(namefilter, queue_config.queueinfo_timeout, &retmsg) != 0) {
-            // No response Boo!
-            session_write(sess, "QUEUEINFOFAIL Unable to get queuedata of %s\r\n", queuename);
-            return 0;
-        }
-    }
-
-    // Check we havent run this application before
-    sprintf(queuevar, "QUEUEINFO_%s", queuename); 
-    if (session_get_variable(sess, queuevar)) {
-        session_write(sess, "QUEUEINFOOK Already showing info for queue %s\r\n", queuename);
-        return 0;
     } else {
-        // Store we're monitoring this queue
-        session_set_variable(sess, queuevar, queuename);
+        // Not validated queue, just print OK response
+        session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queuename);
+
+        // Register a Filter to get All generated channels for
+        filter_t *queuefilter = filter_create_async(sess, queueinfo_print);
+        filter_new_condition(queuefilter, MATCH_REGEX , "Event", "Join|Leave");
+        filter_new_condition(queuefilter, MATCH_EXACT , "Queue", queuename);
+        filter_register(queuefilter);
     }
 
-    // Register a Filter to get All generated channels for
-    filter_t *queuefilter = filter_create_async(sess, queueinfo_print);
-    filter_new_condition(queuefilter, MATCH_REGEX , "Event", "Join|Leave");
-    filter_new_condition(queuefilter, MATCH_EXACT , "Queue", queuename);
-    filter_register(queuefilter);
-
-    // Check with uniqueid mode
-    session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queuename);
-
-    // If queue has been validated
-    if (validate) {
-        // Printi intial queue status
-        session_write(sess, "QUEUEINFO %s %s\r\n", queuename,  message_get_header(&retmsg, "Calls"));
-    }
-    
     return 0;
 }
 
