@@ -52,8 +52,8 @@ struct isaac_cfg
 {
     char manaddr[18];
     int manport;
-    char manuser[20];
-    char manpass[20];
+    char manuser[128];
+    char manpass[128];
     char listenaddr[18];
     int listenport;
     int hidelocal;
