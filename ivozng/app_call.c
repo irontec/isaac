@@ -396,7 +396,7 @@ int
 call_exec(session_t *sess, app_t *app, const char *args)
 {
     char actionid[ACTIONID_LEN];
-    char exten[20], options[80];
+    char exten[128], options[80];
 
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
