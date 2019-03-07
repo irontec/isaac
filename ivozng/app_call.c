@@ -468,6 +468,12 @@ call_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Variable: ISAAC_CALL_TIMEOUT=%s", 
             application_get_arg(&parsed, "TIMEOUT"));
 
+    // Originate absolute TIMEOUT (default 30s)
+    if (application_get_arg(&parsed, "ABSOLUTE_TIMEOUT"))
+        message_add_header(&msg, "Timeout: %s", 
+            application_get_arg(&parsed, "ABSOLUTE_TIMEOUT"));
+
+
     // Send this message to ami
     manager_write_message(manager, &msg);
 
