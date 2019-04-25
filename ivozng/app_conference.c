@@ -29,10 +29,11 @@
  *
  * This is a basic module of Isaac that implements some actios for placing
  * calls into asterisk.\n To make this module work, it must configured using
- * CALLCONF file (usually /etc/isaac/call.conf) and defining the desired contexts
- * in asterisk.
+ * CONFERENCECONF file (usually /etc/isaac/conference.conf) and defining the
+ * desired contexts in asterisk.
  *
  */
+#include "config.h"
 #include <ctype.h>
 #include <time.h>
 #include <libconfig.h>
@@ -49,17 +50,32 @@
 /**
  * @brief Module configuration read from CONFERENCECONF file
  *
- * @see read_call_config
+ * @see read_conference_config
  */
 struct app_conference_config
 {
-    //! Context to originate the first leg during CONFERENCE action
-    char incontext[80];
-    //! Context to originate the second leg during CONFERENCE action
-    char outcontext[80];
+    //! Context to originate the first host leg during CONFERENCE action
+    char host_incontext[80];
+    //! Context to originate the second host leg during CONFERENCE action
+    char host_outcontext[80];
+    //! Context to originate the first guest leg during CONFERENCE action
+    char guest_incontext[80];
+    //! Context to originate the second guest leg during CONFERENCE action
+    char guest_outcontext[80];
+
     //! Autoanswer flag. Does not work in all terminals.
     int autoanswer;
 } conference_config;
+
+struct app_conference_guest
+{
+    //! Guest Channel extension
+    char extension[20];
+    //! Guest Channel UniqueID
+    char uid[50];
+    //! Guest action id
+    char actionid[128];
+};
 
 /**
  * @brief Common structure for Call filters
@@ -71,15 +87,16 @@ struct app_conference_info
 {
     //! Unique ID supplied during CONFERENCE action
     const char *actionid;
+    //! Conference ID for meetme
+    const char *conference_id;
     //! List of extensions to invite to conference
-    const char **extensions;
+    struct app_conference_guest guests[20];
     //! Numbers of extensions to invite
-    int extensioncnt;
+    int guestcnt;
     //! Flag for creating a broadcast conference
-    bool broadcast;
-
-    //! Filter for waiting conference events
-    filter_t *conference_filter;
+    int mute;
+    //! Host Channel UniqueID
+    char host_uid[50];
 };
 
 /**
@@ -105,18 +122,27 @@ read_conference_config(const char *cfile)
     // Read configuration file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
         isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
-                config_error_line(&cfg), config_error_text(&cfg));
+                  config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         return -1;
     }
 
     // Incoming context for first call leg in Originate @see call_exec
-    if (config_lookup_string(&cfg, "originate.incontext", &value) == CONFIG_TRUE) {
-        strcpy(conference_config.incontext, value);
+    if (config_lookup_string(&cfg, "originate.host_incontext", &value) == CONFIG_TRUE) {
+        strcpy(conference_config.host_incontext, value);
     }
     // Outgoing context for second call leg in Originate @see call_exec
-    if (config_lookup_string(&cfg, "originate.outcontext", &value) == CONFIG_TRUE) {
-        strcpy(conference_config.outcontext, value);
+    if (config_lookup_string(&cfg, "originate.host_outcontext", &value) == CONFIG_TRUE) {
+        strcpy(conference_config.host_outcontext, value);
+    }
+
+    // Incoming context for first call leg in Originate @see call_exec
+    if (config_lookup_string(&cfg, "originate.guest_incontext", &value) == CONFIG_TRUE) {
+        strcpy(conference_config.guest_incontext, value);
+    }
+    // Outgoing context for second call leg in Originate @see call_exec
+    if (config_lookup_string(&cfg, "originate.guest_outcontext", &value) == CONFIG_TRUE) {
+        strcpy(conference_config.guest_outcontext, value);
     }
 
     // Autoanwer variable (0,1) for incontext dialplan process
@@ -132,48 +158,215 @@ read_conference_config(const char *cfile)
 }
 
 /**
- * @brief Get Conference Info structure of a given id
- *
- * Loop through all session filters searching for a conference info
- * structure with the given id.
+ * @brief Get Conference Guest Info structure of a given actionid
  *
  * @param sess Session Structure
- * @param id ID supplied in CALL action
- * @return Conference info structure pointer
+ * @param actionid ID generated from conference actionid for a given guest
+ * @return Conference guest info structure pointer
  */
-struct app_conference_info *
-get_conference_info_from_id(session_t *sess, const char *id)
+static struct app_conference_guest *
+conference_guest_from_actionid(struct app_conference_info *info, const char *actionid)
 {
-    filter_t *filter = NULL;
-    struct app_conference_info *info = NULL;
-    // Get session filter and search the one with that id
-    while ((filter = filter_from_session(sess, filter))) {
-        info = (struct app_conference_info *) filter_get_userdata(filter);
-        // We found the requested action!
-        if (info && !strcasecmp(id, info->actionid)) {
-            return info;
+    int i;
+    for (i = 0; i < info->guestcnt; i++) {
+        if (strcmp(info->guests[i].actionid, actionid) == 0) {
+            return &info->guests[i];
         }
     }
+
     return NULL;
 }
 
 /**
- * @brief Writes to session CONFERENCESTATUS messages
+ * @brief Get Conference Guest Info structure of a given unique id
  *
- * This function sends the CONFERENCESTATUS to a session when some filter
- * events triggers.
+ * @param sess Session Structure
+ * @param uid Asterisk UniqueID for guest call
+ * @return Conference guest info structure pointer
+ */
+static struct app_conference_guest *
+conference_guest_rom_uid(struct app_conference_info *info, const char *uid)
+{
+    int i;
+    for (i = 0; i < info->guestcnt; i++) {
+        if (strcmp(info->guests[i].uid, uid) == 0) {
+            return &info->guests[i];
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * Print conference Guest status changes
  *
- * This function will be callbacked when one of this happens:
- *  - A channel sets ACTIONID variable: This gave us leg1 channel
- *  - This channel begins a Meetme application
+ * @param filter Triggering filter structure
+ * @param msg AMI message that matched the filter conditions
+ * @return 0 in all cases
+ */
+static int
+conference_guest_state(filter_t *filter, ami_message_t *msg)
+{
+    // Get conference information (stored in filter)
+    struct app_conference_info *info = (struct app_conference_info *) filter_get_userdata(filter);
+
+    // Get Guest information from message UniqueID
+    struct app_conference_guest *guest = conference_guest_rom_uid(info, message_get_header(msg, "UniqueID"));
+
+    // Get message event
+    const char *event = message_get_header(msg, "Event");
+
+    if (!strcasecmp(event, "VarSet")) {
+        const char *varname = message_get_header(msg, "Variable");
+
+        // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
+        if (!strcasecmp(varname, "ACTIONID")) {
+
+            struct app_conference_guest *guest = conference_guest_from_actionid(info, message_get_header(msg, "Value"));
+
+            // Get the UniqueId from the agent channel
+            isaac_strcpy(guest->uid, message_get_header(msg, "UniqueID"));
+
+            // Register a Filter for the agent status the custom manager application PlayDTMF.
+            filter_t *guest_filter = filter_create_async(filter->sess, conference_guest_state);
+            filter_new_condition(guest_filter, MATCH_REGEX, "Event", "Hangup|MeetmeJoin|MeetmeLeave");
+            filter_new_condition(guest_filter, MATCH_REGEX, "UniqueID", guest->uid);
+            filter_set_userdata(guest_filter, (void *) info);
+            filter_register(guest_filter);
+
+            session_write(filter->sess,
+                          "CONFERENCESTATUS %s %s STARTING\n",
+                          info->actionid,
+                          guest->extension
+            );
+        }
+    } else if (!strcasecmp(event, "Hangup")) {
+        session_write(filter->sess,
+                      "CONFERENCESTATUS %s %s ERROR %s\n",
+                      info->actionid,
+                      guest->extension,
+                      message_get_header(msg, "Cause")
+        );
+
+        // This is the last interesting message for this guest
+        filter_unregister(filter);
+    } else if (!strcasecmp(event, "MeetmeJoin")) {
+        session_write(filter->sess,
+                      "CONFERENCESTATUS %s %s JOINED\n",
+                      info->actionid,
+                      guest->extension
+        );
+    } else if (!strcasecmp(event, "MeetmeLeave")) {
+        session_write(filter->sess,
+                      "CONFERENCESTATUS %s %s LEFT\n",
+                      info->actionid,
+                      guest->extension
+        );
+
+        // This is the last interesting message for this guest
+        filter_unregister(filter);
+    }
+
+    return 0;
+}
+
+/**
+ * Send an Originate request to one Conference guest
+ *
+ * @param sess Session running Conference application
+ * @param info Conference information pointer
+ * @param guest Conference Guest information
+ * @return 0 in all cases
+ */
+static int
+conference_guest_invite(session_t *sess, struct app_conference_info *info, struct app_conference_guest *guest)
+{
+    // Register a Filter to get Generated Channel
+    filter_t *channel_filter = filter_create_async(sess, conference_guest_state);
+    filter_new_condition(channel_filter, MATCH_EXACT, "Event", "VarSet");
+    filter_new_condition(channel_filter, MATCH_EXACT, "Variable", "ACTIONID");
+    filter_new_condition(channel_filter, MATCH_EXACT, "Value", "%s", guest->actionid);
+    filter_set_userdata(channel_filter, (void *) info);
+    filter_register_oneshot(channel_filter);
+
+    // Construct a Request message
+    ami_message_t msg;
+    memset(&msg, 0, sizeof(ami_message_t));
+    message_add_header(&msg, "Action: Originate");
+    message_add_header(&msg, "CallerID: %s", guest->extension);
+    message_add_header(&msg, "Channel: Local/%s@%s", guest->extension, conference_config.guest_incontext);
+    message_add_header(&msg, "Context: %s", conference_config.guest_outcontext);
+    message_add_header(&msg, "Priority: 1");
+    message_add_header(&msg, "ActionID: %s", guest->actionid);
+    message_add_header(&msg, "Exten: %s", guest->extension);
+    message_add_header(&msg, "Async: 1");
+    message_add_header(&msg, "Variable: ACTIONID=%s", guest->actionid);
+    message_add_header(&msg, "Variable: AUTOANSWER=%d", conference_config.autoanswer);
+    message_add_header(&msg, "Variable: CONFERENCE_MUTE=%d", info->mute);
+    message_add_header(&msg, "Variable: CONFERENCE_ID=%s", info->conference_id);
+
+    // Send this message to ami
+    manager_write_message(manager, &msg);
+
+    return 0;
+}
+
+/**
+ * @brief Handles Host Conference Status
  *
  * @param filter Triggering filter structure
  * @param msg Matching message from Manager
  * @return 0 in all cases
  */
 int
-conference_state(filter_t *filter, ami_message_t *msg)
+conference_host_state(filter_t *filter, ami_message_t *msg)
 {
+    int i;
+    struct app_conference_info *info = (struct app_conference_info *) filter_get_userdata(filter);
+    const char *event = message_get_header(msg, "Event");
+
+    if (!strcasecmp(event, "VarSet")) {
+        const char *varname = message_get_header(msg, "Variable");
+
+        // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
+        if (!strcasecmp(varname, "ACTIONID")) {
+            // Get the UniqueId from the agent channel
+            isaac_strcpy(info->host_uid, message_get_header(msg, "UniqueID"));
+
+            // Register a Filter for the agent status the custom manager application PlayDTMF.
+            filter_t *host_filter = filter_create_async(filter->sess, conference_host_state);
+            filter_new_condition(host_filter, MATCH_REGEX, "Event", "Hangup|MeetmeJoin");
+            filter_new_condition(host_filter, MATCH_REGEX, "UniqueID", info->host_uid);
+            filter_set_userdata(host_filter, (void *) info);
+            filter_register_oneshot(host_filter);
+
+            filter_t *conference_end_filter = filter_create_async(filter->sess, conference_host_state);
+            filter_new_condition(conference_end_filter, MATCH_EXACT, "Event", "MeetmeEnd");
+            filter_new_condition(conference_end_filter, MATCH_EXACT, "Meetme", info->conference_id);
+            filter_set_userdata(conference_end_filter, (void *) info);
+            filter_register_oneshot(conference_end_filter);
+        }
+    } else if (!strcasecmp(event, "Hangup")) {
+        session_write(filter->sess,
+                      "CONFERENCEERROR %s HANGUP %s\n",
+                      info->actionid,
+                      message_get_header(msg, "Cause")
+        );
+    } else if (!strcasecmp(event, "MeetmeJoin")) {
+        session_write(filter->sess,
+                      "CONFERENCEOK %s CONFERENCE CREATED \n",
+                      info->actionid
+        );
+
+        for (i = 0; i < info->guestcnt; i++) {
+            conference_guest_invite(filter->sess, info, &info->guests[i]);
+        }
+    } else if (!strcasecmp(event, "MeetmeEnd")) {
+        session_write(filter->sess,
+                      "CONFERENCESTATUS %s CONFERENCE ENDED\n",
+                      info->actionid
+        );
+    }
 
     return 0;
 }
@@ -240,13 +433,14 @@ conference_exec(session_t *sess, app_t *app, const char *args)
     char *saveptr = NULL;
     char *exten = strtok_r(extensions, ",", &saveptr);
     while (exten != NULL) {
-        info->extensions[info->extensioncnt] = exten;
-        info->extensioncnt++;
-        exten = strtok_r(extensions, ",", &saveptr);
+        strcpy(info->guests[info->guestcnt].extension, exten);
+        sprintf(info->guests[info->guestcnt].actionid, "%s#%s#", actionid, exten);
+        info->guestcnt++;
+        exten = strtok_r(NULL, ",", &saveptr);
     }
 
     // Validate we have at least one extension
-    if (info->extensioncnt) {
+    if (info->guestcnt == 0) {
         free(actionid);
         free(extensions);
         free(options);
@@ -258,48 +452,41 @@ conference_exec(session_t *sess, app_t *app, const char *args)
     app_args_t parsed;
     application_parse_args(options, &parsed);
 
-    if (!isaac_strcmp(application_get_arg(&parsed, "BRD"), "1"))
-        info->broadcast = 1;
+    if (!isaac_strcmp(application_get_arg(&parsed, "MUTE"), "1"))
+        info->mute = 1;
 
     // Register a Filter to get Generated Channel
-    info->conference_filter = filter_create_async(sess, conference_state);
-    filter_new_condition(info->conference_filter, MATCH_EXACT, "Event", "VarSet");
-    filter_new_condition(info->conference_filter, MATCH_EXACT, "Variable", "ACTIONID");
-    filter_new_condition(info->conference_filter, MATCH_EXACT, "Value", actionid);
-    filter_set_userdata(info->conference_filter, (void*) info);
-    filter_register_oneshot(info->conference_filter);
+    filter_t *channel_filter = filter_create_async(sess, conference_host_state);
+    filter_new_condition(channel_filter, MATCH_EXACT, "Event", "VarSet");
+    filter_new_condition(channel_filter, MATCH_EXACT, "Variable", "ACTIONID");
+    filter_new_condition(channel_filter, MATCH_EXACT, "Value", actionid);
+    filter_set_userdata(channel_filter, (void *) info);
+    filter_register_oneshot(channel_filter);
 
     // Get the logged agent
-    const char *agent = session_get_variable(sess, "AGENT");
+    const char *agent = info->conference_id = session_get_variable(sess, "AGENT");
 
     // Construct a Request message
     ami_message_t msg;
     memset(&msg, 0, sizeof(ami_message_t));
     message_add_header(&msg, "Action: Originate");
     message_add_header(&msg, "CallerID: %s", agent);
-    message_add_header(&msg, "Channel: Local/%s@%s", agent, conference_config.incontext);
-    message_add_header(&msg, "Context: %s", conference_config.outcontext);
+    message_add_header(&msg, "Channel: Local/%s@%s", agent, conference_config.host_incontext);
+    message_add_header(&msg, "Context: %s", conference_config.host_outcontext);
     message_add_header(&msg, "Priority: 1");
     message_add_header(&msg, "ActionID: %s", actionid);
     message_add_header(&msg, "Exten: %s", agent);
     message_add_header(&msg, "Async: 1");
     message_add_header(&msg, "Variable: ACTIONID=%s", actionid);
     message_add_header(&msg, "Variable: AUTOANSWER=%d", conference_config.autoanswer);
-
-    // Set variable to indicate conference type
-    if (application_get_arg(&parsed, "BRD"))
-        message_add_header(&msg, "Variable: ISAAC_CONF_BRD=YES");
+    message_add_header(&msg, "Variable: CONFERENCE_MUTE=%d", info->mute);
+    message_add_header(&msg, "Variable: CONFERENCE_ID=%s", info->conference_id);
 
     // Send this message to ami
     manager_write_message(manager, &msg);
 
     return 0;
 }
-
-
-
-
-
 
 /**
  * @brief Module load entry point
@@ -313,7 +500,7 @@ int
 load_module()
 {
     int res = 0;
-    if (read_conference_config(CONFERENCECONF) != 0) {
+    if (read_conference_config( CONFERENCECONF) != 0) {
         isaac_log(LOG_ERROR, "Failed to read app_call config file %s\n", CONFERENCECONF);
         return -1;
     }
