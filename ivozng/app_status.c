@@ -682,7 +682,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
 
             // Register a Filter for notifying this call
             filter_t *recordfilter = filter_create_async(filter->sess, record_variables);
-            filter_new_condition(recordfilter, MATCH_EXACT, "ActionID", "RECORD_%s", info->uniqueid);
+            filter_new_condition(recordfilter, MATCH_REGEX, "Variable", "GRABACIONES_%s_.*", info->uniqueid);
             filter_set_userdata(recordfilter, (void*) info);
             filter_register(recordfilter);
 
