@@ -37,12 +37,41 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <libconfig.h>
 #include "app.h"
 #include "session.h"
 #include "manager.h"
 #include "filter.h"
 #include "util.h"
 #include "log.h"
+
+#define STATUSCONF CONFDIR "/status.conf"
+
+char * recordvars[] =
+{
+    "MODULO",
+    "PLATAFORMA",
+    "TIPO",
+    "ORIGEN",
+    "DESTINO",
+    "FECHA_HORA",
+    "RUTA",
+    "FICHERO",
+    NULL
+};
+
+
+/**
+ * @brief Module configuration readed from STATUSCONF file
+ *
+ * @see read_call_config
+ */
+struct app_status_config
+{
+    //! File recorded path
+    char record_path[512];
+} status_config;
+
 
 /**
  * @brief Status application custom structure
@@ -76,7 +105,57 @@ struct app_status_info
     bool holded;
     //! Direct agent
     bool agent;
+    //! Mark the call as being recorded
+    bool recording;
+    //! Store recording vars
+    char grabaciones_modulo[512];
+    char grabaciones_tipo[1024];
+    char grabaciones_plataforma[2048];
+    char grabaciones_origen[2048];
+    char grabaciones_destino[2048];
+    char grabaciones_fecha_hora[2048];
+    char grabaciones_ruta[4086];;
+    char grabaciones_fichero[4086];
 };
+
+/**
+ * @brief Read module configure options
+ *
+ * This function will read STATUSCONF file and fill app_call_conf
+ * structure. Most of these values are using during call action process
+ *
+ * @param cfile Full path to configuration file
+ * @return 0 in case of read success, -1 otherwise
+ */
+int
+read_status_config(const char *cfile)
+{
+    config_t cfg;
+    const char *value;
+
+    // Initialize configuration
+    config_init(&cfg);
+
+    // Read configuraiton file
+    if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
+        isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
+                  config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return -1;
+    }
+
+    // Filepat to store the recordings
+    if (config_lookup_string(&cfg, "record.filepath", &value) == CONFIG_TRUE) {
+        strcpy(status_config.record_path, value);
+    }
+
+    // Dealloc libconfig structure
+    config_destroy(&cfg);
+
+    isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
+    return 0;
+}
+
 
 /**
  * @brief Returns agent channel name for a given UniqueID
@@ -126,6 +205,29 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
 
 
 /**
+ * @brief Returns channel name for a given UniqueID
+ *
+ * @param uniqueid Channel UniqueID
+ * @returns status structure pointer or NULL if not found
+ */
+struct app_status_info *
+find_channel_info_by_uniqueid(session_t *sess, const char *uniqueid) {
+    filter_t *filter = NULL;
+    struct app_status_info *info = NULL;
+
+    // Find the call with that uniqueid
+    while((filter = filter_from_session(sess, filter))) {
+        info = (struct app_status_info *) filter_get_userdata(filter);
+        if (info && !strcasecmp(info->uniqueid, uniqueid)) {
+            return info;
+        }
+    }
+
+    // No channel found with that uniqueid
+    return NULL;
+}
+
+/**
  * @brief Injects messages to AMI to simulate an incoming call
  *
  * When a transfer occurs, some clients want to receive status
@@ -134,8 +236,8 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid) {
  * This is not naturaly possible so, if we want to trigger
  * status filters, we must inject those messages.
  *
- * For a status callback trigger, we need 
- * a) Transfer receiver Agent 
+ * For a status callback trigger, we need
+ * a) Transfer receiver Agent
  * b) Transfer receiver Channel
  * c) Transfer receiver Channel status (Anwered, Ringing..)
  *
@@ -156,8 +258,8 @@ status_inject_queue_call(filter_t *filter)
     if (info->agent) return 1;
 
     /* Construct a Request message (fake VarSet).
-     * This will trigger the initial Status callback and will try to search a 
-     * Event: Dial message to obtain the real SIP/ channel name (not the Local/ one) 
+     * This will trigger the initial Status callback and will try to search a
+     * Event: Dial message to obtain the real SIP/ channel name (not the Local/ one)
      */
     ami_message_t usermsg;
     memset(&usermsg, 0, sizeof(ami_message_t));
@@ -167,9 +269,9 @@ status_inject_queue_call(filter_t *filter)
     message_add_header(&usermsg, "Channel: Local/%s@agentes", info->xfer_agent);
     filter_inject_message(filter, &usermsg);
 
-    /* Construct a Request message (fake Dial). 
+    /* Construct a Request message (fake Dial).
      * We trigger the second callback of Status, now providing the SIP/ channel name
-     * so the logic can detect when this channel status changes 
+     * so the logic can detect when this channel status changes
      */
     memset(&usermsg, 0, sizeof(ami_message_t));
     message_add_header(&usermsg, "Event: Dial");
@@ -181,7 +283,7 @@ status_inject_queue_call(filter_t *filter)
     filter_inject_message(filter, &usermsg);
 
     /* Construct NewState fake status messages
-     * We generate Newstate messages to update the channel status to match the 
+     * We generate Newstate messages to update the channel status to match the
      * real status.
      */
     if (info->xfer_state >= 5) {
@@ -221,12 +323,12 @@ status_blindxfer(filter_t *filter, ami_message_t *msg)
 
     // Not previous status known on blind transfer
     info->xfer_state = 0;
-    // Destiny transfer channel name 
+    // Destiny transfer channel name
     isaac_strcpy(info->xfer_channel, message_get_header(msg, "Destination"));
 
-    // We have enough information to inject messages in receiver bus 
+    // We have enough information to inject messages in receiver bus
     status_inject_queue_call(filter);
-    
+
     return 0;
 }
 
@@ -245,7 +347,7 @@ status_builtinxfer(filter_t *filter, ami_message_t *msg)
 
     if (!strcasecmp(message_get_header(msg, "Variable"), "TRANSFERERNAME")) {
         char local_channel[80];
-        isaac_strcpy(local_channel, message_get_header(msg, "Channel")); 
+        isaac_strcpy(local_channel, message_get_header(msg, "Channel"));
         local_channel[strlen(local_channel)-1] = '2';
 
         // Try to find the final xfer channel
@@ -256,7 +358,7 @@ status_builtinxfer(filter_t *filter, ami_message_t *msg)
         filter_new_condition(builtinxferfilter, MATCH_START_WITH, "Value", "SIP/");
         filter_set_userdata(builtinxferfilter, (void*) info);
         filter_register_oneshot(builtinxferfilter);
-        
+
     } else if (!strcasecmp(message_get_header(msg, "Variable"), "BRIDGEPEER")) {
         // Final Xfer channel found!
         isaac_strcpy(info->xfer_channel, message_get_header(msg, "Value"));
@@ -288,7 +390,7 @@ status_print(filter_t *filter, ami_message_t *msg)
     memset(statusevent, 0, sizeof(statusevent));
 
     // CallStatus response
-    if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "Hangup") 
+    if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "Hangup")
     || !isaac_strcmp(event, "IsaacTransfer")  || !isaac_strcmp(event, "MusicOnHold")) {
         if (info->agent) {
             sprintf(statusevent, "EXTERNALCALLAGENTSTATUS ");
@@ -321,7 +423,6 @@ status_print(filter_t *filter, ami_message_t *msg)
             filter_set_userdata(callfilter, (void*) info);
             filter_register(callfilter);
         }
-
     } else if (!strcasecmp(event, "MusicOnHold")) {
         // This filter lives only during answered calls
         if (info->answered) {
@@ -377,10 +478,10 @@ status_print(filter_t *filter, ami_message_t *msg)
             isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
             // Blonde transfer, destiny was ringing
             info->xfer_state = 6;
-            // We have enough information to inject messages in receiver bus 
+            // We have enough information to inject messages in receiver bus
             isaac_log(LOG_NOTICE, "[Session %s] Detected Attended Transfer to %s\n", filter->sess->id, info->xfer_agent);
             status_inject_queue_call(filter);
-        } 
+        }
 
         if (!isaac_strcmp(message_get_header(msg, "TransferType"), "Blonde")) {
             // We have the destriny information
@@ -388,7 +489,7 @@ status_print(filter_t *filter, ami_message_t *msg)
             isaac_strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
             // Blonde transfer, destiny was ringing
             info->xfer_state = 5;
-            // We have enough information to inject messages in receiver bus 
+            // We have enough information to inject messages in receiver bus
             isaac_log(LOG_NOTICE, "[Session %s] Detected Blonde Transfer to %s\n", filter->sess->id, info->xfer_agent);
             status_inject_queue_call(filter);
         }
@@ -432,12 +533,12 @@ status_print(filter_t *filter, ami_message_t *msg)
                 char xferchan[80];
                 isaac_strcpy(xferchan, info->xfer_channel);
                 char *interface = strtok(xferchan, "-");
-    
+
                 // Find the session for the given interface
                 session_t *xfer_sess = session_by_variable("INTERFACE", interface);
 
                 if (xfer_sess) {
-                    // We have enough information to inject messages in receiver bus 
+                    // We have enough information to inject messages in receiver bus
                     isaac_strcpy(info->xfer_agent, session_get_variable(xfer_sess, "AGENT"));
                     isaac_log(LOG_NOTICE, "[Session %s] Detected Builtin Transfer to %s\n", filter->sess->id, info->xfer_agent);
                     status_inject_queue_call(filter);
@@ -488,6 +589,37 @@ status_call(filter_t *filter, ami_message_t *msg)
     return 0;
 }
 
+int
+record_variables(filter_t *filter, ami_message_t *msg)
+{
+    const char *varvalue = message_get_header(msg, "Value");
+    const char *varname = message_get_header(msg, "Variable");
+
+    if (!strncasecmp(varname, "GRABACIONES_", 12)) {
+        char recordvar[256],recorduniqueid[80], grabaciones[80], recordtype[80];
+        isaac_strcpy(recordvar, varname);
+        if (sscanf(recordvar, "%[^_]_%[^_]_%s", grabaciones, recorduniqueid, recordtype) == 3) {
+            struct app_status_info * info;
+            if ((info = find_channel_info_by_uniqueid(filter->sess, recorduniqueid))) {
+                if (!strcasecmp(recordtype, "MODULO")) sprintf(info->grabaciones_modulo, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "TIPO")) sprintf(info->grabaciones_tipo, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "PLATAFORMA")) sprintf(info->grabaciones_plataforma, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "ORIGEN")) sprintf(info->grabaciones_origen, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "DESTINO")) sprintf(info->grabaciones_destino, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "FECHA_HORA")) sprintf(info->grabaciones_fecha_hora, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "RUTA")) sprintf(info->grabaciones_ruta, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "FICHERO")) sprintf(info->grabaciones_fichero, "%s;", varvalue);
+            } else {
+                isaac_log(LOG_WARNING, "Unhandled record variable %s for uniqueid %s\n", varname, recorduniqueid);
+            }
+        } else {
+            isaac_log(LOG_WARNING, "Unhandled record variable %s\n", varname);
+        }
+    }
+
+    return 0;
+}
+
 /**
  * @brief Get Incoming call UniqueID from __ISAAC_MONITOR variable
  *
@@ -496,6 +628,7 @@ int
 status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
     char value[512];
     char plat[120], clidnum[20], uniqueid[20], channel[80], queue[150];
+    int i;
 
     // Copy __ISAAC_MONITOR value
     isaac_strcpy(value, message_get_header(msg, "Value"));
@@ -534,7 +667,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
 
             // Register a Filter for notifying this call
             filter_t *callfilter = filter_create_async(filter->sess, status_print);
-            filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer");
+            filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer|VarSet");
             filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agent_channel);
             filter_set_userdata(callfilter, (void*) info);
             filter_register(callfilter);
@@ -546,6 +679,24 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
             filter_new_condition(channelfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Channel"));
             filter_set_userdata(channelfilter, (void*) info);
             filter_register_oneshot(channelfilter);
+
+            // Register a Filter for notifying this call
+            filter_t *recordfilter = filter_create_async(filter->sess, record_variables);
+            filter_new_condition(recordfilter, MATCH_EXACT, "ActionID", "RECORD_%s", info->uniqueid);
+            filter_set_userdata(recordfilter, (void*) info);
+            filter_register(recordfilter);
+
+            // Construct a Request message
+            ami_message_t recordget;
+
+            for (i = 0; recordvars[i] != NULL; i++) {
+                memset(&recordget, 0, sizeof(ami_message_t));
+                message_add_header(&recordget, "Action: GetVar");
+                message_add_header(&recordget, "Channel: %s", info->channel);
+                message_add_header(&recordget, "ActionId: RECORD_%s", info->uniqueid);
+                message_add_header(&recordget, "Variable: GRABACIONES_%s_%s", info->uniqueid, recordvars[i]);
+                manager_write_message(manager, &recordget);
+            }
         }
     }
     return 0;
@@ -668,7 +819,7 @@ answer_exec(session_t *sess, app_t *app, const char *args)
         // Give some feedback
         session_write(sess, "ANSWEROK Event sent\r\n");
     } else {
-        // Ups. 
+        // Ups.
         session_write(sess, "ANSWERFAILED Channel not found\r\n");
     }
 
@@ -714,7 +865,7 @@ holduid_exec(session_t *sess, app_t *app, const char *args)
         // Give some feedback
         session_write(sess, "HOLDUIDOK Event sent\r\n");
     } else {
-        // Ups. 
+        // Ups.
         session_write(sess, "HOLDUIDFAILED Channel not found\r\n");
     }
 
@@ -760,7 +911,7 @@ unholduid_exec(session_t *sess, app_t *app, const char *args)
         // Give some feedback
         session_write(sess, "UNHOLDUIDOK Event sent\r\n");
     } else {
-        // Ups. 
+        // Ups.
         session_write(sess, "UNHOLDUIDFAILED Channel not found\r\n");
     }
 
@@ -804,7 +955,7 @@ hangupuid_exec(session_t *sess, app_t *app, const char *args)
         // Give some feedback
         session_write(sess, "HANGUPUIDOK Event sent\r\n");
     } else {
-        // Ups. 
+        // Ups.
         session_write(sess, "HANGUPUIDFAILED Channel not found\r\n");
     }
 
@@ -965,6 +1116,176 @@ redirectuid_exec(session_t *sess, app_t *app, const char *args)
 }
 
 /**
+ * @brief RecordUID action entry point
+ *
+ * RecordUID action will start MixMonitor on given channel and will
+ * set some variables for record post processing (in h extension).
+ *
+ * @param sess Session rnuning this application
+ * @param app The application structure
+ * @param args Hangup action args "ActionID" and "UniqueID"
+ * @return 0 if the call is found, -1 otherwise
+ */
+int
+recorduid_exec(session_t *sess, app_t *app, const char *args)
+{
+    struct app_status_info *info;
+    char uniqueid[ACTIONID_LEN];
+    char filename[128];
+    time_t timer;
+    char timestr[25];
+    struct tm* tm_info;
+
+    // This can only be done after authentication
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Get Hangup parameters
+    if (sscanf(args, "%s %s", uniqueid, filename) != 2) {
+        return INVALID_ARGUMENTS;
+    }
+
+    // Try to find the action info of the given uniqueid
+    if ((info = find_channel_info_by_uniqueid(sess, uniqueid))) {
+
+        // Check if this call is already being recorded
+        if (info->recording) {
+            session_write(sess, "RECORDUIDFAILED CALL IS ALREADY BEING RECORDED\r\n");
+            return -1;
+        }
+
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: MixMonitor");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "File: %s/%s.wav", status_config.record_path, filename);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->uniqueid);
+        message_add_header(&msg, "Value: %sCC", info->grabaciones_modulo);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->uniqueid);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_plataforma, info->plat);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->uniqueid);
+        message_add_header(&msg, "Value: %son-demand_ISAAC", info->grabaciones_tipo);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->uniqueid);
+        message_add_header(&msg, "Value: %s%s",info->grabaciones_origen, info->clidnum);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->uniqueid);
+        message_add_header(&msg, "Value: %s%s",info->grabaciones_destino, session_get_variable(sess, "AGENT"));
+        manager_write_message(manager, &msg);
+
+        time(&timer);
+        tm_info = localtime(&timer);
+        strftime(timestr, 25, "%Y:%m:%d_%H:%M:%S", tm_info);
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->uniqueid);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_fecha_hora, timestr);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->uniqueid);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_ruta, status_config.record_path);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->uniqueid);
+        message_add_header(&msg, "Value: %s%s.wav", info->grabaciones_fichero, filename);
+        manager_write_message(manager, &msg);
+
+        // Flag this call as being recorded
+        info->recording = true;
+
+        session_write(sess, "RECORDUIDOK\r\n");
+    } else {
+        session_write(sess, "RECORDUIDFAILED ID NOT FOUND\r\n");
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * @brief RecordUID action entry point
+ *
+ * Record action will start MixMonitor on given channel and will
+ * set some variables for record post processing (in h extension).
+ *
+ * @param sess Session rnuning this application
+ * @param app The application structure
+ * @param args Hangup action args "ActionID" and "UniqueID"
+ * @return 0 if the call is found, -1 otherwise
+ */
+int
+recordstopuid_exec(session_t *sess, app_t *app, const char *args)
+{
+    struct app_status_info *info;
+    char uniqueid[ACTIONID_LEN];
+
+    // This can only be done after authentication
+    if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
+        return NOT_AUTHENTICATED;
+    }
+
+    // Get Hangup parameteres
+    if (sscanf(args, "%s", uniqueid) != 1) {
+        return INVALID_ARGUMENTS;
+    }
+
+    // Try to find the action info of the given actionid
+    if ((info = find_channel_info_by_uniqueid(sess, uniqueid))) {
+
+        // Check if this call is not being recorded
+        if (!info->recording) {
+            session_write(sess, "RECORDSTOPUIDFAILED CALL NOT BEING RECORDED\r\n");
+            return -1;
+        }
+
+        ami_message_t msg;
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Command");
+        message_add_header(&msg, "Command: mixmonitor stop %s", info->channel);
+        manager_write_message(manager, &msg);
+
+        // Flag this call as not being recorded
+        info->recording = false;
+
+        session_write(sess, "RECORDSTOPUIDOK\r\n");
+    } else {
+        session_write(sess, "RECORDSTOPUIDFAILED ID NOT FOUND\r\n");
+        return -1;
+    }
+    return 0;
+}
+
+/**
  * @brief Module load entry point
  *
  * Load module applications
@@ -975,6 +1296,10 @@ int
 load_module()
 {
     int ret = 0;
+    if (read_status_config(STATUSCONF) != 0) {
+        isaac_log(LOG_ERROR, "Failed to read app_status config file %s\n", STATUSCONF);
+        return -1;
+    }
     ret |= application_register("Status", status_exec);
     ret |= application_register("Answer", answer_exec);
     ret |= application_register("AnswerUID", answer_exec);
@@ -984,6 +1309,8 @@ load_module()
     ret |= application_register("PlaybackUID", playbackuid_exec);
     ret |= application_register("SetVarUID", setvaruid_exec);
     ret |= application_register("RedirectUID", redirectuid_exec);
+    ret |= application_register("RecordUID", recorduid_exec);
+    ret |= application_register("RecordStopUID", recordstopuid_exec);
     return ret;
 }
 
@@ -1007,5 +1334,7 @@ unload_module()
     ret |= application_unregister("PlaybackUID");
     ret |= application_unregister("SetVarUID");
     ret |= application_unregister("RedirectUID");
+    ret |= application_unregister("RecordUID");
+    ret |= application_unregister("RecordStopUID");
     return ret;
 }
