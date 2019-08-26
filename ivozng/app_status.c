@@ -107,6 +107,8 @@ struct app_status_info
     bool agent;
     //! Mark the call as being recorded
     bool recording;
+    //! Mixmonitor id being Recorded
+    char recording_id[256];
     //! Store recording vars
     char grabaciones_modulo[512];
     char grabaciones_tipo[1024];
@@ -1115,6 +1117,35 @@ redirectuid_exec(session_t *sess, app_t *app, const char *args)
     return 0;
 }
 
+int
+recorduid_state(filter_t *filter, ami_message_t *msg)
+{
+    // Get Call information
+    struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
+
+    // Get message data
+    const char *response = message_get_header(msg, "Response");
+
+    if (response == NULL) {
+        session_write(filter->sess, "RECORDUIDFAILED %s\r\n", response);
+        return -1;
+    }
+
+    if (strncasecmp(response, "Success", 7) == 0) {
+        const char *mixmonitor_id =  message_get_header(msg, "MixmonitorID");
+        if (mixmonitor_id != NULL) {
+            strcpy(info->recording_id, mixmonitor_id);
+        }
+    }
+
+    // Flag this call as being recorded
+    info->recording = true;
+
+    // Notify recording worked
+    session_write(filter->sess, "RECORDUIDOK\r\n");
+    return 0;
+}
+
 /**
  * @brief RecordUID action entry point
  *
@@ -1155,11 +1186,18 @@ recorduid_exec(session_t *sess, app_t *app, const char *args)
             return -1;
         }
 
+        filter_t *record_status = filter_create_async(sess, recorduid_state);
+        filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s", uniqueid);
+        filter_set_userdata(record_status, (void*) info);
+        filter_register_oneshot(record_status);
+
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: MixMonitor");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "File: %s/%s.wav", status_config.record_path, filename);
+        message_add_header(&msg, "ActionID: RECORD_%s", uniqueid);
+        message_add_header(&msg, "Options: i(ISAAC_RECORDING)");
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
@@ -1221,10 +1259,6 @@ recorduid_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Value: %s%s.wav", info->grabaciones_fichero, filename);
         manager_write_message(manager, &msg);
 
-        // Flag this call as being recorded
-        info->recording = true;
-
-        session_write(sess, "RECORDUIDOK\r\n");
     } else {
         session_write(sess, "RECORDUIDFAILED ID NOT FOUND\r\n");
         return -1;
@@ -1270,8 +1304,11 @@ recordstopuid_exec(session_t *sess, app_t *app, const char *args)
 
         ami_message_t msg;
         memset(&msg, 0, sizeof(ami_message_t));
-        message_add_header(&msg, "Action: Command");
-        message_add_header(&msg, "Command: mixmonitor stop %s", info->channel);
+        message_add_header(&msg, "Action: StopMixMonitor");
+        message_add_header(&msg, "Channel: %s", info->channel);
+        if (strlen(info->recording_id) != 0) {
+            message_add_header(&msg, "MixMonitorID: %s", info->recording_id);
+        }
         manager_write_message(manager, &msg);
 
         // Flag this call as not being recorded
