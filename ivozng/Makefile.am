@@ -52,6 +52,6 @@ app_classic_PROGRAMS = app_classic.so
 app_classic_so_SOURCES = app_classic.c
 app_classicdir = @isaac_moddir@
 
-app_queue_PROGRAMS = app_conference.so
-app_queue_so_SOURCES = app_conference.c
-app_queuedir = @isaac_moddir@
+app_conference_PROGRAMS = app_conference.so
+app_conference_so_SOURCES = app_conference.c
+app_conferencedir = @isaac_moddir@
