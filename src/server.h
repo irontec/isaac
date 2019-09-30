@@ -23,26 +23,26 @@
  * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
  * \brief Functions for managing incoming connections from clients.
- * 
+ *
  * This file contains the functions that manage the server that manages incoming
  * connections from client.
  * The listen address and port can be configured in CFILE (@see config.h).
- * 
- * Each incoming connection will spawn a new manage_session thread, that will 
- * create a new session (@see session.h) and handle the user actions by running 
+ *
+ * Each incoming connection will spawn a new manage_session thread, that will
+ * create a new session (@see session.h) and handle the user actions by running
  * applications (@see app.h).
  */
 #ifndef __ISAAC_SERVER_H
 #define __ISAAC_SERVER_H
 
-/** 
- * \brief Starts a TCP server on given address and port 
+/**
+ * \brief Starts a TCP server on given address and port
  *
  * Create a server socket, bind on address and listen on given port,
  * then creates a new thread to accept connections.
- * 
+ *
  * \param addr TCP IPv4 Address in format xxx.xxx.xxx.xxx
- * \param port Listening port 
+ * \param port Listening port
  * \returns -1 if server setup fails, 0 on success
  */
 int
@@ -70,9 +70,17 @@ stop_server();
 void *
 accept_connections(void *sockfd);
 
-/** 
+
+/**
+ * \brief Check existing sessions idle timeout
+ *
+ */
+void *
+check_connections(void *unused);
+
+/**
  * \brief Manages a new incoming connection
- * 
+ *
  * Incomming connections (aka session) will handle actions in this
  * Thread function spawned by start_server.
  *

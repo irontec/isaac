@@ -23,7 +23,7 @@
  * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
  * \brief Source code for funtions defined in server.h
- * 
+ *
  */
 #include "config.h"
 #include <sys/types.h>
@@ -97,6 +97,14 @@ start_server(const char *addrstr, const int port)
     if (pthread_create(&accept_thread, NULL, accept_connections, NULL) != 0) {
         isaac_log(LOG_WARNING, "Error creating accept thread: %s\n", strerror(errno));
         return -1;
+    }
+
+    if (config.idle_timeout > 0) {
+        // Create a new thread for removing stalled client connections
+        if (pthread_create(&accept_thread, NULL, check_connections, NULL) != 0) {
+            isaac_log(LOG_WARNING, "Error creating check connections thread: %s\n", strerror(errno));
+            return -1;
+        }
     }
 
     // Successfully initialized server
@@ -178,6 +186,37 @@ accept_connections(void *sock)
     return 0;
 }
 
+void *
+check_connections(void *unused)
+{
+    // Start running
+    running = 1;
+
+    // Begin checking connections
+    while (running) {
+        session_iter_t *iter = session_iterator_new();
+        session_t *sess;
+
+        /* Print available sessions */
+        while ((sess = session_iterator_next(iter))) {
+            struct timeval idle = isaac_tvsub(isaac_tvnow(), sess->last_cmd_time);
+            if (idle.tv_sec > config.idle_timeout) {
+                session_write(sess, "BYE Session is no longer active\r\n");
+                session_finish(sess);
+            }
+        }
+        /* Destroy iterator after finishing */
+        session_iterator_destroy(iter);
+
+        // Wait to next iteration
+        sleep(10);
+    }
+
+    // Leave the thread gracefully
+    pthread_exit(NULL);
+    return 0;
+}
+
 /*****************************************************************************/
 void *
 manage_session(void *session)
@@ -191,7 +230,7 @@ manage_session(void *session)
     // Store the connection time
     sess->last_cmd_time = isaac_tvnow();
 
-    if (!session_test_flag(session, SESS_FLAG_LOCAL)) 
+    if (!session_test_flag(session, SESS_FLAG_LOCAL))
         isaac_log(LOG_DEBUG, "[Session %s] Received connection from %s [ID %ld].\n", sess->id, sess->addrstr, TID);
 
     // Write the welcome banner
@@ -206,7 +245,7 @@ manage_session(void *session)
         sess->last_cmd_time = isaac_tvnow();
         // Get message action
         if (sscanf(msg, "%s %[^\n]", action, args)) {
-            if (!strlen(action)) 
+            if (!strlen(action))
                 continue;
 
             if ((app = application_find(action))) {
@@ -230,7 +269,7 @@ manage_session(void *session)
     }
 
     // Connection closed, Thanks all for the fish
-    if (!session_test_flag(session, SESS_FLAG_LOCAL)) 
+    if (!session_test_flag(session, SESS_FLAG_LOCAL))
         isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
 
 

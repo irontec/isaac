@@ -92,6 +92,8 @@ cfg_read(cfg_t *config, const char *cfile)
                     config->hidelocal = config_setting_get_int(sett);
                 } else if (!strcasecmp(settname, "keepalive")) {
                     config->keepalive = config_setting_get_int(sett);
+                } else if (!strcasecmp(settname, "idle_timeout")) {
+                    config->idle_timeout = config_setting_get_int(sett);
                 }
             }
         } else if (!strcasecmp(catname, "log")) {

@@ -78,7 +78,7 @@ session_create(const int fd, const struct sockaddr_in addr)
         // Local session, this does not count as a session
         session_set_flag(sess, SESS_FLAG_LOCAL);
     } else {
-        // Create a new session id 
+        // Create a new session id
         sprintf(sess->id, "%d", last_sess_id++);
         // Increase session count in stats
         sessioncnt++;
@@ -169,7 +169,7 @@ session_write(session_t *sess, const char *fmt, ...)
     }
 
     // LOG Debug info
-    if (!session_test_flag(sess, SESS_FLAG_LOCAL)) 
+    if (!session_test_flag(sess, SESS_FLAG_LOCAL))
         isaac_log(LOG_DEBUG, "[Session %s] --> %s", sess->id, msgva);
 
     // Write the built message into the socket
@@ -225,7 +225,7 @@ session_read(session_t *sess, char *msg)
     }
 
     // If session is being shutdown, we're done
-    if (session_test_flag(sess, SESS_FLAG_LEAVING)) 
+    if (session_test_flag(sess, SESS_FLAG_LEAVING))
         return -1;
 
     // Initialize the buffer
@@ -364,7 +364,7 @@ session_t *
 session_iterator_next_by_variable(session_iter_t *iter, const char *variable, const char *value)
 {
     session_t *next = NULL;
-    if (!variable || !value) 
+    if (!variable || !value)
         return NULL;
 
     while ((next = session_iterator_next(iter))) {
