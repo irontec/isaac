@@ -292,8 +292,22 @@ session_set_variable(session_t *sess, char *varname, char *varvalue)
 {
     if (!sess) return;
 
+    if (!varname) {
+        isaac_log(LOG_ERROR, "No variable name supplied in session %d\n", sess->id);
+        return;
+    }
+
+    if (strlen(varname) >= 128) {
+        isaac_log(LOG_ERROR, "Too big variable name %s supplied in session %d\n", varname, sess->id);
+        return;
+    }
+
     int id = session_variable_idx(sess, varname);
     if (id == -1) {
+        if (sess->varcount == MAX_VARS) {
+            isaac_log(LOG_ERROR, "Max Variable limit (%d) reached in session %d\n", MAX_VARS, sess->id);
+            return;
+        }
         strcpy(sess->vars[sess->varcount].varname, varname);
         strcpy(sess->vars[sess->varcount].varvalue, varvalue);
         sess->varcount++;
