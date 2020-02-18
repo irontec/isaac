@@ -116,7 +116,7 @@ int
 stop_server()
 {
     // Mark ourselfs as not running
-    running = 1;
+    running = 0;
     // Say bye to all the sessions
     session_finish_all("Isaac has been stopped.");
     // Stop the socket from receiving new connections
@@ -209,7 +209,7 @@ check_connections(void *unused)
         session_iterator_destroy(iter);
 
         // Wait to next iteration
-        sleep(10);
+        sleep(5);
     }
 
     // Leave the thread gracefully
