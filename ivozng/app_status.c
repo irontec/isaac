@@ -651,6 +651,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
 
         // Initialize application info
         struct app_status_info *info = malloc(sizeof(struct app_status_info));
+        memset(info, 0, sizeof(struct app_status_info));
         isaac_strcpy(info->plat, plat);
         isaac_strcpy(info->clidnum, clidnum);
         isaac_strcpy(info->channel, channel);
@@ -659,6 +660,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg) {
         info->answered = false;
         info->holded = false;
         info->agent = false;
+        info->recording = false;
 
         // If variable matches agent format
         if (!strcmp(message_get_header(msg, "Variable"), "ISAAC_AGENT_MONITOR")) {
