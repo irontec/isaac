@@ -22,3 +22,6 @@ src/isaac
 .autotools
 .settings
 debian
+.idea
+cmake-build-*
+obj-*

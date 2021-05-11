@@ -100,15 +100,18 @@ enum log_type
 #define MAX_MSG_SIZE    8192
 #define TID             (long int)syscall(SYS_gettid)
 
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
 /**
  * @brief Some macros for using from all program.
  *
  * You should use isaac_log, isaac_verbose and isaac_debug in the code, instead of invoking
+
  * isaac_log_location directly, unless it's a launcher log function in which we want to
  * get the origin filename, no the launcher filename to be printed in each message
  *
  */
-#define isaac_log(log_type, ...)  isaac_log_location(log_type, __FILE__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)
+#define isaac_log(log_type, ...)  isaac_log_location(log_type, __FILENAME__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)
 
 /**
  * @brief Returns the log prefix for given type
