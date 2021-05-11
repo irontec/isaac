@@ -1,11 +1,7 @@
 #!/usr/bin/make -f
 
-override_dh_auto_install:
-	DESTDIR=`pwd`/debian/`dh_listpackages` ${MAKE} ivozng-install
-	DESTDIR=`pwd`/debian/`dh_listpackages` ${MAKE} conf
-	DESTDIR=`pwd`/debian/`dh_listpackages` ${MAKE} extra-install
-	dh_auto_install
+override_dh_shlibdeps:
 
 %:
-	dh $@ --with autoreconf
+	dh $@ --buildsystem=cmake
  

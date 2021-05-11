@@ -1,4 +1,12 @@
-isaac (1.3) UNRELEASED; urgency=medium
+isaac (2.0) UNRELEASED; urgency=medium
+
+  * Code adapted for asterisk 18
+  * Moved build system to CMake
+  * Start replacing code with glib functions
+
+ -- Ivan Alonso <kaian@irontec.com>  Tue, 11 May 2021 11:52:24 +0200
+
+isaac (1.3) stable; urgency=medium
 
   * Moved to new package system. 
 
