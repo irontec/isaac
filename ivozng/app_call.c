@@ -309,7 +309,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         }
 
         // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
-        if (!strcasecmp(varname, "ACTIONID")) {
+        if (!strcasecmp(varname, "ACTIONID") && strlen(message_get_header(msg, "Linkedid")) == 0) {
             // Get the UniqueId from the agent channel
             isaac_strcpy(info->ouid, message_get_header(msg, "UniqueID"));
             // Store provisional Channel Name
@@ -327,6 +327,44 @@ call_state(filter_t *filter, ami_message_t *msg)
             // Tell the client the channel is going on!
             isaac_strcpy(state, "STARTING"); 
         }
+
+        //--------------------------------------------------------------------------------------------------------------
+        // VarSet Event (Asterisk 18+)
+        //
+        // Looks like ACTIONID is now set into Local Channels so we need to handle DialBegin events to discover the
+        // final original and destination channels and uniqueids.
+        //
+        //--------------------------------------------------------------------------------------------------------------
+        if (strcasecmp(varname, "ACTIONID") == 0 && strlen(message_get_header(msg, "Linkedid")) != 0) {
+            const char *uniqueid = message_get_header(msg, "Uniqueid");
+            const char *linkedid = message_get_header(msg, "Linkedid");
+
+            // These event now happen on a local channel, so try to find the final channel
+            filter_t *dial_filter = filter_create_async(filter->sess, call_state);
+            filter_new_condition(dial_filter, MATCH_REGEX, "Event", "DialBegin");
+            filter_new_condition(dial_filter, MATCH_EXACT, "Uniqueid", uniqueid);
+            filter_set_userdata(dial_filter, (void*) info);
+            filter_register_oneshot(dial_filter);
+
+            // If this is the first Local channel
+            if (strcasecmp(uniqueid, linkedid) == 0) {
+                // Store uniqueid for DialBegin event
+                isaac_strcpy(info->duid, uniqueid);
+
+                // Try to find second Local channel
+                filter_t *callfilter = filter_create_async(filter->sess, call_state);
+                filter_new_condition(callfilter, MATCH_EXACT, "Event", "VarSet");
+                filter_new_condition(callfilter, MATCH_EXACT, "Variable", "ACTIONID");
+                filter_new_condition(callfilter, MATCH_EXACT, "Value", message_get_header(msg, "Value"));
+                filter_new_condition(callfilter, MATCH_EXACT, "Linkedid", uniqueid);
+                filter_set_userdata(callfilter, (void*) info);
+                filter_register_oneshot(callfilter);
+            } else {
+                // Store uniqueid for DialBegin event
+                isaac_strcpy(info->ouid, uniqueid);
+            }
+        }
+
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
             "Begin")) {
         // Get the UniqueId from the agent channel
@@ -345,6 +383,50 @@ call_state(filter_t *filter, ami_message_t *msg)
 
         // Store the call state
         isaac_strcpy(state, "STARTING");
+
+    } else if (strcasecmp(event, "DialBegin") == 0) {
+        //--------------------------------------------------------------------------------------------------------------
+        // DialBegin Event (Asterisk 18+)
+        //
+        // In this event Local channel dials Click2Dial both caller and callee so we override the channel and unique id
+        // with the information provided in the event.
+        //
+        //--------------------------------------------------------------------------------------------------------------
+
+        if (strcasecmp(message_get_header(msg, "UniqueID"), info->ouid) == 0) {
+            // Get the UniqueId from the agent channel
+            isaac_strcpy(info->ouid, message_get_header(msg, "DestUniqueid"));
+            isaac_strcpy(info->ochannel, message_get_header(msg, "DestChannel"));
+            // This messages are always from agent
+            isaac_strcpy(from, "AGENT");
+
+            // Register a Filter for the agent statusthe custom manager application PlayDTMF.
+            info->ofilter = filter_create_async(filter->sess, call_state);
+            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
+            filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
+            filter_set_userdata(info->ofilter, (void *) info);
+            filter_register(info->ofilter);
+
+            isaac_strcpy(state, "STARTING");
+        }
+
+        if (strcasecmp(message_get_header(msg, "UniqueID"), info->duid) == 0) {
+            // Get the UniqueId from the remote channel
+            strcpy(info->duid, message_get_header(msg, "DestUniqueid"));
+            strcpy(info->dchannel, message_get_header(msg, "DestChannel"));
+            // This messages are always from remote
+            isaac_strcpy(from, "REMOTE");
+
+            // Register a Filter for the agent status
+            info->dfilter = filter_create_async(filter->sess, call_state);
+            filter_set_userdata(info->dfilter, info);
+            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
+            filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
+            filter_register(info->dfilter);
+
+            // Store the call state
+            isaac_strcpy(state, "STARTING");
+        }
     }
 
 
