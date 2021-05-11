@@ -1,0 +1,3 @@
+extra/mon/mon.d/        /usr/lib/mon/
+extra/mon/alert.d/      /usr/lib/mon/
+extra/mon/mon.cf        /etc/isaac/
