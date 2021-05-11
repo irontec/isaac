@@ -39,7 +39,7 @@ manager_t *manager;
 pthread_t manager_thread;
 
 // Running flag
-int running;
+static int running;
 
 int
 manager_read_header(manager_t *man, char *output)

@@ -73,7 +73,7 @@ int
 read_queue_config(const char *cfile)
 {
     config_t cfg;
-    long int intvalue;
+    int intvalue;
 
     // Initialize configuration
     config_init(&cfg);

@@ -84,7 +84,7 @@ read_login_config(const char *cfile)
 {
     config_t cfg;
     const char *value;
-    long int intvalue;
+    int intvalue;
 
     // Initialize configuration
     config_init(&cfg);
