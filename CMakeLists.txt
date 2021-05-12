@@ -94,9 +94,14 @@ set_property(TARGET ${ISAAC_MODULES} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 ######################################################################
 # odbc
-pkg_check_modules(ODBC REQUIRED odbc)
-include_directories(${ODBC_INCLUDE_DIRS})
-target_link_libraries(app_login ${ODBC_LIBRARIES})
+pkg_check_modules(ODBC QUIET odbc)
+if(ODBC_FOUND)
+    include_directories(${ODBC_INCLUDE_DIRS})
+    target_link_libraries(app_login ${ODBC_LIBRARIES})
+else()
+    target_link_libraries(app_login -lodbc)
+endif()
+
 
 ######################################################################
 # Install files
