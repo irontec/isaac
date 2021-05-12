@@ -31,6 +31,7 @@
  *
  */
 
+#include "config.h"
 #include <libconfig.h>
 #include <stdlib.h>
 #include <string.h>

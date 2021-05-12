@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.0)
 project(isaac VERSION 0.1 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
@@ -27,21 +27,21 @@ add_executable(isaac
         )
 
 ######################################################################
-configure_file(
-        ${PROJECT_SOURCE_DIR}/src/config.h.cmake
-        ${PROJECT_SOURCE_DIR}/src/config.h
-)
+add_definitions(-D_GNU_SOURCE)
+add_definitions(-D_XOPEN_SOURCE_EXTENDED)
 
 ######################################################################
-add_compile_definitions(_GNU_SOURCE)
-add_compile_definitions(_XOPEN_SOURCE_EXTENDED)
-add_compile_definitions(CLI_SOCKET="${CMAKE_INSTALL_FULL_RUNSTATEDIR}/isaac.sock")
-add_compile_definitions(MODDIR="${CMAKE_INSTALL_FULL_LIBDIR}/isaac/")
-add_compile_definitions(CONFDIR="${CMAKE_INSTALL_FULL_SYSCONFDIR}/isaac")
+set(CLI_SOCKET ${CMAKE_INSTALL_FULL_RUNSTATEDIR}/isaac.sock)
+set(MODDIR ${CMAKE_INSTALL_FULL_LIBDIR}/isaac/)
+set(CONFDIR ${CMAKE_INSTALL_FULL_SYSCONFDIR}/isaac)
 
 ######################################################################
 # Use pkg-config when possible
 find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(GLIB REQUIRED glib-2.0>=2.42)
+include_directories(${GLIB_INCLUDE_DIRS})
+link_libraries(${GLIB_LIBRARIES})
 
 # libconfig
 pkg_check_modules(LIBCONFIG REQUIRED libconfig)
@@ -61,7 +61,7 @@ target_link_libraries(isaac ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(isaac ${CMAKE_DL_LIBS})
 
 # For module extern variables
-target_link_options(isaac PUBLIC -rdynamic)
+add_compile_options(-rdynamic)
 
 ######################################################################
 # Ivozng Modules
@@ -105,3 +105,8 @@ install(DIRECTORY conf DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/isaac)
 install(TARGETS ${ISAAC_MODULES} DESTINATION ${CMAKE_INSTALL_LIBDIR}/isaac/)
 install(FILES ivozng/acd.php DESTINATION ${CMAKE_INSTALL_LIBDIR}/isaac/)
 
+######################################################################
+configure_file(
+        ${PROJECT_SOURCE_DIR}/src/config.h.cmake
+        ${PROJECT_SOURCE_DIR}/src/config.h
+)

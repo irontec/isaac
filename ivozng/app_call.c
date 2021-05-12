@@ -33,6 +33,7 @@
  * in asterisk.
  *
  */
+#include "config.h"
 #include <ctype.h>
 #include <time.h>
 #include <libconfig.h>

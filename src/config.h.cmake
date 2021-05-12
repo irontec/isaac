@@ -21,8 +21,17 @@
 #ifndef ISAAC_CONFIG_H
 #define ISAAC_CONFIG_H
 
+/** Program basic information **/
 #define PACKAGE_NAME "@PROJECT_NAME@"
 #define PACKAGE_VERSION "@PROJECT_VERSION@"
 
+/** Isaac Running socket for local client connect with -r option **/
+#cmakedefine CLI_SOCKET "@CLI_SOCKET@"
+
+/** Absolute path where modules are located **/
+#cmakedefine MODDIR "@MODDIR@"
+
+/** Absolute path where configuration files are located **/
+#cmakedefine CONFDIR "@CONFDIR@"
 
 #endif
