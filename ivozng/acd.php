@@ -5,6 +5,7 @@ define("CHK_KARMA", "1");
 define("BASE_URL", "/var/www/ivozng/karma/libs/");
 define("DB_CON", "asterisk");
 require_once(BASE_URL."autoload.php");
+spl_autoload_register("iron_autoload");
 
 $server="http://127.0.0.1:8088";    // The server to connect to
 $amiuser="AMI_USER";
@@ -18,14 +19,15 @@ if ($argc < 4) {
 $interface = $argv[1];
 $agente = $argv[2];
 $op = strtoupper($argv[3]);
+$dp = 1; // Diaplan partition id
 
-$iacd = new IronACD($agente); //Instanciamos IronACD() para utilizar todas las funciones que necesitemos.
+$iacd = new IronACD($agente, NULL, $dp); //Instanciamos IronACD() para utilizar todas las funciones que necesitemos.
 $ami = new AJAM($server,$amiuser,$password);
 
 
 if ($op != "LOGIN")
 {
-	$interfaz = $iacd->getAgentInterface($agente);
+	$interfaz = $iacd->getAgentInterface($agente, $dp);
 	if (is_null($interfaz)) {
 		fwrite(STDERR, "ACD${op}FAIL AGENT NOT LOGGED IN\r\n");
 	}

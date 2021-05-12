@@ -31,6 +31,7 @@
  * This allow the VoIP developers to work in a more familiar environment.
  */
 #include "config.h"
+#include <glib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <libconfig.h>
@@ -89,6 +90,16 @@ read_acd_config(const char *cfile)
     // Dealloc libconfig structure
     config_destroy(&cfg);
     isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
+
+    // Validate phpfile exists
+    if (!g_file_test(acd_config.phpfile, G_FILE_TEST_IS_REGULAR)) {
+        sprintf(acd_config.phpfile, "%s/acd.php", MODDIR);
+        isaac_log(LOG_INFO, "Using default ACD script %s\n", acd_config.phpfile);
+        if (!g_file_test(acd_config.phpfile, G_FILE_TEST_IS_REGULAR)) {
+            isaac_log(LOG_ERROR, "Unable to locate ACD script %s\n", acd_config.phpfile);
+        }
+    }
+
     return 0;
 }
 
