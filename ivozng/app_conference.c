@@ -500,7 +500,7 @@ int
 load_module()
 {
     int res = 0;
-    if (read_conference_config( CONFERENCECONF) != 0) {
+    if (read_conference_config(CONFERENCECONF) != 0) {
         isaac_log(LOG_ERROR, "Failed to read app_call config file %s\n", CONFERENCECONF);
         return -1;
     }

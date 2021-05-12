@@ -163,7 +163,7 @@ accept_connections(void *sock)
 
         if (config.keepalive) {
             // Set keepalive in this client socket
-            if(setsockopt(clifd, SOL_SOCKET, SO_KEEPALIVE, &keepalive , sizeof(keepalive)) == -1) {
+            if (setsockopt(clifd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) == -1) {
                 isaac_log(LOG_ERROR, "Error setting keepalive on socket %d: %s\n", clifd, strerror(errno));
             }
         }
@@ -171,7 +171,7 @@ accept_connections(void *sock)
         // Create a new thread for this client and manage its connection
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (pthread_create(&sess->thread, &attr, manage_session, (void*) sess) != 0) {
+        if (pthread_create(&sess->thread, &attr, manage_session, (void *) sess) != 0) {
             isaac_log(LOG_WARNING, "Error creating session thread: %s\n", strerror(errno));
             pthread_attr_destroy(&attr);
             session_destroy(sess);

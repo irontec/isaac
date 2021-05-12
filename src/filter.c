@@ -137,10 +137,10 @@ filter_register(filter_t *filter)
     pthread_mutex_lock(&filters_mutex);
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
         isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter [%p] with %d conditions\n",
-                filter->sess->id, 
-                (filter->type == FILTER_ASYNC)?"asnyc":"sync",
-                filter, 
-                filter->condcount);
+                  filter->sess->id,
+                  (filter->type == FILTER_ASYNC) ? "asnyc" : "sync",
+                  filter,
+                  filter->condcount);
     }
 
     filter->next = filters;
@@ -157,7 +157,7 @@ filter_unregister(filter_t *filter)
     if (!filter) return 1;
 
     // Some debug info
-    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) 
+    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG))
         isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
 
     // Mark this filter as not valid
@@ -172,7 +172,7 @@ filter_unregister_session(session_t *sess)
 {
     filter_t *filter;
     // Sanity check
-    if (!sess) return 1;    
+    if (!sess) return 1;
 
     pthread_mutex_lock(&filters_mutex);
     // Unregister all this connection filters
@@ -215,7 +215,7 @@ filter_destroy(filter_t *filter)
     }
 
     // Deallocate filter conditions
-    for (i=0; i < filter->condcount; i++) {
+    for (i = 0; i < filter->condcount; i++) {
         if (filter->conds[i].type == MATCH_REGEX) {
             regfree(&filter->conds[i].regex);
         }
@@ -243,14 +243,14 @@ filter_exec_async(filter_t *filter, ami_message_t *msg)
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-       filter_print_message(filter, msg);  
+        filter_print_message(filter, msg);
     }
 
     // Invoke callback right now!
     if (filter->data.async.callback) {
         if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-            isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n", 
-                filter->sess->id, filter, (oneshot)?"(oneshot)":"");
+            isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n",
+                      filter->sess->id, filter, (oneshot) ? "(oneshot)" : "");
         }
         ret = filter->data.async.callback(filter, msg);
     }
@@ -289,7 +289,7 @@ filter_run(filter_t *filter, int timeout, ami_message_t *ret)
     if (!filter || filter->type != FILTER_SYNC)
         return 1;
 
-    int remaining = timeout * 1000; 
+    int remaining = timeout * 1000;
     while (filter->data.sync.triggered == 0 && remaining) {
         usleep(500);
         remaining -= 500;
@@ -299,10 +299,10 @@ filter_run(filter_t *filter, int timeout, ami_message_t *ret)
     if (!remaining) {
         filter_unregister(filter);
         return 1;
-    } 
+    }
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Storing sync filter data [%p]\n", 
-                filter->sess->id, filter);
+        isaac_log(LOG_DEBUG, "[Session %s] Storing sync filter data [%p]\n",
+                  filter->sess->id, filter);
     }
 
     // Copy the message to be returned
@@ -317,7 +317,7 @@ void
 filter_set_userdata(filter_t *filter, void *userdata)
 {
     if (!filter || filter->type != FILTER_ASYNC)
-    return;
+        return;
     filter->data.async.app_info = userdata;
 }
 
@@ -398,15 +398,17 @@ filter_inject_message(filter_t *filter, ami_message_t *msg)
     session_iterator_destroy(iter);
 
     // Show some log
-    isaac_log(LOG_NOTICE, "[Session %s] Injecting fake %s message\n", filter->sess->id, message_get_header(msg, "Event"));
-    isaac_log(LOG_DEBUG, "[Session %s] Injecting fake %s message: %s\n", filter->sess->id, message_get_header(msg, "Event"), message_to_text(msg));
+    isaac_log(LOG_NOTICE, "[Session %s] Injecting fake %s message\n", filter->sess->id,
+              message_get_header(msg, "Event"));
+    isaac_log(LOG_DEBUG, "[Session %s] Injecting fake %s message: %s\n", filter->sess->id,
+              message_get_header(msg, "Event"), message_to_text(msg));
     return check_filters_for_message(msg);
 }
 
 int
 check_filters_for_message(ami_message_t *msg)
 {
-    filter_t * cur, *next;
+    filter_t *cur, *next;
     int i, matches;
     const char *msgvalue, *condvalue;
 
@@ -422,7 +424,7 @@ check_filters_for_message(ami_message_t *msg)
         if (cur->sess == 0) {
             // Clean this filter allocated memory
             filter_destroy(cur);
-        } else { 
+        } else {
             // Initialize the matching headers count
             matches = 0;
             // Loop through all filter conditions
@@ -432,33 +434,33 @@ check_filters_for_message(ami_message_t *msg)
 
                 // Depending on condition type, do the proper check
                 switch (cur->conds[i].type) {
-                case MATCH_EXACT:
-                    if (!isaac_strcmp(msgvalue, condvalue)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_EXACT_CASE:
-                    if (!isaac_strcasecmp(msgvalue, condvalue)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_START_WITH:
-                    if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_REGEX:
-                    if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_REGEX_NOT:
-                    if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                        matches++;
-                    }
-                    break;
-                default:
-                    break;
+                    case MATCH_EXACT:
+                        if (!isaac_strcmp(msgvalue, condvalue)) {
+                            matches++;
+                        }
+                        break;
+                    case MATCH_EXACT_CASE:
+                        if (!isaac_strcasecmp(msgvalue, condvalue)) {
+                            matches++;
+                        }
+                        break;
+                    case MATCH_START_WITH:
+                        if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
+                            matches++;
+                        }
+                        break;
+                    case MATCH_REGEX:
+                        if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                            matches++;
+                        }
+                        break;
+                    case MATCH_REGEX_NOT:
+                        if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                            matches++;
+                        }
+                        break;
+                    default:
+                        break;
                 }
 
                 // If at this point, matches equals the loop counter, the last condition
@@ -476,7 +478,7 @@ check_filters_for_message(ami_message_t *msg)
                     filter_exec_sync(cur, msg);
                 }
             }
-       }
+        }
 
         // Go on with the next message
         cur = next;

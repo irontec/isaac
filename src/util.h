@@ -88,7 +88,7 @@ isaac_skip_nonblanks(const char *str);
 int
 isaac_strlen_zero(const char *s);
 void
-isaac_join(char *s, size_t len, const char * const w[]);
+isaac_join(char *s, size_t len, const char *const w[]);
 
 /*! \brief Wrapper for free */
 void

@@ -117,7 +117,7 @@ read_login_config(const char *cfile)
 
 /**
  * @brief Test if odbc connection is Up
- * 
+ *
  * Do a simple query to test the connection
  * @return 1 if connection is Up, 0 otherwise
  *
@@ -130,16 +130,16 @@ odbc_test()
     // Execute simple statement to test if 'conn' is still OK
     pthread_mutex_lock(&odbc_lock);
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
-    SQLExecDirect(stmt, (SQLCHAR*)"SELECT 1;", SQL_NTS);
+    SQLExecDirect(stmt, (SQLCHAR *) "SELECT 1;", SQL_NTS);
     res = SQL_SUCCEEDED(SQLFetch(stmt));
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
     pthread_mutex_unlock(&odbc_lock);
-    return res; 
+    return res;
 }
 
 /**
  * @brief Connect to mysql through odbc
- * 
+ *
  * Initialize static connection to ivozng database
  *
  * @return 1 if the connection was successfully initializated,
@@ -148,7 +148,7 @@ odbc_test()
 int
 odbc_connect()
 {
-    
+
     // Dont connect if we're already connected
     if (odbc_test()) { return 1; }
     pthread_mutex_lock(&odbc_lock);
@@ -161,11 +161,11 @@ odbc_connect()
     // Connect to the DSN mydsn
     // You will need to change mydsn to one you have created and tested */
     SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
-            SQL_DRIVER_COMPLETE);
+                     SQL_DRIVER_COMPLETE);
     pthread_mutex_unlock(&odbc_lock);
-    
+
     // Check the connection is working
-    if(odbc_test()) {
+    if (odbc_test()) {
         isaac_log(LOG_NOTICE, "Successfully connected to 'asterisk' database through ODBC\n");
         return 1;
     }
@@ -188,7 +188,7 @@ odbc_disconnect()
     SQLFreeHandle(SQL_HANDLE_DBC, dbc);
     SQLFreeHandle(SQL_HANDLE_ENV, env);
     pthread_mutex_unlock(&odbc_lock);
-    return 1;   
+    return 1;
 }
 
 /**
@@ -202,7 +202,7 @@ odbc_watchdog(void *args)
 {
     int i;
     odbc_connect();
-    while(running) {
+    while (running) {
         if (!odbc_test()) {
             isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
             odbc_disconnect();
@@ -213,7 +213,7 @@ odbc_watchdog(void *args)
                 usleep(500 * 1000);
         }
 
-    } 
+    }
     odbc_disconnect();
     return NULL;
 }
@@ -233,25 +233,25 @@ peer_status_check(filter_t *filter, ami_message_t *msg)
 {
     session_t *sess = filter->sess;
     const char *interface = session_get_variable(sess, "INTERFACE");
-    const char *event = message_get_header(msg, "Event");    
+    const char *event = message_get_header(msg, "Event");
 
     if (event) {
         if (!strncasecmp(event, "PeerStatus", 10)) {
             session_write(sess, "BYE Peer %s is no longer registered\r\n", interface);
             session_finish(sess);
-	    return 0;
+            return 0;
         }
         if (!strncasecmp(event, "ExtensionStatus", 15)) {
             session_write(sess, "BYE Agent is no longer logged in\r\n", interface);
             session_finish(sess);
-	    return 0;
+            return 0;
         }
-    } 
+    }
 
     const char *response = message_get_header(msg, "Response");
     if (response) {
         const char *agent = session_get_variable(sess, "AGENT");
- 
+
         if (!strncasecmp(response, "Success", 7)) {
             // Send a success message
             session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
@@ -261,7 +261,7 @@ peer_status_check(filter_t *filter, ami_message_t *msg)
             session_finish(sess);
         }
     }
-   
+
 
     return 0;
 }
@@ -302,24 +302,24 @@ login_exec(session_t *sess, app_t *app, const char *args)
     if (!strcasecmp(pass, "MASTER")) {
         // Prepare login query
         SQLPrepare(stmt, (SQLCHAR *) "SELECT interface, modulo from karma_usuarios as k"
-            " INNER JOIN shared_agents_interfaces as s"
-            " ON k.login_num = s.agent"
-            " WHERE login_num = ?;", SQL_NTS);
+                                     " INNER JOIN shared_agents_interfaces as s"
+                                     " ON k.login_num = s.agent"
+                                     " WHERE login_num = ?;", SQL_NTS);
         // Bind username and password
         SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
-                sizeof(login_num), NULL);
+                         sizeof(login_num), NULL);
     } else {
         // Prepare login query
         SQLPrepare(stmt, (SQLCHAR *) "SELECT interface, modulo from karma_usuarios as k"
-            " INNER JOIN shared_agents_interfaces as s"
-            " ON k.login_num = s.agent"
-            " WHERE login_num = ?"
-            " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));", SQL_NTS);
+                                     " INNER JOIN shared_agents_interfaces as s"
+                                     " ON k.login_num = s.agent"
+                                     " WHERE login_num = ?"
+                                     " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));", SQL_NTS);
         // Bind username and password
         SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
-                sizeof(login_num), NULL);
+                         sizeof(login_num), NULL);
         SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, pass,
-                sizeof(pass), NULL);
+                         sizeof(pass), NULL);
     }
 
     // Execute the query
@@ -348,33 +348,33 @@ login_exec(session_t *sess, app_t *app, const char *args)
         // Check if device is registerd
         if (login_config.check_unregistered) {
             filter_t *peerstatusfilter = filter_create_async(sess, peer_status_check);
-            filter_new_condition(peerstatusfilter, MATCH_EXACT , "Event", "PeerStatus");
-            filter_new_condition(peerstatusfilter, MATCH_EXACT , "Peer", interface);
-            filter_new_condition(peerstatusfilter, MATCH_EXACT , "PeerStatus", "Unregistered");
+            filter_new_condition(peerstatusfilter, MATCH_EXACT, "Event", "PeerStatus");
+            filter_new_condition(peerstatusfilter, MATCH_EXACT, "Peer", interface);
+            filter_new_condition(peerstatusfilter, MATCH_EXACT, "PeerStatus", "Unregistered");
             filter_register(peerstatusfilter);
         }
 
         filter_t *agentstatus = filter_create_async(sess, peer_status_check);
-        filter_new_condition(agentstatus, MATCH_EXACT , "Event", "ExtensionStatus");
-        filter_new_condition(agentstatus, MATCH_EXACT , "Exten", "access_%s", interface+4);
-        filter_new_condition(agentstatus, MATCH_EXACT , "Status", "1");
+        filter_new_condition(agentstatus, MATCH_EXACT, "Event", "ExtensionStatus");
+        filter_new_condition(agentstatus, MATCH_EXACT, "Exten", "access_%s", interface + 4);
+        filter_new_condition(agentstatus, MATCH_EXACT, "Status", "1");
         filter_register(agentstatus);
 
         if (login_config.validate_registered) {
             // Check if device is registerd
             filter_t *peerfilter = filter_create_async(sess, peer_status_check);
-            filter_new_condition(peerfilter, MATCH_EXACT , "ActionID", interface+4);
+            filter_new_condition(peerfilter, MATCH_EXACT, "ActionID", interface + 4);
             filter_register_oneshot(peerfilter);
 
             // Request Peer status right now
             ami_message_t peermsg;
             memset(&peermsg, 0, sizeof(ami_message_t));
             message_add_header(&peermsg, "Action: SIPshowpeer");
-            message_add_header(&peermsg, "Peer: %s", interface+4);
-            message_add_header(&peermsg, "ActionID: %s", interface+4);
+            message_add_header(&peermsg, "Peer: %s", interface + 4);
+            message_add_header(&peermsg, "ActionID: %s", interface + 4);
             manager_write_message(manager, &peermsg);
         } else {
-            session_write(sess, "LOGINOK Welcome back %s SIP/%s\r\n", agent, interface+4);
+            session_write(sess, "LOGINOK Welcome back %s SIP/%s\r\n", agent, interface + 4);
         }
 
         ret = 0;
@@ -387,9 +387,9 @@ login_exec(session_t *sess, app_t *app, const char *args)
         ret = 1;
     }
 
-   SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-   pthread_mutex_unlock(&odbc_lock);
-   return ret;
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    pthread_mutex_unlock(&odbc_lock);
+    return ret;
 }
 
 /**
@@ -423,52 +423,52 @@ devicestatus_changed(filter_t *filter, ami_message_t *msg)
     // Otherwise, check status changes
     if (!strncasecmp(exten, "pause_", 6)) {
         // Send new device status
-        switch(status) {
-        case 0:
-            session_write(sess, "DEVICESTATE UNPAUSED\r\n");
-            break;
-        case 8:
-            // Allocate a statement handle
-            SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
-            // Prepare login query
-            SQLPrepare(stmt, (SQLCHAR *) "SELECT id_pausa FROM shared_agents_interfaces AS s"
-                " WHERE agent = ?"
-                " LIMIT 1;", SQL_NTS);
-            // Bind username and password
-            SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &agent,
-                    sizeof(agent), NULL);
+        switch (status) {
+            case 0:
+                session_write(sess, "DEVICESTATE UNPAUSED\r\n");
+                break;
+            case 8:
+                // Allocate a statement handle
+                SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+                // Prepare login query
+                SQLPrepare(stmt, (SQLCHAR *) "SELECT id_pausa FROM shared_agents_interfaces AS s"
+                                             " WHERE agent = ?"
+                                             " LIMIT 1;", SQL_NTS);
+                // Bind username and password
+                SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &agent,
+                                 sizeof(agent), NULL);
 
-            // Execute the query
-            SQLExecute(stmt);
+                // Execute the query
+                SQLExecute(stmt);
 
-            // Check if we fetched something
-            if (SQL_SUCCEEDED(SQLFetch(stmt))) {
-                // Get the agent's interface and module
-                SQLGetData(stmt, 1, SQL_INTEGER, &id_pausa, sizeof(id_pausa), &indicator);
-            }
-            SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-            if (id_pausa == -1) {
-                session_write(sess, "DEVICESTATE PAUSED\r\n");
-            } else {
-                session_write(sess, "DEVICESTATE PAUSED %d\r\n", id_pausa);
-            }
-            break;
+                // Check if we fetched something
+                if (SQL_SUCCEEDED(SQLFetch(stmt))) {
+                    // Get the agent's interface and module
+                    SQLGetData(stmt, 1, SQL_INTEGER, &id_pausa, sizeof(id_pausa), &indicator);
+                }
+                SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+                if (id_pausa == -1) {
+                    session_write(sess, "DEVICESTATE PAUSED\r\n");
+                } else {
+                    session_write(sess, "DEVICESTATE PAUSED %d\r\n", id_pausa);
+                }
+                break;
         }
     } else {
         // Send new device status
-        switch(status) {
-        case 0:
-            session_write(sess, "DEVICESTATE IDLE\r\n");
-            break;
-        case 1:
-            session_write(sess, "DEVICESTATE INUSE\r\n");
-            break;
-        case 8:
-            session_write(sess, "DEVICESTATE RINGING\r\n");
-            break;
-        case 16:
-            session_write(sess, "DEVICESTATE ONHOLD\r\n");
-            break;
+        switch (status) {
+            case 0:
+                session_write(sess, "DEVICESTATE IDLE\r\n");
+                break;
+            case 1:
+                session_write(sess, "DEVICESTATE INUSE\r\n");
+                break;
+            case 8:
+                session_write(sess, "DEVICESTATE RINGING\r\n");
+                break;
+            case 16:
+                session_write(sess, "DEVICESTATE ONHOLD\r\n");
+                break;
         }
     }
 
@@ -501,9 +501,9 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
 
     // Add a filter for handling device state changes
     filter_t *devicefilter = filter_create_async(sess, devicestatus_changed);
-    filter_new_condition(devicefilter, MATCH_EXACT , "Context", "cc-hints");
-    sprintf(exten, "%s|pause_%s", agent, interface+4);
-    filter_new_condition(devicefilter, MATCH_REGEX , "Exten", exten);
+    filter_new_condition(devicefilter, MATCH_EXACT, "Context", "cc-hints");
+    sprintf(exten, "%s|pause_%s", agent, interface + 4);
+    filter_new_condition(devicefilter, MATCH_REGEX, "Exten", exten);
     filter_register(devicefilter);
 
     // Mark this session to avoid multiple device status
@@ -524,7 +524,7 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
     // Initial status (pause)
     memset(&devicemsg, 0, sizeof(ami_message_t));
     message_add_header(&devicemsg, "Action: ExtensionState");
-    message_add_header(&devicemsg, "Exten: pause_%s", interface+4);
+    message_add_header(&devicemsg, "Exten: pause_%s", interface + 4);
     message_add_header(&devicemsg, "Context: cc-hints");
     message_add_header(&devicemsg, "ActionID: %s", sess->id);
     manager_write_message(manager, &devicemsg);

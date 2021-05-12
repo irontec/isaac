@@ -134,7 +134,7 @@ read_call_config(const char *cfile)
     // Read configuraiton file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
         isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
-                config_error_line(&cfg), config_error_text(&cfg));
+                  config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         return -1;
     }
@@ -222,12 +222,12 @@ call_state(filter_t *filter, ami_message_t *msg)
     const char *event = message_get_header(msg, "Event");
     char from[80], state[80], uniqueid[80], response[256];
     bool finished = false;
- 
+
     // Initialize arrays
-    memset(from,        0, sizeof(from));
-    memset(state,       0, sizeof(state));
-    memset(uniqueid,    0, sizeof(uniqueid));
-    memset(response,    0, sizeof(response));
+    memset(from, 0, sizeof(from));
+    memset(state, 0, sizeof(state));
+    memset(uniqueid, 0, sizeof(uniqueid));
+    memset(response, 0, sizeof(response));
 
     // So this leg is first one or second one?
     if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
@@ -292,17 +292,17 @@ call_state(filter_t *filter, ami_message_t *msg)
 
         // Update recording variables
         if (!strncasecmp(varname, "GRABACIONES_", 12)) {
-            char recordvar[256],recorduniqueid[80], grabaciones[80], recordtype[80];
+            char recordvar[256], recorduniqueid[80], grabaciones[80], recordtype[80];
             isaac_strcpy(recordvar, varname);
             if (sscanf(recordvar, "%[^_]_%[^_]_%s", grabaciones, recorduniqueid, recordtype) == 3) {
-                if (!strcasecmp(recordtype, "MODULO"))     sprintf(info->grabaciones_modulo, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "TIPO"))       sprintf(info->grabaciones_tipo, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "MODULO")) sprintf(info->grabaciones_modulo, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "TIPO")) sprintf(info->grabaciones_tipo, "%s;", varvalue);
                 if (!strcasecmp(recordtype, "PLATAFORMA")) sprintf(info->grabaciones_plataforma, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "ORIGEN"))     sprintf(info->grabaciones_origen, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "DESTINO"))    sprintf(info->grabaciones_destino, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "ORIGEN")) sprintf(info->grabaciones_origen, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "DESTINO")) sprintf(info->grabaciones_destino, "%s;", varvalue);
                 if (!strcasecmp(recordtype, "FECHA_HORA")) sprintf(info->grabaciones_fecha_hora, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "RUTA"))       sprintf(info->grabaciones_ruta, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "FICHERO"))    sprintf(info->grabaciones_fichero, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "RUTA")) sprintf(info->grabaciones_ruta, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "FICHERO")) sprintf(info->grabaciones_fichero, "%s;", varvalue);
             } else {
                 isaac_log(LOG_WARNING, "Unhandled record variable %s\n", varname);
             }
@@ -321,11 +321,11 @@ call_state(filter_t *filter, ami_message_t *msg)
             info->ofilter = filter_create_async(filter->sess, call_state);
             filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
-            filter_set_userdata(info->ofilter, (void*) info);
+            filter_set_userdata(info->ofilter, (void *) info);
             filter_register(info->ofilter);
 
             // Tell the client the channel is going on!
-            isaac_strcpy(state, "STARTING"); 
+            isaac_strcpy(state, "STARTING");
         }
 
         //--------------------------------------------------------------------------------------------------------------
@@ -343,7 +343,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             filter_t *dial_filter = filter_create_async(filter->sess, call_state);
             filter_new_condition(dial_filter, MATCH_REGEX, "Event", "DialBegin");
             filter_new_condition(dial_filter, MATCH_EXACT, "Uniqueid", uniqueid);
-            filter_set_userdata(dial_filter, (void*) info);
+            filter_set_userdata(dial_filter, (void *) info);
             filter_register_oneshot(dial_filter);
 
             // If this is the first Local channel
@@ -357,7 +357,7 @@ call_state(filter_t *filter, ami_message_t *msg)
                 filter_new_condition(callfilter, MATCH_EXACT, "Variable", "ACTIONID");
                 filter_new_condition(callfilter, MATCH_EXACT, "Value", message_get_header(msg, "Value"));
                 filter_new_condition(callfilter, MATCH_EXACT, "Linkedid", uniqueid);
-                filter_set_userdata(callfilter, (void*) info);
+                filter_set_userdata(callfilter, (void *) info);
                 filter_register_oneshot(callfilter);
             } else {
                 // Store uniqueid for DialBegin event
@@ -366,7 +366,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         }
 
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
-            "Begin")) {
+                                                         "Begin")) {
         // Get the UniqueId from the agent channel
         strcpy(info->duid, message_get_header(msg, "DestUniqueID"));
         strcpy(info->dchannel, message_get_header(msg, "Destination"));
@@ -434,7 +434,7 @@ call_state(filter_t *filter, ami_message_t *msg)
     if (strlen(state)) {
         // Add Uniqueid to response if requested
         if (info->print_uniqueid) {
-            isaac_strcpy(uniqueid, !strcasecmp(from, "AGENT")?info->ouid:info->duid);
+            isaac_strcpy(uniqueid, !strcasecmp(from, "AGENT") ? info->ouid : info->duid);
             sprintf(response, "CALLSTATUS %s %s %s %s\r\n", info->actionid, uniqueid, from, state);
         } else {
             sprintf(response, "CALLSTATUS %s %s %s\r\n", info->actionid, from, state);
@@ -512,7 +512,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
     filter_new_condition(info->callfilter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(info->callfilter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(info->callfilter, MATCH_EXACT, "Value", actionid);
-    filter_set_userdata(info->callfilter, (void*) info);
+    filter_set_userdata(info->callfilter, (void *) info);
     filter_register_oneshot(info->callfilter);
 
     // Get the logged agent
@@ -538,24 +538,24 @@ call_exec(session_t *sess, app_t *app, const char *args)
 
     // Forced CLID from application arguments
     if (application_get_arg(&parsed, "CLID"))
-        message_add_header(&msg, "Variable: ISAAC_FORCED_CLID=%s", 
-            application_get_arg(&parsed, "CLID"));
+        message_add_header(&msg, "Variable: ISAAC_FORCED_CLID=%s",
+                           application_get_arg(&parsed, "CLID"));
 
     // Forced SRC CLID from application arguments
     if (application_get_arg(&parsed, "SRC_CLID"))
         message_add_header(&msg, "Variable: ISAAC_SRC_FORCED_CLID=%s",
-            application_get_arg(&parsed, "SRC_CLID"));
+                           application_get_arg(&parsed, "SRC_CLID"));
 
 
     // Forced Timeout from application arguments
     if (application_get_arg(&parsed, "TIMEOUT"))
-        message_add_header(&msg, "Variable: ISAAC_CALL_TIMEOUT=%s", 
-            application_get_arg(&parsed, "TIMEOUT"));
+        message_add_header(&msg, "Variable: ISAAC_CALL_TIMEOUT=%s",
+                           application_get_arg(&parsed, "TIMEOUT"));
 
     // Originate absolute TIMEOUT (default 30s)
     if (application_get_arg(&parsed, "ABSOLUTE_TIMEOUT"))
-        message_add_header(&msg, "Timeout: %s", 
-            application_get_arg(&parsed, "ABSOLUTE_TIMEOUT"));
+        message_add_header(&msg, "Timeout: %s",
+                           application_get_arg(&parsed, "ABSOLUTE_TIMEOUT"));
 
 
     // Send this message to ami
@@ -640,7 +640,7 @@ hangup_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Try to find the action info of the given actionid
-    if ((info = get_call_info_from_id(sess, actionid))) { 
+    if ((info = get_call_info_from_id(sess, actionid))) {
         if (!isaac_strlen_zero(info->ochannel)) {
             ami_message_t msg;
             memset(&msg, 0, sizeof(ami_message_t));
@@ -690,7 +690,7 @@ hold_unhold_exec(session_t *sess, app_t *app, const char *args)
 
     // Convert action to uppercase
     isaac_strcpy(action, app->name);
-    for (i=0; action[i]; i++){
+    for (i = 0; action[i]; i++) {
         action[i] = (char) toupper(action[i]);
     }
 
@@ -700,7 +700,7 @@ hold_unhold_exec(session_t *sess, app_t *app, const char *args)
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: SIPNotifyChan");
         message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Event: %s", ((!strcasecmp(app->name, "Hold"))?"hold":"talk"));
+        message_add_header(&msg, "Event: %s", ((!strcasecmp(app->name, "Hold")) ? "hold" : "talk"));
         manager_write_message(manager, &msg);
         session_write(sess, "%sOK\r\n", action);
     } else {
@@ -725,7 +725,7 @@ record_state(filter_t *filter, ami_message_t *msg)
     }
 
     if (strncasecmp(response, "Success", 7) == 0) {
-        const char *mixmonitor_id =  message_get_header(msg, "MixmonitorID");
+        const char *mixmonitor_id = message_get_header(msg, "MixmonitorID");
         if (mixmonitor_id != NULL) {
             strcpy(info->recording_id, mixmonitor_id);
         }
@@ -758,7 +758,7 @@ record_exec(session_t *sess, app_t *app, const char *args)
     char filename[128];
     time_t timer;
     char timestr[25];
-    struct tm* tm_info;
+    struct tm *tm_info;
 
     // This can only be done after authentication
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -781,7 +781,7 @@ record_exec(session_t *sess, app_t *app, const char *args)
 
         filter_t *record_status = filter_create_async(sess, record_state);
         filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s", actionid);
-        filter_set_userdata(record_status, (void*) info);
+        filter_set_userdata(record_status, (void *) info);
         filter_register_oneshot(record_status);
 
         ami_message_t msg;
@@ -818,14 +818,14 @@ record_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->ouid);
-        message_add_header(&msg, "Value: %s%s",info->grabaciones_origen,session_get_variable(sess, "AGENT"));
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_origen, session_get_variable(sess, "AGENT"));
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->ouid);
-        message_add_header(&msg, "Value: %s%s",info->grabaciones_destino, info->destiny);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_destino, info->destiny);
         manager_write_message(manager, &msg);
 
         time(&timer);

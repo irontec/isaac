@@ -41,7 +41,7 @@ int
 application_register(const char *name, int
 (*execute)(session_t *sess, app_t *app, const char *args))
 {
-    // Check if another application is registered with the same name 
+    // Check if another application is registered with the same name
     if (application_find(name)) {
         isaac_log(LOG_ERROR, "Another application exists with name %s\n", name);
         return -1;
@@ -148,10 +148,10 @@ application_parse_args(const char *argstr, app_args_t *args)
 
     // Initialize argument structure
     memset(args, 0, sizeof(app_args_t));
-        
+
     // Store argument string, to be tokenized
     isaac_strcpy(arguments, argstr);
-    
+
     // Fix the arguments string, remove any \r or \n characters
     for (end = arguments; *end; end++) {
         if (*end == '\n' || *end == '\r')
@@ -159,7 +159,7 @@ application_parse_args(const char *argstr, app_args_t *args)
     }
 
     // Split the arguments by space
-    for(arg = arguments; (arg = strtok_r(arg, " ", &rest)); arg = rest) {
+    for (arg = arguments; (arg = strtok_r(arg, " ", &rest)); arg = rest) {
         // Store this argument
         isaac_strncpy(args->args[args->count], arg, strlen(arg));
 
@@ -170,7 +170,7 @@ application_parse_args(const char *argstr, app_args_t *args)
         }
 
         // Incremente argument counter
-        args->count++; 
+        args->count++;
     }
 }
 
@@ -184,12 +184,12 @@ application_get_arg(app_args_t *args, const char *argname)
     if (!argname) return NULL;
 
 
-    // Search for the argument 
+    // Search for the argument
     for (i = 0; i < args->count; i++) {
         if (!strncasecmp(args->args[i], argname, strlen(argname))) {
             // Argument found, check if it has a value
             if ((ret = strchr(args->args[i], '='))) {
-                // Found with value, return value 
+                // Found with value, return value
                 return ret + 1;
             } else {
                 // Found without value, return default value "1"
@@ -206,18 +206,18 @@ const char *
 apperr2str(int apperr)
 {
     switch (apperr) {
-    case NOT_AUTHENTICATED:
-        return "SESSION NOT AUTHENTICATED";
-    case UNKNOWN_ACTION:
-        return "UNKNOWN ACTION";
-    case INVALID_ARGUMENTS:
-        return "INVALID ARGUMENT LIST";
-    case INVALID_FORMAT:
-        return "INVALID MESSAGE FORMAT";
-    case INTERNAL_ERROR:
-        return "INTERNAL APPLICATION ERROR";
-    default:
-        return NULL;
+        case NOT_AUTHENTICATED:
+            return "SESSION NOT AUTHENTICATED";
+        case UNKNOWN_ACTION:
+            return "UNKNOWN ACTION";
+        case INVALID_ARGUMENTS:
+            return "INVALID ARGUMENT LIST";
+        case INVALID_FORMAT:
+            return "INVALID MESSAGE FORMAT";
+        case INTERNAL_ERROR:
+            return "INTERNAL APPLICATION ERROR";
+        default:
+            return NULL;
     }
 }
 

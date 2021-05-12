@@ -22,7 +22,7 @@
  * \file module.h
  * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  * \brief Manages loadable modules of Isaac
- * 
+ *
  * Actually loadable modules can only register applications. But hey, it's an
  * open door.
  */
@@ -37,7 +37,7 @@ typedef struct isaac_module module_t;
 
 /**
  * \brief This structure contains of related information to one Isaac module
- * 
+ *
  * A modules is a loadable file that can contain resources and code that can
  * be used in the simplified protocol
  *
@@ -91,8 +91,8 @@ unload_modules();
  *
  * \return A new allocated module structure
  */
-extern module_t*
-module_create(const char* file);
+extern module_t *
+module_create(const char *file);
 
 /**
  * \brief Requests module unload and free its memory
@@ -104,7 +104,7 @@ module_create(const char* file);
  *
  */
 extern void
-module_destroy(module_t* module);
+module_destroy(module_t *module);
 
 
 #endif         /* __ISAAC_MODULE_H_ */

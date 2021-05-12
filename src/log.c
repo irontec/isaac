@@ -50,24 +50,24 @@ log_type_to_text(int log_type)
 {
     // Get log prefix depending on log_type
     switch (log_type) {
-    case LOG_DEBUG:
-        return "\e[1;34mDEBUG\e[0m";
-    case LOG_WARNING:
-        return "\e[0;31mWARNING\e[0m";
-    case LOG_NOTICE:
-        return "\e[1;33mNOTICE\e[0m";
-    case LOG_ERROR:
-        return "\e[1;31mERROR\e[0m";
-    case LOG_NONE:
-        return "";
-    case LOG_VERBOSE_1:
-        return "  == ";
-    case LOG_VERBOSE_2:
-        return "    -- ";
-    case LOG_VERBOSE_3:
-        return "      > ";
-    case LOG_VERBOSE_4:
-        return "        o ";
+        case LOG_DEBUG:
+            return "\e[1;34mDEBUG\e[0m";
+        case LOG_WARNING:
+            return "\e[0;31mWARNING\e[0m";
+        case LOG_NOTICE:
+            return "\e[1;33mNOTICE\e[0m";
+        case LOG_ERROR:
+            return "\e[1;31mERROR\e[0m";
+        case LOG_NONE:
+            return "";
+        case LOG_VERBOSE_1:
+            return "  == ";
+        case LOG_VERBOSE_2:
+            return "    -- ";
+        case LOG_VERBOSE_3:
+            return "      > ";
+        case LOG_VERBOSE_4:
+            return "        o ";
     }
 
     // Unknown logging type
@@ -76,7 +76,7 @@ log_type_to_text(int log_type)
 
 void
 isaac_log_location(int log_level, const char *file, int line, const char *function, const char *fmt,
-        ...)
+                   ...)
 {
     char logmsg[MAX_MSG_SIZE];
     char msgva[MAX_MSG_SIZE];
@@ -180,15 +180,15 @@ clean_text(char *text)
     for (i = 0; i <= strlen(text); i++) {
         if (text[i] == 27) {
             switch (text[i + 2]) {
-            case 48:
-                i += 3;
-                break;
-            case 49:
-                i += 6;
-                break;
-            case 50:
-                i += 4;
-                break;
+                case 48:
+                    i += 3;
+                    break;
+                case 49:
+                    i += 6;
+                    break;
+                case 50:
+                    i += 4;
+                    break;
             }
             continue;
         }

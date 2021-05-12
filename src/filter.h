@@ -78,15 +78,15 @@ typedef struct isaac_condition cond_t;
 enum condtype
 {
     //! Message must contain the condition header and value
-    MATCH_EXACT = 0,
+        MATCH_EXACT = 0,
     //! Message must contain the condition header and value (Case Insensitive)
-    MATCH_EXACT_CASE,
+        MATCH_EXACT_CASE,
     //! Message must contain the condition header and value starting with conds value
-    MATCH_START_WITH,
+        MATCH_START_WITH,
     //! Message must contain the condition header and value that match cond regexp
-    MATCH_REGEX,
+        MATCH_REGEX,
     //! Message must not contain the condition header and value that match cond regexp
-    MATCH_REGEX_NOT,
+        MATCH_REGEX_NOT,
 };
 
 /**
@@ -123,9 +123,9 @@ struct isaac_condition
 enum filtertype
 {
     //! Invoke filters callback from the scheduler thread
-    FILTER_ASYNC = 0,
+        FILTER_ASYNC = 0,
     //! Invoke filters callback from the manager thread (will block manager reads from AMI)
-    FILTER_SYNC,
+        FILTER_SYNC,
 };
 
 struct isaac_filter_async
@@ -167,12 +167,13 @@ struct isaac_filter
     //! How the callback function is invoked
     enum filtertype type;
 
-    //! Depending on the filter type 
-    union {
+    //! Depending on the filter type
+    union
+    {
         struct isaac_filter_async async;
         struct isaac_filter_sync sync;
     } data;
-    
+
     //! Pointer for Filters Linked list
     filter_t *next;
 };
@@ -333,7 +334,7 @@ filter_exec_sync(filter_t *filter, ami_message_t *msg);
  *
  * This fuction will lock until timeout has elapsed or an ami event is filled
  * and the filter data.
- * 
+ *
  * @param filter Filter thas has matched
  * @param timeout Block timeout in milliseconds
  * @param The matching ami message or NULL
@@ -413,7 +414,7 @@ filter_print_message(filter_t *filter, ami_message_t *msg);
  * The fake message passed to this function will be checked before any other
  * manager message.
  *
- * Be aware: If the function emitting the message is also triggered by the 
+ * Be aware: If the function emitting the message is also triggered by the
  *           injected message, this can cause an infinite loop!
  */
 extern int

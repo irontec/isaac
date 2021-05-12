@@ -82,7 +82,7 @@ load_modules()
             }
         }
         // Not in configuration module list
-        if (i == config.modulecnt){
+        if (i == config.modulecnt) {
             continue;
         }
 
@@ -157,8 +157,8 @@ unload_modules()
 }
 
 /*****************************************************************************/
-module_t*
-module_create(const char* file)
+module_t *
+module_create(const char *file)
 {
     struct isaac_module *module;
 
@@ -191,7 +191,7 @@ module_destroy(module_t *module)
 
     // If we have an open handler, close it
     if (module->dlhandle) {
-       dlclose(module->dlhandle);
+        dlclose(module->dlhandle);
     }
 
     // Free module filename

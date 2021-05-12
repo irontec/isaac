@@ -67,9 +67,9 @@
 enum log_type
 {
     //! Log to local syslog
-    LOG_TYPE_SYSLOG = (1 << 1),
+        LOG_TYPE_SYSLOG = (1 << 1),
     //! Log to local file
-    LOG_TYPE_FILE,
+        LOG_TYPE_FILE,
 };
 
 //#define LOG_EMERG       0       /* system is unusable */
@@ -96,7 +96,7 @@ enum log_type
 #define LOG_VERBOSE_4   112
 #define LOG_NONE        999
 
-#define DATEFORMAT	"%b %e %T"
+#define DATEFORMAT    "%b %e %T"
 #define MAX_MSG_SIZE    8192
 #define TID             (long int)syscall(SYS_gettid)
 
@@ -145,7 +145,7 @@ log_type_to_text(int log_type);
  */
 extern void
 isaac_log_location(int log_type, const char *file, int line, const char *function, const char *fmt,
-        ...);
+                   ...);
 
 /**
  * @brief Opens the log medium: File or Syslog

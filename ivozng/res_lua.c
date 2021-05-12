@@ -110,7 +110,7 @@ lua_application_callback(session_t *sess, app_t *app, const char *args)
     // And run it
     if (lua_pcall(lua_app->module->lua, 3, 1, 0)) {
         isaac_log(LOG_ERROR, "lua_callback: %s() failed: %s\n", lua_app->callback, lua_tostring(
-                lua_app->module->lua, -1));
+            lua_app->module->lua, -1));
     }
 
     // Get the return value
@@ -147,7 +147,7 @@ lua_filter_callback(filter_t *filter, ami_message_t *msg)
     // And run it
     if (lua_pcall(lua_filter->module->lua, 2, 0, 0)) {
         isaac_log(LOG_ERROR, "lua_callback: %s() failed: %s\n", lua_filter->callback, lua_tostring(
-                lua_filter->module->lua, -1));
+            lua_filter->module->lua, -1));
     }
 
     // Get the return value
@@ -160,8 +160,8 @@ lua_filter_callback(filter_t *filter, ami_message_t *msg)
 int
 lua_application_register(lua_State *L)
 {
-    const char* appname = lua_tostring(L, 1);
-    const char* appcallback = lua_tostring(L, 2);
+    const char *appname = lua_tostring(L, 1);
+    const char *appcallback = lua_tostring(L, 2);
 
     // Create a LUA application strctucture
     lua_app_t *app = malloc(sizeof(lua_app_t));
@@ -171,7 +171,7 @@ lua_application_register(lua_State *L)
 
     // Get the application module
     lua_getglobal(L, "__MODULE");
-    app->module = (lua_module_t*) lua_touserdata(L, -1);
+    app->module = (lua_module_t *) lua_touserdata(L, -1);
 
     // Add to the application list
     app->next = lua_apps;
@@ -181,6 +181,7 @@ lua_application_register(lua_State *L)
 
     return 0;
 }
+
 int
 lua_application_unregister(lua_State *L)
 {
@@ -218,7 +219,7 @@ lua_filter_create(lua_State *L)
         isaac_strcpy(info->callback, callback);
         info->sess = sess;
         lua_getglobal(L, "__MODULE");
-        info->module = (lua_module_t*) lua_touserdata(L, -1);
+        info->module = (lua_module_t *) lua_touserdata(L, -1);
 
         isaac_log(LOG_DEBUG, "Creating new filter for LUA module [%s]\n", callback);
 
@@ -292,15 +293,15 @@ int
 lua_isaac_log(lua_State *L)
 {
     int loglevel = lua_tonumber(L, 1);
-    const char* msg = lua_tostring(L, 2);
+    const char *msg = lua_tostring(L, 2);
 
     // Get backtrace information
     lua_Debug ar;
     lua_getstack(L, 1, &ar);
     lua_getinfo(L, "nSl", &ar);
-    const char* file = basename(ar.short_src);
+    const char *file = basename(ar.short_src);
     int line = ar.currentline;
-    const char* func = "receive";
+    const char *func = "receive";
     if (ar.name) func = ar.name;
 
     // Log with the lua code position
@@ -430,7 +431,7 @@ load_lua_modules()
         }
 
         // Store in LUA the module pointer of this file
-        lua_pushlightuserdata(module->lua, (void*) module);
+        lua_pushlightuserdata(module->lua, (void *) module);
         lua_setglobal(module->lua, "__MODULE");
 
         // Get the load_module function inside the script

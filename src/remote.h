@@ -35,7 +35,7 @@
 #include <histedit.h>
 
 //! End code for client completion
-#define AST_CLI_COMPLETE_EOF	"_EOF_"
+#define AST_CLI_COMPLETE_EOF    "_EOF_"
 //! Number of commands in history file
 #define MAX_HISTORY_COMMAND_LENGTH 256
 //! Max EditLine Input command length
@@ -71,7 +71,7 @@ remote_tryconnect();
  * @param command to be executed or NULL for an interactive CLI
  */
 extern void
-remote_control(char* command);
+remote_control(char *command);
 
 /**
  * @brief Callback to write CLI prompt

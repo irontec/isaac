@@ -121,12 +121,12 @@ tvfix(struct timeval a)
 {
     if (a.tv_usec >= 1000000) {
         isaac_log(LOG_WARNING, "warning too large timestamp %ld.%ld\n",
-                (long)a.tv_sec, (long int) a.tv_usec);
+                  (long) a.tv_sec, (long int) a.tv_usec);
         a.tv_sec += a.tv_usec / 1000000;
         a.tv_usec %= 1000000;
     } else if (a.tv_usec < 0) {
         isaac_log(LOG_WARNING, "warning negative timestamp %ld.%ld\n",
-                (long)a.tv_sec, (long int) a.tv_usec);
+                  (long) a.tv_sec, (long int) a.tv_usec);
         a.tv_usec = 0;
     }
     return a;
@@ -219,7 +219,7 @@ isaac_copy_string(char *dst, const char *src, size_t size)
 }
 
 void
-isaac_join(char *s, size_t len, const char* const w[])
+isaac_join(char *s, size_t len, const char *const w[])
 {
     int x, ofs = 0;
     const char *src;
@@ -253,7 +253,7 @@ isaac_tvelap(struct timeval timeval, int printsec, char *out)
     char year[256] = "", week[256] = "", day[256] = "", hour[256] = "", minute[256] = "";
 
     if (timeval.tv_sec < 0) /* invalid, nothing to show */
-    return;
+        return;
 
     if (printsec) { /* plain seconds output */
         sprintf(out, "%lu", (u_long) timeval.tv_sec);
@@ -296,8 +296,8 @@ isaac_toupper(char *str)
     char *sptr;
 
     if (!str) return;
-    
-    for(sptr = str; *sptr != '\0'; sptr++) {
-        *sptr = toupper((unsigned char)*sptr);
+
+    for (sptr = str; *sptr != '\0'; sptr++) {
+        *sptr = toupper((unsigned char) *sptr);
     }
 }

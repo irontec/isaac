@@ -210,7 +210,7 @@ manager_connect(manager_t *man)
 
     // Give some feedack
     isaac_log(LOG_NOTICE, "Manager: Connecting to AMI (host = %s, port = %d)\n", inet_ntoa(
-            man->addr.sin_addr), ntohs(man->addr.sin_port));
+        man->addr.sin_addr), ntohs(man->addr.sin_port));
 
     // Construct a Login message
     memset(&msg, 0, sizeof(struct ami_message));
@@ -227,7 +227,7 @@ manager_connect(manager_t *man)
                 man->fd = socket(AF_INET, SOCK_STREAM, 0);
             }
             isaac_log(LOG_WARNING, "Manager: Connect failed, Retrying (%d) :%s [%d]\n", r++,
-                    strerror(errno), errno);
+                      strerror(errno), errno);
             sleep(1);
         } else {
             // Send login message
@@ -278,7 +278,7 @@ manager_read_thread(void *man)
         if (!manager->connected) {
             // Close all sessions
             session_finish_all("Asterisk has gone.");
-            // Try to connect 
+            // Try to connect
             if (manager_connect(manager) != -1) {
                 manager->connected = 1;
                 manager->connectedtime = isaac_tvnow();
@@ -312,7 +312,7 @@ manager_read_thread(void *man)
 }
 
 int
-start_manager(const char* addrstr, const int port, const char* username, const char *secret)
+start_manager(const char *addrstr, const int port, const char *username, const char *secret)
 {
     struct in_addr maddr;
 
@@ -372,7 +372,7 @@ stop_manager()
 char *
 message_to_text(ami_message_t *msg)
 {
-    char *msgtxt = (char*) malloc(1024);
+    char *msgtxt = (char *) malloc(1024);
     int i;
     for (i = 0; i < msg->hdrcount; i++) {
         if (i == 0) sprintf(msgtxt, "%s", msg->headers[i]);
@@ -395,6 +395,6 @@ random_actionid(char *actionid, int len)
         actionid[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
     }
 
-    actionid[len] = 0;    
+    actionid[len] = 0;
     return actionid;
 }

@@ -311,7 +311,7 @@ session_set_variable(session_t *sess, char *varname, char *varvalue)
         strcpy(sess->vars[sess->varcount].varname, varname);
         strcpy(sess->vars[sess->varcount].varvalue, varvalue);
         sess->varcount++;
-    } else{
+    } else {
         strcpy(sess->vars[id].varname, varname);
         strcpy(sess->vars[id].varvalue, varvalue);
     }
@@ -382,7 +382,7 @@ session_iterator_next_by_variable(session_iter_t *iter, const char *variable, co
         return NULL;
 
     while ((next = session_iterator_next(iter))) {
-        const char* sessvalue = session_get_variable(next, variable);
+        const char *sessvalue = session_get_variable(next, variable);
         if (sessvalue && !strcasecmp(sessvalue, value)) {
             break;
         }

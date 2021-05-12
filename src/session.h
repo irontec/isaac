@@ -60,7 +60,7 @@ struct session_var
 };
 
 /**
- * \brief Session related information. 
+ * \brief Session related information.
  *
  * Contains all data from an incoming client connection
  * \todo Make the Session variable list a linked list
@@ -95,13 +95,13 @@ struct session
 enum session_flag
 {
     //! Session is authenticated
-    SESS_FLAG_AUTHENTICATED = (1 << 1),
+        SESS_FLAG_AUTHENTICATED = (1 << 1),
     //! Session messages will be written to CLI
-    SESS_FLAG_DEBUG = (1 << 2),
+        SESS_FLAG_DEBUG = (1 << 2),
     //! Session is leaving
-    SESS_FLAG_LEAVING = (1 << 3),
+        SESS_FLAG_LEAVING = (1 << 3),
     //! Session has been started from localhost
-    SESS_FLAG_LOCAL = (1 << 4),
+        SESS_FLAG_LOCAL = (1 << 4),
 };
 
 /**
@@ -133,13 +133,13 @@ session_create(const int fd, const struct sockaddr_in addr);
 
 /**
  * \brief Free session memory
- * 
+ *
  * Free session memory and delete it from sessions list.
  * This function will also close any pending applications and manager
- * filters. 
+ * filters.
  *
  * \warning Dont use this function from apps. Use session_finish instead.
- * \param sess Session structure to be freed	
+ * \param sess Session structure to be freed
  */
 void
 session_destroy(session_t *sess);
@@ -149,7 +149,7 @@ session_destroy(session_t *sess);
  *
  * Closes session socket finishing the connection.
  * This function will not free any of the session data or send any
- * message before closing the connection, but will trigger the end 
+ * message before closing the connection, but will trigger the end
  * of the session thread (thus destroying the session)
  *
  * \param sess	Session to be finished
@@ -164,8 +164,8 @@ session_finish(session_t *sess);
  * Writes some formated text to the session client.
  * The format used here follows the printf syntax.
  *
- * \param sess	Session structure 
- * \param fmt	String format in printf syntax 
+ * \param sess	Session structure
+ * \param fmt	String format in printf syntax
  * \param ...	Zero or more vars to fill the fmt
  * \return 0 in case of success, -1 otherwise
  */
@@ -179,8 +179,8 @@ session_write(session_t *sess, const char *fmt, ...);
  * session and also to all sessions of the same agent
  * with the broadcast allowed
  *
- * \param sess  Session structure 
- * \param fmt   String format in printf syntax 
+ * \param sess  Session structure
+ * \param fmt   String format in printf syntax
  * \param ...   Zero or more vars to fill the fmt
  * \return 0 in case of success, -1 otherwise
  */
@@ -189,15 +189,15 @@ session_write_broadcast(session_t *sender, const char *fmt, ...);
 
 /**
  * \brief Read some text from client socket
- * 
- * Waits until something can be readen from client socket and 
+ *
+ * Waits until something can be readen from client socket and
  * store it in msg variable.
  *
- * This function is executed in the manage_session thread to 
+ * This function is executed in the manage_session thread to
  * parse each of the actions, but if for some reason an application
  * requires more than one line to work, it can be used. In this
  * case, the extra lines wont be considered actions.
- * 
+ *
  * \note Message memory must be previously allocated
  * \note This is a blocking function.
  * \param sess	Session structure
@@ -262,7 +262,7 @@ session_by_variable(const char *varname, const char *varvalue);
 extern int
 session_finish_all(const char *message);
 
-extern int 
+extern int
 session_id(session_t *sess);
 
 #endif

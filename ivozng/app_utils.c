@@ -56,7 +56,7 @@ int help_exec(session_t *sess, app_t *app, const char *args)
     session_write(sess, "Available applications: ");
     pthread_mutex_lock(&apps_lock);
     // Loop through the apps list printing their names
-    app_t* cur = apps;
+    app_t *cur = apps;
     while (cur) {
         session_write(sess, "%s ", cur->name);
         cur = cur->next;
@@ -72,7 +72,7 @@ int help_exec(session_t *sess, app_t *app, const char *args)
  *
  * Store a variable on current session. All variable values
  * are stored as char strings
- * 
+ *
  * @param sess Session structure to store the var
  * @param app The application structure
  * @param args  Aditional command line arguments (Variable, Value)
@@ -96,8 +96,8 @@ int set_exec(session_t *sess, app_t *app, const char *args)
  * @brief Get a variable from a session
  *
  * Retrieve a variable on current session. All variable values
- * are stored as char strings 
- * 
+ * are stored as char strings
+ *
  * @param sess Session structure to store the var
  * @param app The application structure
  * @param args  Aditional command line arguments (Variable, Value)
@@ -114,7 +114,7 @@ int get_exec(session_t *sess, app_t *app, const char *args)
     }
 
     // Retrieve given variable
-    if (!(value = session_get_variable(sess, variable))) 
+    if (!(value = session_get_variable(sess, variable)))
         return session_write(sess, "GETFAIL Variable %s does not exists.\r\n", variable);
 
     // Return retrieved variable
@@ -123,7 +123,7 @@ int get_exec(session_t *sess, app_t *app, const char *args)
 
 /**
  * @brief Send a message to other sessions
- * 
+ *
  * @param sess Session structure that invoked the app
  * @param app The application structure
  * @param args  Aditional command line arguments (Variable, Value)
@@ -151,7 +151,7 @@ int broadcast_exec(session_t *sess, app_t *app, const char *args)
             if (!cur_value || strcasecmp(cur_value, value))
                 continue;
         }
-   
+
         // Otherwise send the message to that session
         session_write(cur, "%s\r\n", message);
     }

@@ -73,7 +73,7 @@ remote_tryconnect()
 }
 
 void
-remote_control(char* command)
+remote_control(char *command)
 {
     int res;
     char *ebuf;
@@ -120,7 +120,7 @@ remote_control(char* command)
             // Write the answer to the client
             if (write(STDOUT_FILENO, buffer, nbytes) < 0) {
                 isaac_log(LOG_WARNING, "write() failed: %s\n", strerror(errno));
-            } 
+            }
         }
         // We've done here
         return;
@@ -229,7 +229,7 @@ remote_complete(EditLine *editline, int ch)
         char *mbuf;
         int mlen = 0, maxmbuf = 2048;
         /* Start with a 2048 byte buffer */
-        if (!(mbuf = (char*) malloc(maxmbuf))) {
+        if (!(mbuf = (char *) malloc(maxmbuf))) {
             return (char *) (CC_ERROR);
         }
         snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr);
@@ -311,7 +311,7 @@ remote_display_match_list(char **matches, int len, int max)
 
     idx = 1;
 
-    qsort(&matches[0], (size_t)(len), sizeof(char *), remote_el_sort_compare);
+    qsort(&matches[0], (size_t) (len), sizeof(char *), remote_el_sort_compare);
 
     for (; count > 0; count--) {
         numoutputline = 0;
@@ -349,7 +349,7 @@ remote_consolehandler(char *s)
     }
 
     if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) && (s[4] == '\0'
-            || isspace(s[4]))) {
+                                                                               || isspace(s[4]))) {
         remote_quit_handler(0);
         ret = 1;
     }
@@ -568,7 +568,7 @@ int
 remote_el_read_history(char *filename)
 {
     HistEvent ev = {
-            0 };
+        0 };
 
     if (el_hist == NULL || el == NULL) {
         remote_el_initialize();

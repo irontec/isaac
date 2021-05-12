@@ -58,11 +58,11 @@
 //! Max number of arguments a CLI command can have.
 #define AST_MAX_ARGS 64
 //! Final tag to signal end of CLI suggestion arrays.
-#define AST_CLI_COMPLETE_EOF	"_EOF_"
+#define AST_CLI_COMPLETE_EOF    "_EOF_"
 //! Macro for calculating array len.
 #define ARRAY_LEN(a) (size_t) (sizeof(a) / sizeof(0[a]))
 //! Macro for easy inclusion of handler functions.
-#define AST_CLI_DEFINE(fn, txt , ... )  { .handler = fn, .summary = txt, ## __VA_ARGS__ }
+#define AST_CLI_DEFINE(fn, txt, ...)  { .handler = fn, .summary = txt, ## __VA_ARGS__ }
 
 //! Sorter declaration of isaac_cli struct
 typedef struct isaac_cli cli_t;
@@ -101,11 +101,11 @@ struct isaac_cli
 enum isaac_cli_command
 {
     //! Return the usage string
-    CLI_INIT = -2,
+        CLI_INIT = -2,
     //! Behave as 'generator', remap argv to struct isaac_cli_args
-    CLI_GENERATE = -3,
+        CLI_GENERATE = -3,
     //! Run the normal handler
-    CLI_HANDLER = -4,
+        CLI_HANDLER = -4,
 };
 
 /**
@@ -120,7 +120,7 @@ struct isaac_cli_args
     //! Number of command arguments (including command)
     const int argc;
     //! Command argument list (including command)
-    const char* *argv;
+    const char **argv;
     //! Current input line
     const char *line;
     //! Word we want to complete
@@ -139,11 +139,11 @@ struct isaac_cli_args
 struct isaac_cli_entry
 {
     //! Words making up the command.
-    const char * const cmda[400];
+    const char *const cmda[400];
     //! Summary of the command (< 60 characters)
-    const char * const summary;
+    const char *const summary;
     //! Detailed usage information
-    char * usage;
+    char *usage;
     //! For keeping track of usage
     int inuse;
     //! Module this belongs to
@@ -161,7 +161,7 @@ struct isaac_cli_entry
     (*handler)(cli_entry_t *e, int cmd, cli_args_t *a);
 
     //! For linking
-    cli_entry_t* next;
+    cli_entry_t *next;
 };
 
 /**
@@ -207,7 +207,7 @@ cli_accept();
  *
  * @param cli CLI client connection
  */
-extern void*
+extern void *
 cli_do(cli_t *cli);
 
 /**
@@ -247,7 +247,7 @@ cli_destroy(cli_t *cli);
  * @return Number of bytes readed from socket
  */
 extern int
-cli_read(cli_t *cli, char* readed);
+cli_read(cli_t *cli, char *readed);
 
 /**
  * @brief Writes some text to a CLI client connection
@@ -341,7 +341,7 @@ cli_word_match(const char *cmd, const char *cli_word);
  * @return The CLI entry or NULL if not found
  */
 extern cli_entry_t *
-cli_find(const char * const cmds[], int match_type);
+cli_find(const char *const cmds[], int match_type);
 
 extern char *
 cli_complete_number(const char *partial, unsigned int min, unsigned int max, int n);
@@ -362,7 +362,7 @@ extern char *
 cli_is_prefix(const char *word, const char *token, int pos, int *actual);
 
 extern int
-cli_more_words(const char * const *dst);
+cli_more_words(const char *const *dst);
 
 extern char *
 cli_generator(const char *text, const char *word, int state);
@@ -372,7 +372,6 @@ cli_generatornummatches(const char *text, const char *word);
 
 extern char **
 cli_completion_matches(const char *text, const char *word);
-
 
 
 extern char *

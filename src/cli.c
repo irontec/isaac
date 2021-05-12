@@ -72,19 +72,19 @@ extern cfg_t config;
  * CLI servers starts using @ref cli_register_multiple
  */
 static cli_entry_t cli_entries[] = {
-        AST_CLI_DEFINE(handle_commandcomplete, "Internal use: Complete"),
-        AST_CLI_DEFINE(handle_commandmatchesarray, "Internal use: Match Array"),
-        AST_CLI_DEFINE(handle_commandnummatches, "Internal use: Match Array"),
-        AST_CLI_DEFINE(handle_core_show_version, "Show Isaac version"),
-        AST_CLI_DEFINE(handle_core_show_uptime, "Show Isaac uptime"),
-        AST_CLI_DEFINE(handle_core_show_settings, "Show Isaac running settings"),
-        AST_CLI_DEFINE(handle_core_show_applications, "Show Isaac registered applications"),
-        AST_CLI_DEFINE(handle_core_set_verbose, "Change Isaac log level"),
-        AST_CLI_DEFINE(handle_show_connections, "Show connected sessions"),
-        AST_CLI_DEFINE(handle_show_filters, "Show session filters"),
-        AST_CLI_DEFINE(handle_show_variables, "Show session variables"),
-        AST_CLI_DEFINE(handle_kill_connection, "Stops a connected session"),
-        AST_CLI_DEFINE(handle_debug_connection, "Mark debug flag to a connected session") };
+    AST_CLI_DEFINE(handle_commandcomplete, "Internal use: Complete"),
+    AST_CLI_DEFINE(handle_commandmatchesarray, "Internal use: Match Array"),
+    AST_CLI_DEFINE(handle_commandnummatches, "Internal use: Match Array"),
+    AST_CLI_DEFINE(handle_core_show_version, "Show Isaac version"),
+    AST_CLI_DEFINE(handle_core_show_uptime, "Show Isaac uptime"),
+    AST_CLI_DEFINE(handle_core_show_settings, "Show Isaac running settings"),
+    AST_CLI_DEFINE(handle_core_show_applications, "Show Isaac registered applications"),
+    AST_CLI_DEFINE(handle_core_set_verbose, "Change Isaac log level"),
+    AST_CLI_DEFINE(handle_show_connections, "Show connected sessions"),
+    AST_CLI_DEFINE(handle_show_filters, "Show session filters"),
+    AST_CLI_DEFINE(handle_show_variables, "Show session variables"),
+    AST_CLI_DEFINE(handle_kill_connection, "Stops a connected session"),
+    AST_CLI_DEFINE(handle_debug_connection, "Mark debug flag to a connected session")};
 
 //! Some regexp characters in cli arguments are reserved and used as separators.
 static const char cli_rsvd[] = "[]{}|*%";
@@ -338,7 +338,7 @@ cli_register_entry(cli_entry_t *entry)
         *dst++ = s; /* store string */
         s = isaac_skip_nonblanks(s);
         if (*s == '\0') /* we are done */
-        break;
+            break;
         *s++ = '\0';
         s = isaac_skip_blanks(s);
     }
@@ -347,7 +347,7 @@ cli_register_entry(cli_entry_t *entry)
     // Check if already has been registered
     if (cli_find(entry->cmda, 1)) {
         isaac_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n",
-                (entry->_full_cmd) ? entry->_full_cmd : entry->command);
+                  (entry->_full_cmd) ? entry->_full_cmd : entry->command);
         return -1;
     }
     if (cli_entry_cmd(entry)) {
@@ -389,8 +389,7 @@ cli_entry_cmd(cli_entry_t *entry)
     }
     // Return the comman part avoiding the Arguments
     entry->cmdlen = strcspn(entry->_full_cmd, cli_rsvd);
-    for (i = 0; entry->cmda[i]; i++)
-        ;
+    for (i = 0; entry->cmda[i]; i++);
     entry->args = i;
     return 0;
 }
@@ -402,7 +401,7 @@ cli_word_match(const char *cmd, const char *cli_word)
     char *pos;
     if (isaac_strlen_zero(cmd) || isaac_strlen_zero(cli_word)) return -1;
     if (!strchr(cli_rsvd, cli_word[0])) /* normal match */
-    return (strcasecmp(cmd, cli_word) == 0) ? 1 : -1;
+        return (strcasecmp(cmd, cli_word) == 0) ? 1 : -1;
     // regexp match, takes [foo|bar] or {foo|bar}
     l = strlen(cmd);
     // wildcard match - will extend in the future
@@ -412,15 +411,15 @@ cli_word_match(const char *cmd, const char *cli_word)
     //FIXME pos = strcasestr(cli_word, cmd);
     pos = strcasestr(cli_word, cmd);
     if (pos == NULL) /* not found, say ok if optional */
-    return cli_word[0] == '[' ? 0 : -1;
+        return cli_word[0] == '[' ? 0 : -1;
     if (pos == cli_word) /* no valid match at the beginning */
-    return -1;
+        return -1;
     if (strchr(cli_rsvd, pos[-1]) && strchr(cli_rsvd, pos[l])) return 1; /* valid match */
     return -1; /* not found */
 }
 
 cli_entry_t *
-cli_find(const char * const cmds[], int match_type)
+cli_find(const char *const cmds[], int match_type)
 {
     int matchlen = -1; /* length of longest match so far */
     cli_entry_t *cand = NULL, *entry = NULL;
@@ -428,8 +427,8 @@ cli_find(const char * const cmds[], int match_type)
     for (entry = entries; entry; entry = entry->next) {
 
         /* word-by word regexp comparison *//* word-by word regexp comparison */
-        const char * const *src = cmds;
-        const char * const *dst = entry->cmda;
+        const char *const *src = cmds;
+        const char *const *dst = entry->cmda;
         int n = 0;
         for (;; dst++, src += n) {
             n = cli_word_match(*src, *dst);
@@ -438,10 +437,10 @@ cli_find(const char * const cmds[], int match_type)
         if (isaac_strlen_zero(*dst) || ((*dst)[0] == '[' && isaac_strlen_zero(dst[1]))) {
             /* no more words in 'e' */
             if (isaac_strlen_zero(*src)) /* exact match, cannot do better */
-            break;
+                break;
             /* Here, cmds has more words than the entry 'e' */
             if (match_type != 0) /* but we look for almost exact match... */
-            continue; /* so we skip this one. */
+                continue; /* so we skip this one. */
             /* otherwise we like it (case 0) */
         } else { /* still words in 'e' */
             if (isaac_strlen_zero(*src)) continue; /* cmds is shorter than 'e', not good */
@@ -449,8 +448,9 @@ cli_find(const char * const cmds[], int match_type)
              * but there is a mismatch. We only accept this one if match_type == -1
              * and this is the last word for both.
              */
-            if (match_type != -1 || !isaac_strlen_zero(src[1]) || !isaac_strlen_zero(dst[1])) /* not the one we look for */
-            continue;
+            if (match_type != -1 || !isaac_strlen_zero(src[1]) ||
+                !isaac_strlen_zero(dst[1])) /* not the one we look for */
+                continue;
             /* good, we are in case match_type == -1 and mismatch on last word */
         }
         if (src - cmds > matchlen) { /* remember the candidate */
@@ -517,7 +517,7 @@ cli_parse_args(const char *s, int *argc, const char *argv[], int max, int *trail
     if (trailingwhitespace == NULL) trailingwhitespace = &dummy;
     *trailingwhitespace = 0;
     if (s == NULL) /* invalid, though! */
-    return NULL;
+        return NULL;
     /* make a copy to store the parsed string */
     if (!(duplicate = strdup(s))) return NULL;
 
@@ -575,7 +575,7 @@ cli_find_best(const char *argv[])
     int x;
     /* See how close we get, then print the candidate */
     const char *myargv[400] = {
-            NULL, };
+        NULL, };
 
     for (x = 0; argv[x]; x++) {
         myargv[x] = argv[x];
@@ -594,14 +594,14 @@ cli_command_full(cli_t *cli, const char *s)
     char *duplicate = cli_parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
     char *retval = NULL;
     cli_args_t a = {
-            .cli = cli,
-            .argc = x,
-            .argv = args+1 };
+        .cli = cli,
+        .argc = x,
+        .argv = args + 1 };
 
     if (duplicate == NULL) return -1;
 
     if (x < 1) /* We need at least one entry, otherwise ignore */
-    goto done;
+        goto done;
 
     entry = cli_find(args + 1, 0);
     if (entry == NULL) {
@@ -618,12 +618,13 @@ cli_command_full(cli_t *cli, const char *s)
 
     if (retval == CLI_SHOWUSAGE) {
         cli_write(cli, "%s", (entry->usage) ? entry->usage
-                : "Invalid usage, but no usage information available.\n");
+                                            : "Invalid usage, but no usage information available.\n");
     } else if (retval == CLI_FAILURE) {
         cli_write(cli, "Command '%s' failed.\n", s);
     }
 
-    done: isaac_free(duplicate);
+    done:
+    isaac_free(duplicate);
     return 0;
 }
 
@@ -662,7 +663,7 @@ cli_is_prefix(const char *word, const char *token, int pos, int *actual)
     if (strcspn(word, cli_rsvd) != lw) return NULL; /* no match if word has reserved chars */
     if (strchr(cli_rsvd, token[0]) == NULL) { /* regular match */
         if (strncasecmp(token, word, lw)) /* no match */
-        return NULL;
+            return NULL;
         *actual = 1;
         return (pos != 0) ? NULL : strdup(token);
     }
@@ -673,9 +674,9 @@ cli_is_prefix(const char *word, const char *token, int pos, int *actual)
     t1 = strdup(token + 1); /* copy, skipping first char */
     while (pos >= 0 && (s = strsep(&t1, cli_rsvd)) && *s) {
         if (*s == '%') /* wildcard */
-        continue;
+            continue;
         if (strncasecmp(s, word, lw)) /* no match */
-        continue;
+            continue;
         (*actual)++;
         if (pos-- == 0) return strdup(s);
     }
@@ -683,7 +684,7 @@ cli_is_prefix(const char *word, const char *token, int pos, int *actual)
 }
 
 int
-cli_more_words(const char * const *dst)
+cli_more_words(const char *const *dst)
 {
     int i;
     for (i = 0; dst[i]; i++) {
@@ -710,7 +711,7 @@ cli_generator(const char *text, const char *word, int state)
     char *duplicate = cli_parse_args(text, &x, argv, ARRAY_LEN(argv), &tws);
 
     if (!duplicate) /* malloc error */
-    return NULL;
+        return NULL;
 
     /* Compute the index of the last argument (could be an empty string) */
     argindex = (!isaac_strlen_zero(word) && x > 0) ? x - 1 : x;
@@ -739,7 +740,7 @@ cli_generator(const char *text, const char *word, int state)
         }
 
         if (src != argindex && cli_more_words(entry->cmda + dst)) /* not a match */
-        continue;
+            continue;
         ret = cli_is_prefix(argv[src], entry->cmda[dst], state - matchnum, &n);
         matchnum += n; /* this many matches here */
         if (ret) {
@@ -758,12 +759,12 @@ cli_generator(const char *text, const char *word, int state)
              */
             if (entry->handler) { /* new style command */
                 cli_args_t args = {
-                        .line = matchstr,
-                        .word = word,
-                        .pos = argindex,
-                        .n = state - matchnum,
-                        .argv = argv,
-                        .argc = x };
+                    .line = matchstr,
+                    .word = word,
+                    .pos = argindex,
+                    .n = state - matchnum,
+                    .argv = argv,
+                    .argc = x };
                 ret = entry->handler(entry, CLI_GENERATE, &args);
             }
             if (ret) break;
@@ -871,14 +872,14 @@ handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
     int x, matchlen;
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "_command matchesarray";
-        entry->usage = "Usage: _command matchesarray \"<line>\" text \n"
-            "       This function is used internally to help with command completion and should.\n"
-            "       never be called by the user directly.\n";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "_command matchesarray";
+            entry->usage = "Usage: _command matchesarray \"<line>\" text \n"
+                           "       This function is used internally to help with command completion and should.\n"
+                           "       never be called by the user directly.\n";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
 
     if (args->argc != 4) return CLI_SHOWUSAGE;
@@ -892,8 +893,8 @@ handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
                 buflen += matchlen * 3;
                 obuf = buf;
                 if (!(buf = realloc(obuf, buflen)))
-                /* Memory allocation failure...  Just free old buffer and be done */
-                isaac_free(obuf);
+                    /* Memory allocation failure...  Just free old buffer and be done */
+                    isaac_free(obuf);
             }
             if (buf) len += sprintf(buf + len, "%s ", matches[x]);
             isaac_free(matches[x]);
@@ -916,14 +917,14 @@ handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     char *buf;
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "_command complete";
-        entry->usage = "Usage: _command complete \"<line>\" text state\n"
-            "       This function is used internally to help with command completion and should.\n"
-            "       never be called by the user directly.\n";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "_command complete";
+            entry->usage = "Usage: _command complete \"<line>\" text state\n"
+                           "       This function is used internally to help with command completion and should.\n"
+                           "       never be called by the user directly.\n";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
     if (args->argc != 5) return CLI_SHOWUSAGE;
     buf = cli_generator(args->argv[2], args->argv[3], atoi(args->argv[4]));
@@ -942,14 +943,14 @@ handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args)
     int matches = 0;
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "_command nummatches";
-        entry->usage = "Usage: _command nummatches \"<line>\" text \n"
-            "       This function is used internally to help with command completion and should.\n"
-            "       never be called by the user directly.\n";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "_command nummatches";
+            entry->usage = "Usage: _command nummatches \"<line>\" text \n"
+                           "       This function is used internally to help with command completion and should.\n"
+                           "       never be called by the user directly.\n";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
 
     if (args->argc != 4) return CLI_SHOWUSAGE;
@@ -969,19 +970,20 @@ handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
     char out[256];
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "core show uptime [seconds]";
-        entry->usage = "Usage: core show uptime [seconds]\n"
-            "       Shows Isaac uptime information.\n"
-            "       The seconds word returns the uptime in seconds only.\n";
-        return NULL;
+        case CLI_INIT:
+            entry->command = "core show uptime [seconds]";
+            entry->usage = "Usage: core show uptime [seconds]\n"
+                           "       Shows Isaac uptime information.\n"
+                           "       The seconds word returns the uptime in seconds only.\n";
+            return NULL;
 
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
 
     /* regular handler */
-    if (args->argc == entry->args && !strcasecmp(args->argv[entry->args - 1], "seconds")) printsec
+    if (args->argc == entry->args && !strcasecmp(args->argv[entry->args - 1], "seconds"))
+        printsec
             = 1;
     else if (args->argc == entry->args - 1) printsec = 0;
     else
@@ -1001,13 +1003,13 @@ handle_core_show_version(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "core show version";
-        entry->usage = "Usage: core show version\n"
-            "       Show  Isaac version";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "core show version";
+            entry->usage = "Usage: core show version\n"
+                           "       Show  Isaac version";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
 
     // Print the version string
@@ -1023,13 +1025,13 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
     char manconnected[256];
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "core show settings";
-        entry->usage = "Usage: core show settings\n"
-            "       Show  Isaac configuration options";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "core show settings";
+            entry->usage = "Usage: core show settings\n"
+                           "       Show  Isaac configuration options";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
 
     isaac_tvelap(isaac_tvsub(isaac_tvnow(), startuptime), 0, running);
@@ -1047,7 +1049,7 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
     cli_write(args->cli, "   %-20s: %d\n", "Port", config.manport);
     cli_write(args->cli, "   %-20s: %s\n", "Username", config.manuser);
     cli_write(args->cli, "   %-20s:%s\n", "Connected since", ((manager->connected) ? manconnected
-            : " Disconnected"));
+                                                                                   : " Disconnected"));
     cli_write(args->cli, "\nServer settings\n----------------------\n");
     cli_write(args->cli, "   %-20s: %s\n", "Address", config.listenaddr);
     cli_write(args->cli, "   %-20s: %d\n", "Port", config.listenport);
@@ -1063,13 +1065,13 @@ char *
 handle_core_show_applications(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "core show applications";
-        entry->usage = "Usage: core show applications\n"
-            "       Show  Isaac registered applications";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "core show applications";
+            entry->usage = "Usage: core show applications\n"
+                           "       Show  Isaac registered applications";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
     return CLI_SUCCESS;
 }
@@ -1077,17 +1079,17 @@ handle_core_show_applications(cli_entry_t *entry, int cmd, cli_args_t *args)
 char *
 handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
-    const char * const *argv = args->argv;
+    const char *const *argv = args->argv;
     int newlevel;
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "core set verbose";
-        entry->usage = "Usage: core set verbose <level>"
-            "       Set verbosity level of core.\n";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "core set verbose";
+            entry->usage = "Usage: core set verbose <level>"
+                           "       Set verbosity level of core.\n";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
 
     if (args->argc != entry->args + 1) return CLI_SHOWUSAGE;
@@ -1108,13 +1110,13 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     char idle[256];
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "show connections";
-        entry->usage = "Usage: show connections\n"
-            "       Show connected session";
-        return NULL;
-    case CLI_GENERATE:
-        return NULL;
+        case CLI_INIT:
+            entry->command = "show connections";
+            entry->usage = "Usage: show connections\n"
+                           "       Show connected session";
+            return NULL;
+        case CLI_GENERATE:
+            return NULL;
     }
 
     /* Avoid other output for this cli */
@@ -1131,8 +1133,8 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
         sessioncnt++;
         isaac_tvelap(isaac_tvsub(curtime, sess->last_cmd_time), 1, idle);
         cli_write(args->cli, "%-10s%-25s%-20s%s\n", sess->id, sess->addrstr, ((session_test_flag(
-                sess, SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT")
-                : "not logged"), idle);
+            sess, SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT")
+                                            : "not logged"), idle);
     }
 
     cli_write(args->cli, "%d active sessions\n", sessioncnt);
@@ -1155,16 +1157,16 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     int ccnt = 0;
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "show filters";
-        entry->usage = "Usage: show filters [sessionid]\n"
-            "       Show connected session active filters\n";
-        return NULL;
-    case CLI_GENERATE:
-        if (args->pos == 2) {
-            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
-        }
-        return NULL;
+        case CLI_INIT:
+            entry->command = "show filters";
+            entry->usage = "Usage: show filters [sessionid]\n"
+                           "       Show connected session active filters\n";
+            return NULL;
+        case CLI_GENERATE:
+            if (args->pos == 2) {
+                return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
+            }
+            return NULL;
     }
 
     /* Inform all required parameters */
@@ -1181,30 +1183,30 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     } else {
         while ((filter = filter_from_session(sess, filter))) {
             // Print session filters
-            cli_write(args->cli, "------------ %s Filter %d %s ------------\n", 
-                    (filter->type == FILTER_ASYNC) ? "(Async)" : "(Sync)",
-                    filter_cnt++,
-                    (filter->type == FILTER_ASYNC && filter->data.async.oneshot)?"(OneShot)":"");
+            cli_write(args->cli, "------------ %s Filter %d %s ------------\n",
+                      (filter->type == FILTER_ASYNC) ? "(Async)" : "(Sync)",
+                      filter_cnt++,
+                      (filter->type == FILTER_ASYNC && filter->data.async.oneshot) ? "(OneShot)" : "");
 
             for (ccnt = 0; ccnt < filter->condcount; ccnt++) {
 
                 cli_write(args->cli, " %-10s", filter->conds[ccnt].hdr);
                 switch (filter->conds[ccnt].type) {
-                case MATCH_EXACT:
-                    cli_write(args->cli, "%-5s", "==");
-                    break;
-                case MATCH_EXACT_CASE:
-                    cli_write(args->cli, "%-5s", "i=");
-                    break;
-                case MATCH_START_WITH:
-                    cli_write(args->cli, "%-5s", "^=");
-                    break;
-                case MATCH_REGEX:
-                    cli_write(args->cli, "%-5s", "~");
-                    break;
-                case MATCH_REGEX_NOT:
-                    cli_write(args->cli, "%-5s", "!~");
-                    break;
+                    case MATCH_EXACT:
+                        cli_write(args->cli, "%-5s", "==");
+                        break;
+                    case MATCH_EXACT_CASE:
+                        cli_write(args->cli, "%-5s", "i=");
+                        break;
+                    case MATCH_START_WITH:
+                        cli_write(args->cli, "%-5s", "^=");
+                        break;
+                    case MATCH_REGEX:
+                        cli_write(args->cli, "%-5s", "~");
+                        break;
+                    case MATCH_REGEX_NOT:
+                        cli_write(args->cli, "%-5s", "!~");
+                        break;
                 }
 
                 cli_write(args->cli, "%-s\n", filter->conds[ccnt].val);
@@ -1229,16 +1231,16 @@ handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
     int i = 0;
 
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "show variables";
-        entry->usage = "Usage: show variables [sessionid]\n"
-            "       Show connected session variables\n";
-        return NULL;
-    case CLI_GENERATE:
-        if (args->pos == 2) {
-            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
-        }
-        return NULL;
+        case CLI_INIT:
+            entry->command = "show variables";
+            entry->usage = "Usage: show variables [sessionid]\n"
+                           "       Show connected session variables\n";
+            return NULL;
+        case CLI_GENERATE:
+            if (args->pos == 2) {
+                return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
+            }
+            return NULL;
     }
 
     /* Inform all required parameters */
@@ -1253,7 +1255,7 @@ handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
     if (!(sess = session_by_id(args->argv[2]))) {
         cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {
-        cli_write(args->cli,  "------------ Variables for session %s ------------\n", args->argv[2]);
+        cli_write(args->cli, "------------ Variables for session %s ------------\n", args->argv[2]);
         for (i = 0; i < sess->varcount; i++) {
             cli_write(args->cli, "%s = %s\n", sess->vars[i].varname, sess->vars[i].varvalue);
         }
@@ -1271,16 +1273,16 @@ handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     session_t *sess;
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "kill connection";
-        entry->usage = "Usage: kill connection [sessionid]\n"
-            "       Kill a session connection\n";
-        return NULL;
-    case CLI_GENERATE:
-        if (args->pos == 2) {
-            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
-        }
-        return NULL;
+        case CLI_INIT:
+            entry->command = "kill connection";
+            entry->usage = "Usage: kill connection [sessionid]\n"
+                           "       Kill a session connection\n";
+            return NULL;
+        case CLI_GENERATE:
+            if (args->pos == 2) {
+                return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
+            }
+            return NULL;
     }
 
     /* Inform all required parameters */
@@ -1304,16 +1306,16 @@ handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     session_t *sess;
     switch (cmd) {
-    case CLI_INIT:
-        entry->command = "debug connection";
-        entry->usage = "Usage: debug connection [sessionid]\n"
-            "       debug a session connection\n";
-        return NULL;
-    case CLI_GENERATE:
-        if (args->pos == 2) {
-            return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
-        }
-        return NULL;
+        case CLI_INIT:
+            entry->command = "debug connection";
+            entry->usage = "Usage: debug connection [sessionid]\n"
+                           "       debug a session connection\n";
+            return NULL;
+        case CLI_GENERATE:
+            if (args->pos == 2) {
+                return cli_complete_session(args->line, args->word, args->pos, args->n, 1);
+            }
+            return NULL;
     }
 
     /* Inform all required parameters */

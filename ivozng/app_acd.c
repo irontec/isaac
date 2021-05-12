@@ -77,7 +77,7 @@ read_acd_config(const char *cfile)
     // Read configuraiton file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
         isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
-                config_error_line(&cfg), config_error_text(&cfg));
+                  config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
         return -1;
     }
@@ -108,7 +108,7 @@ read_acd_config(const char *cfile)
  * element 1 (stdout) and 2 (stderr).
  */
 static int
-popenRWE(int *rwepipe, const char *exe, const char * const argv[])
+popenRWE(int *rwepipe, const char *exe, const char *const argv[])
 {
     int err[2];
     int pid;
@@ -130,7 +130,7 @@ popenRWE(int *rwepipe, const char *exe, const char * const argv[])
         dup(err[1]);
         // Close the other part, we wont send anything
         close(err[0]);
-        execvp(exe, (char**) argv);
+        execvp(exe, (char **) argv);
         isaac_log(LOG_ERROR, "Error executing %s: %s\n", exe, strerror(errno));
     } else {
         // Error, close both sides of the pipe
@@ -207,17 +207,18 @@ acd_exec(session_t *sess, app_t *app, const char *args)
         memset(interface, 0, sizeof(interface));
     }
 
-    const char * const php_args[] = {
-            "php",
-            acd_config.phpfile,
-            interface,
-            session_get_variable(sess, "AGENT"),
-            action,
-            extraparams,
-            NULL };
+    const char *const php_args[] = {
+        "php",
+        acd_config.phpfile,
+        interface,
+        session_get_variable(sess, "AGENT"),
+        action,
+        extraparams,
+        NULL };
 
     // Some logging
-    isaac_log(LOG_DEBUG, "Spawing PHP with args %s %s %s %s %s\n", php_args[1], php_args[2], php_args[3], php_args[4], php_args[5]);
+    isaac_log(LOG_DEBUG, "Spawing PHP with args %s %s %s %s %s\n", php_args[1], php_args[2], php_args[3], php_args[4],
+              php_args[5]);
 
     // Open the requested file, load I/O file descriptors
     pid = popenRWE(&out, php_args[0], php_args);
