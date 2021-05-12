@@ -588,6 +588,10 @@ status_call(filter_t *filter, ami_message_t *msg)
     // Get the interesting channel name, we will fetch the rest of the messages
     // that match that ID
     isaac_strcpy(info->agent_channel, message_get_header(msg, "Destination"));
+    // Fallback for DialBegin Asterisk 18+ event
+    if (strlen(info->agent_channel) == 0) {
+        isaac_strcpy(info->agent_channel, message_get_header(msg, "DestChannel"));
+    }
 
     // Register a Filter for notifying this call
     filter_t *callfilter = filter_create_async(filter->sess, status_print);
@@ -687,8 +691,8 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg)
 
         } else {
             filter_t *channelfilter = filter_create_async(filter->sess, status_call);
-            filter_new_condition(channelfilter, MATCH_EXACT, "Event", "Dial");
-            filter_new_condition(channelfilter, MATCH_EXACT, "SubEvent", "Begin");
+            filter_new_condition(channelfilter, MATCH_REGEX, "Event", "Dial|DialBegin");
+            filter_new_condition(channelfilter, MATCH_REGEX, "SubEvent", "Begin|");
             filter_new_condition(channelfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Channel"));
             filter_set_userdata(channelfilter, (void *) info);
             filter_register_oneshot(channelfilter);
@@ -748,7 +752,7 @@ status_exec(session_t *sess, app_t *app, const char *args)
     filter_t *channelfilter = filter_create_async(sess, status_incoming_uniqueid);
     filter_new_condition(channelfilter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(channelfilter, MATCH_EXACT, "Variable", "__ISAAC_MONITOR");
-    filter_new_condition(channelfilter, MATCH_REGEX, "Channel", "Local/%s@agentes", agent, interface);
+    filter_new_condition(channelfilter, MATCH_REGEX, "Channel", "Local/%s(_1)?@agentes", agent);
     filter_register(channelfilter);
 
     // Parse rest of status arguments
