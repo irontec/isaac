@@ -1,7 +1,7 @@
 Source: isaac
 Section: comm
 Priority: optional
-Build-Depends: dh-autoreconf, debhelper, libedit-dev, libconfig-dev, unixodbc-dev, libglib2.0-dev
+Build-Depends: dh-autoreconf, cmake, debhelper, libedit-dev, libconfig-dev, unixodbc-dev, libglib2.0-dev
 Maintainer: Ivan Alonso <kaian@irontec.com>
 
 Package: isaac
