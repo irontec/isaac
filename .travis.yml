@@ -7,10 +7,9 @@ notifications:
 before_script:
     - sudo apt-get update
 install:
-    - sudo apt-get install -y libconfig8-dev libedit-dev
+    - sudo apt-get install -y dh-autoreconf cmake debhelper libedit-dev libconfig-dev unixodbc-dev libglib2.0-dev
 script: 
-    - ./bootstrap.sh
-    - ./configure 
+    - cmake .
     - make
 branches:
   only:
