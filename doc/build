@@ -1,0 +1,11 @@
+# This is a documentation file for building isaac on development environments.
+# You should be able to pass this file to bash for automatic building
+# $ bash doc/build
+
+# Configure Cmake paths
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -DCMAKE_INSTALL_SYSCONFDIR=/etc -DCMAKE_INSTALL_RUNSTATEDIR=/var/run
+
+# Then install files
+make
+make install
+
