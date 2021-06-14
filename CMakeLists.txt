@@ -106,7 +106,7 @@ endif()
 ######################################################################
 # Install files
 install(TARGETS isaac DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(DIRECTORY conf DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/isaac)
+install(DIRECTORY conf/ DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/isaac)
 install(TARGETS ${ISAAC_MODULES} DESTINATION ${CMAKE_INSTALL_LIBDIR}/isaac/)
 install(FILES ivozng/acd.php DESTINATION ${CMAKE_INSTALL_LIBDIR}/isaac/)
 
