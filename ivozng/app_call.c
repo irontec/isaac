@@ -92,6 +92,13 @@ struct app_call_info
     char ochannel[50];
     //! Remote Channel Name
     char dchannel[50];
+    //** Display variables were intrdoduced in isaac 2.x for asterisk 18+
+    //** in order to support integrations that relay on UniqueID information we keep uniqueids to
+    //** track calls, and uniqueids to display in CALLSTATUS commands
+    //! Agent Channel Displayed UniqueID
+    char oduid[50];
+    //! Remote Channel Displayed UniqueID
+    char dduid[50];
     //! Flag: This call is being Recorded
     bool recording;
     //! Mixmonitor id being Recorded
@@ -313,6 +320,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         if (!strcasecmp(varname, "ACTIONID") && strlen(message_get_header(msg, "Linkedid")) == 0) {
             // Get the UniqueId from the agent channel
             isaac_strcpy(info->ouid, message_get_header(msg, "UniqueID"));
+            isaac_strcpy(info->oduid, message_get_header(msg, "UniqueID"));
             // Store provisional Channel Name
             isaac_strcpy(info->ochannel, message_get_header(msg, "Channel"));
             // This messages are always from agent
@@ -351,6 +359,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             if (strcasecmp(uniqueid, linkedid) == 0) {
                 // Store uniqueid for DialBegin event
                 isaac_strcpy(info->duid, uniqueid);
+                isaac_strcpy(info->dduid, uniqueid);
 
                 // Try to find second Local channel
                 filter_t *callfilter = filter_create_async(filter->sess, call_state);
@@ -363,14 +372,16 @@ call_state(filter_t *filter, ami_message_t *msg)
             } else {
                 // Store uniqueid for DialBegin event
                 isaac_strcpy(info->ouid, uniqueid);
+                isaac_strcpy(info->oduid, uniqueid);
             }
         }
 
     } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
                                                          "Begin")) {
         // Get the UniqueId from the agent channel
-        strcpy(info->duid, message_get_header(msg, "DestUniqueID"));
-        strcpy(info->dchannel, message_get_header(msg, "Destination"));
+        isaac_strcpy(info->duid, message_get_header(msg, "DestUniqueID"));
+        isaac_strcpy(info->dchannel, message_get_header(msg, "Destination"));
+        isaac_strcpy(info->dduid, message_get_header(msg, "DestUniqueID"));
 
         // Register a Filter for the agent status
         info->dfilter = filter_create_async(filter->sess, call_state);
@@ -398,6 +409,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             // Get the UniqueId from the agent channel
             isaac_strcpy(info->ouid, message_get_header(msg, "DestUniqueid"));
             isaac_strcpy(info->ochannel, message_get_header(msg, "DestChannel"));
+            isaac_strcpy(info->oduid, message_get_header(msg, "Linkedid"));
             // This messages are always from agent
             isaac_strcpy(from, "AGENT");
 
@@ -413,8 +425,9 @@ call_state(filter_t *filter, ami_message_t *msg)
 
         if (strcasecmp(message_get_header(msg, "UniqueID"), info->duid) == 0) {
             // Get the UniqueId from the remote channel
-            strcpy(info->duid, message_get_header(msg, "DestUniqueid"));
-            strcpy(info->dchannel, message_get_header(msg, "DestChannel"));
+            isaac_strcpy(info->duid, message_get_header(msg, "DestUniqueid"));
+            isaac_strcpy(info->dchannel, message_get_header(msg, "DestChannel"));
+            isaac_strcpy(info->dduid, message_get_header(msg, "DestUniqueid"));
             // This messages are always from remote
             isaac_strcpy(from, "REMOTE");
 
@@ -435,7 +448,7 @@ call_state(filter_t *filter, ami_message_t *msg)
     if (strlen(state)) {
         // Add Uniqueid to response if requested
         if (info->print_uniqueid) {
-            isaac_strcpy(uniqueid, !strcasecmp(from, "AGENT") ? info->ouid : info->duid);
+            isaac_strcpy(uniqueid, !strcasecmp(from, "AGENT") ? info->oduid : info->dduid);
             sprintf(response, "CALLSTATUS %s %s %s %s\r\n", info->actionid, uniqueid, from, state);
         } else {
             sprintf(response, "CALLSTATUS %s %s %s\r\n", info->actionid, from, state);
