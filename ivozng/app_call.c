@@ -82,8 +82,12 @@ struct app_call_info
     filter_t *ofilter;
     //! Filter for capturing the events of remote channel
     filter_t *dfilter;
+    //! Filter for capturing the events of agent displayed channel
+    filter_t *odfilter;
     //! Original call destiny
     char destiny[50];
+    //! Dialplan partition id
+    char partition[50];
     //! Agent Channel UniqueID
     char ouid[50];
     //! Remote Channel UniqueID
@@ -99,6 +103,8 @@ struct app_call_info
     char oduid[50];
     //! Remote Channel Displayed UniqueID
     char dduid[50];
+    //! Agent Channel Displayed Name
+    char odchannel[50];
     //! Flag: This call is being Recorded
     bool recording;
     //! Mixmonitor id being Recorded
@@ -117,6 +123,8 @@ struct app_call_info
     char grabaciones_fecha_hora[2048];
     char grabaciones_ruta[4086];;
     char grabaciones_fichero[4086];
+    char grabaciones_partition[4086];
+    char grabaciones_idcola[4086];
 };
 
 /**
@@ -240,7 +248,7 @@ call_state(filter_t *filter, ami_message_t *msg)
     // So this leg is first one or second one?
     if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
         isaac_strcpy(from, "AGENT");
-    } else {
+    } else if (!strcasecmp(message_get_header(msg, "UniqueID"), info->duid)) {
         isaac_strcpy(from, "REMOTE");
     }
 
@@ -298,6 +306,10 @@ call_state(filter_t *filter, ami_message_t *msg)
             isaac_strcpy(state, "PROGRESS");
         }
 
+        if (strcasecmp(varname, "IDDIALPLANPARTITION") == 0) {
+            isaac_strcpy(info->partition, varvalue);
+        }
+
         // Update recording variables
         if (!strncasecmp(varname, "GRABACIONES_", 12)) {
             char recordvar[256], recorduniqueid[80], grabaciones[80], recordtype[80];
@@ -311,6 +323,8 @@ call_state(filter_t *filter, ami_message_t *msg)
                 if (!strcasecmp(recordtype, "FECHA_HORA")) sprintf(info->grabaciones_fecha_hora, "%s;", varvalue);
                 if (!strcasecmp(recordtype, "RUTA")) sprintf(info->grabaciones_ruta, "%s;", varvalue);
                 if (!strcasecmp(recordtype, "FICHERO")) sprintf(info->grabaciones_fichero, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "IDDIALPLANPARTITION")) sprintf(info->grabaciones_partition, "%s;", varvalue);
+                if (!strcasecmp(recordtype, "IDCOLA")) sprintf(info->grabaciones_idcola, "%s;", varvalue);
             } else {
                 isaac_log(LOG_WARNING, "Unhandled record variable %s\n", varname);
             }
@@ -323,6 +337,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             isaac_strcpy(info->oduid, message_get_header(msg, "UniqueID"));
             // Store provisional Channel Name
             isaac_strcpy(info->ochannel, message_get_header(msg, "Channel"));
+            isaac_strcpy(info->odchannel, message_get_header(msg, "Channel"));
             // This messages are always from agent
             isaac_strcpy(from, "AGENT");
 
@@ -360,6 +375,7 @@ call_state(filter_t *filter, ami_message_t *msg)
                 // Store uniqueid for DialBegin event
                 isaac_strcpy(info->duid, uniqueid);
                 isaac_strcpy(info->dduid, uniqueid);
+                isaac_strcpy(info->odchannel, message_get_header(msg, "Channel"));
 
                 // Try to find second Local channel
                 filter_t *callfilter = filter_create_async(filter->sess, call_state);
@@ -386,7 +402,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         // Register a Filter for the agent status
         info->dfilter = filter_create_async(filter->sess, call_state);
         filter_set_userdata(info->dfilter, info);
-        filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
+        filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
         filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
         filter_register(info->dfilter);
 
@@ -420,6 +436,12 @@ call_state(filter_t *filter, ami_message_t *msg)
             filter_set_userdata(info->ofilter, (void *) info);
             filter_register(info->ofilter);
 
+            info->odfilter = filter_create_async(filter->sess, call_state);
+            filter_new_condition(info->odfilter , MATCH_REGEX, "Event", "VarSet|Hangup");
+            filter_new_condition(info->odfilter , MATCH_EXACT, "UniqueID", info->oduid);
+            filter_set_userdata(info->odfilter , (void *) info);
+            filter_register(info->odfilter);
+
             isaac_strcpy(state, "STARTING");
         }
 
@@ -434,7 +456,7 @@ call_state(filter_t *filter, ami_message_t *msg)
             // Register a Filter for the agent status
             info->dfilter = filter_create_async(filter->sess, call_state);
             filter_set_userdata(info->dfilter, info);
-            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
+            filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
             filter_register(info->dfilter);
 
@@ -443,12 +465,16 @@ call_state(filter_t *filter, ami_message_t *msg)
         }
     }
 
+    if (strcasecmp(from, "AGENT") == 0) {
+        isaac_strcpy(uniqueid, info->oduid);
+    } else if (strcasecmp(from, "REMOTE") == 0) {
+        isaac_strcpy(uniqueid, info->dduid);
+    }
 
-    // Built the event message
-    if (strlen(state)) {
+    // Build the event message
+    if (strlen(state) && strlen(uniqueid)) {
         // Add Uniqueid to response if requested
         if (info->print_uniqueid) {
-            isaac_strcpy(uniqueid, !strcasecmp(from, "AGENT") ? info->oduid : info->dduid);
             sprintf(response, "CALLSTATUS %s %s %s %s\r\n", info->actionid, uniqueid, from, state);
         } else {
             sprintf(response, "CALLSTATUS %s %s %s\r\n", info->actionid, from, state);
@@ -807,38 +833,40 @@ record_exec(session_t *sess, app_t *app, const char *args)
         message_add_header(&msg, "Options: i(ISAAC_RECORDING)");
         manager_write_message(manager, &msg);
 
+        isaac_log(LOG_NOTICE, "Setting debugging variables in %s\n", info->odchannel);
+
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->oduid);
         message_add_header(&msg, "Value: %sCC", info->grabaciones_modulo);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->oduid);
         message_add_header(&msg, "Value: %s", info->grabaciones_plataforma);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->oduid);
         message_add_header(&msg, "Value: %son-demand_ISAAC", info->grabaciones_tipo);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_origen, session_get_variable(sess, "AGENT"));
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_destino, info->destiny);
         manager_write_message(manager, &msg);
 
@@ -847,23 +875,37 @@ record_exec(session_t *sess, app_t *app, const char *args)
         strftime(timestr, 25, "%Y:%m:%d_%H:%M:%S", tm_info);
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_fecha_hora, timestr);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_ruta, call_config.record_path);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(ami_message_t));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->ouid);
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->oduid);
         message_add_header(&msg, "Value: %s%s.wav", info->grabaciones_fichero, filename);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_IDDIALPLANPARTITION", info->oduid);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_partition, info->partition);
+        manager_write_message(manager, &msg);
+
+        memset(&msg, 0, sizeof(ami_message_t));
+        message_add_header(&msg, "Action: Setvar");
+        message_add_header(&msg, "Channel: %s", info->odchannel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_IDCOLA", info->oduid);
+        message_add_header(&msg, "Value: %s", info->grabaciones_idcola);
         manager_write_message(manager, &msg);
 
     } else {
