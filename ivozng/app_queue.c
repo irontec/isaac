@@ -127,7 +127,7 @@ read_queue_config(const char *cfile)
 int
 queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
 {
-    char response[512];
+    char response[8192];
     session_t *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
     const char *queuename = message_get_header(msg, "Queue");
@@ -201,7 +201,7 @@ queueagents_print(filter_t *filter, ami_message_t *msg)
 int
 queueinfo_validate_queue(filter_t *filter, ami_message_t *msg)
 {
-    char queuevar[512];
+    char queuevar[8192];
     session_t *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
     char *queuename = filter_get_userdata(filter);
@@ -249,9 +249,9 @@ int
 queueinfo_exec(session_t *sess, app_t *app, const char *args)
 {
     // Store variable name to flag a queue being watched
-    char queuevar[512];
-    char queuename[256];
-    char options[246];
+    char queuevar[8192];
+    char queuename[8192];
+    char options[8192];
 
     // Validate queue name
     int validate;
@@ -353,9 +353,9 @@ queueagents_exec(session_t *sess, app_t *app, const char *args)
     ami_message_t retmsg;
 
     // Store variable name to flag a queue being watched
-    char queuevar[256];
-    char queuename[256];
-    char options[246];
+    char queuevar[8192];
+    char queuename[8192];
+    char options[8192];
 
     // Validate queue name
     int validate;

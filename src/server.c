@@ -225,8 +225,8 @@ check_connections(void *unused)
 void *
 manage_session(void *session)
 {
-    char msg[512];
-    char action[20], args[256];
+    char msg[8192];
+    char action[20], args[8192];
     session_t *sess = (session_t *) session;
     app_t *app;
     int ret;
