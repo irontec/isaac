@@ -50,7 +50,7 @@ int server_sock = 0;
 //! Server accept connections thread
 pthread_t accept_thread;
 //! Running flag
-int running;
+static int running;
 
 int
 start_server(const char *addrstr, const int port)

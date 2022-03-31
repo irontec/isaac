@@ -57,7 +57,7 @@ pthread_t cli_accept_thread;
 //! Socket for accepting new CLI client connections
 int cli_sock;
 //! General flag to stop cli server
-int running;
+static int running;
 //! Starting time, used to count the uptime time
 struct timeval startuptime;
 // Current configuration
