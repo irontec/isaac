@@ -11,7 +11,7 @@ AM_LDFLAGS= \
 
 app_login_PROGRAMS = app_login.so
 app_login_so_SOURCES = app_login.c
-app_login_so_LDFLAGS = -lodbc $(AM_LDFLAGS)
+app_login_so_LDADD = -lodbc
 app_logindir = @isaac_moddir@
 
 app_acd_PROGRAMS = app_acd.so
