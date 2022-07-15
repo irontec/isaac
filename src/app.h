@@ -38,7 +38,7 @@
 #include "session.h"
 
 /* Define the actionid Length */
-#define ACTIONID_LEN 128
+#define ACTIONID_LEN 1024
 /* Define maximum argument length */
 #define ARGUMENT_LEN 128
 /* Define maximum argument count */
