@@ -1,10 +1,13 @@
 #!/usr/bin/make -f
 
 override_dh_auto_install:
-	DESTDIR=`pwd`/debian/`dh_listpackages` ${MAKE} ivozng-install
-	DESTDIR=`pwd`/debian/`dh_listpackages` ${MAKE} conf
-	DESTDIR=`pwd`/debian/`dh_listpackages` ${MAKE} extra-install
-	dh_auto_install
+	DESTDIR=`pwd`/debian/isaac ${MAKE} ivozng-install
+	DESTDIR=`pwd`/debian/isaac ${MAKE} conf
+	DESTDIR=`pwd`/debian/isaac ${MAKE} extra-install
+	dh_auto_install --destdir=debian/isaac
+
+override_dh_strip:
+	dh_strip --dbg-package=isaac-dbg
 
 %:
 	dh $@ --with autoreconf

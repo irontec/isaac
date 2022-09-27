@@ -16,3 +16,17 @@ Description: Ivozng simplified Asterisk AMI Connector
  It is capable to run loadable applications to extend or implement
  new protocols.
  .
+
+Package: isaac-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: isaac (=${binary:Version}), ${misc:Depends}
+Description: Debugging symbols for Ivozng simplified Asterisk AMI Connector
+ Isaac is simplified interface to manage Asterisk Manager Interface
+ output.
+ It is capable to run loadable applications to extend or implement
+ new protocols.
+ .
+ This package contains the debugging symbols.
+ .
