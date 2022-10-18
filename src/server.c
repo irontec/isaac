@@ -189,7 +189,6 @@ accept_connections(void *sock)
 void *
 check_connections(void *unused)
 {
-    int res = 0;
     // Start running
     running = 1;
 
@@ -203,10 +202,7 @@ check_connections(void *unused)
             struct timeval idle = isaac_tvsub(isaac_tvnow(), sess->last_cmd_time);
             if (idle.tv_sec > config.idle_timeout) {
                 session_write(sess, "BYE Session is no longer active\r\n");
-                res = session_finish(sess);
-                if (res == -1) {
-                    session_destroy(sess);
-                }
+                session_finish(sess);
             }
         }
         /* Destroy iterator after finishing */
