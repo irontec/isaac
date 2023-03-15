@@ -502,7 +502,7 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
     // Add a filter for handling device state changes
     filter_t *devicefilter = filter_create_async(sess, devicestatus_changed);
     filter_new_condition(devicefilter, MATCH_EXACT, "Context", "cc-hints");
-    sprintf(exten, "%s|pause_%s", agent, interface + 4);
+    sprintf(exten, "%s$|pause_%s", agent, interface + 4);
     filter_new_condition(devicefilter, MATCH_REGEX, "Exten", exten);
     filter_register(devicefilter);
 
