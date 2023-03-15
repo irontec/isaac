@@ -269,8 +269,8 @@ call_state(filter_t *filter, ami_message_t *msg)
         // This call info has ended
         finished = true;
 
-    } else if (!strcasecmp(event, "MusicOnHold")) {
-        if (!strcasecmp(message_get_header(msg, "State"), "Start")) {
+    } else if (!strncasecmp(event, "MusicOnHold", 11)) {
+        if (!strcasecmp(event, "MusicOnHoldStart") || !strcasecmp(message_get_header(msg, "State"), "Start")) {
             isaac_strcpy(state, "HOLD");
         } else {
             isaac_strcpy(state, "UNHOLD");
@@ -343,7 +343,7 @@ call_state(filter_t *filter, ami_message_t *msg)
 
             // Register a Filter for the agent statusthe custom manager application PlayDTMF.
             info->ofilter = filter_create_async(filter->sess, call_state);
-            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
+            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
             filter_set_userdata(info->ofilter, (void *) info);
             filter_register(info->ofilter);
@@ -402,7 +402,7 @@ call_state(filter_t *filter, ami_message_t *msg)
         // Register a Filter for the agent status
         info->dfilter = filter_create_async(filter->sess, call_state);
         filter_set_userdata(info->dfilter, info);
-        filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
+        filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
         filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
         filter_register(info->dfilter);
 
@@ -431,7 +431,7 @@ call_state(filter_t *filter, ami_message_t *msg)
 
             // Register a Filter for the agent statusthe custom manager application PlayDTMF.
             info->ofilter = filter_create_async(filter->sess, call_state);
-            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
+            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
             filter_set_userdata(info->ofilter, (void *) info);
             filter_register(info->ofilter);
