@@ -52,6 +52,7 @@
 
 #ifndef __ISAAC_LOG_H_
 #define __ISAAC_LOG_H_
+#include <glib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -156,11 +157,12 @@ isaac_log_location(int log_type, const char *file, int line, const char *functio
  * @param       tag             Syslog tag (only required if logtype is syslog)
  * @param       file            Log file (only required if logtype is file)
  * @param       level           Maximum level to log into the medium
+ * @param       debug           Send messages to stdout
  * @return      0               On Success opening the medium
  * @return      -1              On Opening Failure
  */
 extern int
-start_logging(enum log_type type, const char *tag, const char *file, int level);
+start_logging(enum log_type type, const char *tag, const char *file, int level, gboolean debug);
 
 /**
  * @brief Closes log medium.

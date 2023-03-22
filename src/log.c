@@ -39,7 +39,7 @@
 //! General isaac configuration
 extern cfg_t config;
 //! Debug configuration
-extern int debug;
+gboolean debug_mode;
 //! Pointer for File descriptor. Only used if logtype is LOG_TYPE_FILE
 FILE *logfile;
 //! Log lock. Avoid printing more than messages at a time
@@ -112,7 +112,7 @@ isaac_log_location(int log_level, const char *file, int line, const char *functi
     // Lock here to avoid more than one message write at the same time
     pthread_mutex_lock(&loglock);
     // If running in debug mode just print to the screen
-    if ((log_level == LOG_DEBUG && debug > 2) || (log_level != LOG_DEBUG && debug)) {
+    if (debug_mode) {
         printf("%s", logmsg);
     }
 
@@ -126,7 +126,7 @@ isaac_log_location(int log_level, const char *file, int line, const char *functi
 }
 
 int
-start_logging(enum log_type type, const char *tag, const char *file, int level)
+start_logging(enum log_type type, const char *tag, const char *file, int level, gboolean debug)
 {
     if (config.logtype == LOG_TYPE_SYSLOG) {
         openlog(config.logtag, LOG_PID | LOG_CONS, LOG_USER);
@@ -137,7 +137,11 @@ start_logging(enum log_type type, const char *tag, const char *file, int level)
             return -1;
         }
     }
-    // We have succeded opening medium
+
+    // Request debug messages to stdout
+    debug_mode = debug;
+
+    // We have succeeded opening medium
     return 0;
 }
 

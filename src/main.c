@@ -45,9 +45,6 @@
 //! Isaac configuration options
 cfg_t config;
 
-//! Debug flag (for -d argument)
-int debug = 0;
-
 void
 print_version()
 {
@@ -183,7 +180,7 @@ main(int argc, char *argv[])
     }
 
     // Initialize logging
-    if (start_logging(config.logtype, config.logfile, config.logtag, config.loglevel) != 0) {
+    if (start_logging(config.logtype, config.logfile, config.logtag, config.loglevel, opt_debug) != 0) {
         fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
         quit(EXIT_FAILURE);
     }
