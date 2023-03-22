@@ -45,6 +45,7 @@
 #include "app.h"
 #include "log.h"
 #include "util.h"
+#include "gasyncqueuesource.h"
 
 //! Session list
 GSList *sessions;
@@ -115,6 +116,12 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
     return FALSE;
 }
 
+static gboolean
+session_check_message(ami_message_t *msg, G_GNUC_UNUSED gpointer user_data)
+{
+    return TRUE;
+}
+
 /*****************************************************************************/
 Session *
 session_create(const int fd, const struct sockaddr_in addr)
@@ -130,6 +137,8 @@ session_create(const int fd, const struct sockaddr_in addr)
     sess->addr = addr;
     sess->flags = 0x00;
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
+    sess->msg_queue = g_async_queue_new();
+
 
     // Initialize session fields
     if (addr.sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
@@ -153,10 +162,17 @@ session_create(const int fd, const struct sockaddr_in addr)
             sess,
             NULL
     );
-
-    // Add FD source to session main loop context
     g_source_attach(sess->commands, g_main_loop_get_context(sess->loop));
 
+    // Create a source from AMI message async queue
+    sess->messages = g_async_queue_source_new(sess->msg_queue, NULL);
+    g_source_set_callback(
+            sess->messages,
+            (GSourceFunc) G_SOURCE_FUNC(session_check_message),
+            NULL,
+            NULL
+    );
+    g_source_attach(sess->messages, g_main_loop_get_context(sess->loop));
 
     // Add it to the begining of session list
     g_rec_mutex_lock(&session_mutex);

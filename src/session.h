@@ -81,10 +81,15 @@ struct _Session
     char addrstr[25];
     //! Time of last command (for idle calculation)
     struct timeval last_cmd_time;
+    //! Async queue for received AMI messages
+    GAsyncQueue *msg_queue;
+
     //! Session running thread
     pthread_t thread;
     //! Source of commands from network client
     GSource *commands;
+    //! Source of AMI messages from manager thread
+    GSource *messages;
     //! Session main loop
     GMainLoop *loop;
 };
