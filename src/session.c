@@ -34,12 +34,15 @@
  *
  */
 #include "config.h"
+#include <glib.h>
+#include <glib-unix.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
 #include "manager.h"
 #include "filter.h"
 #include "session.h"
+#include "app.h"
 #include "log.h"
 #include "util.h"
 
@@ -51,6 +54,55 @@ pthread_mutex_t sessionlock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 int sessioncnt;
 //! Last created session id
 unsigned int last_sess_id = 0;
+
+static gboolean
+session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
+{
+    char msg[512];
+    char action[20], args[256];
+    session_t *sess = (session_t *) user_data;
+    app_t *app;
+    int ret;
+
+    // While connection is up
+    if (session_read(sess, msg) > 0) {
+        // Store the last action time
+        sess->last_cmd_time = isaac_tvnow();
+        // Get message action
+        if (sscanf(msg, "%s %[^\n]", action, args)) {
+            if (!strlen(action))
+                return FALSE;
+
+            if ((app = application_find(action))) {
+                // Run the application
+                if ((ret = application_run(app, sess, args)) != 0) {
+                    // If a generic error has occurred write it to the client
+                    if (ret > 100) session_write(sess, "ERROR %s\r\n", apperr2str(ret));
+                }
+            } else {
+                // What? Me no understand
+                session_write(sess, "%s\r\n", apperr2str(UNKNOWN_ACTION));
+            }
+        } else {
+            // A message must have at least... one word
+            session_write(sess, "%s\r\n", apperr2str(INVALID_FORMAT));
+        }
+    } else {
+        // Connection closed, Thanks all for the fish
+        if (!session_test_flag(sess, SESS_FLAG_LOCAL))
+            isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
+
+
+        // Remove all filters for this session
+        filter_unregister_session(sess);
+
+        // Deallocate session memory
+        session_finish(sess);
+        session_destroy(sess);
+    }
+
+    return FALSE;
+}
 
 /*****************************************************************************/
 session_t *
@@ -83,6 +135,21 @@ session_create(const int fd, const struct sockaddr_in addr)
         // Increase session count in stats
         sessioncnt++;
     }
+
+    // Create a main loop for this session thread
+    sess->loop = g_main_loop_new(g_main_context_new(), FALSE);
+
+    // Create a source from session client file descriptor
+    GSource *commands = g_unix_fd_source_new(sess->fd, G_IO_IN | G_IO_ERR | G_IO_HUP);
+    g_source_set_callback(
+            commands,
+            (GSourceFunc) G_SOURCE_FUNC(session_handle_command),
+            sess,
+            NULL
+    );
+
+    // Add FD source to session main loop context
+    g_source_attach(commands, g_main_loop_get_context(sess->loop));
 
     //session_set_flag(sess, SESS_FLAG_DEBUG);
 
@@ -452,3 +519,4 @@ session_id(session_t *sess)
 {
     return atoi(sess->id);
 }
+

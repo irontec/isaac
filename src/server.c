@@ -26,6 +26,7 @@
  *
  */
 #include "config.h"
+#include <glib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -225,11 +226,7 @@ check_connections(void *unused)
 void *
 manage_session(void *session)
 {
-    char msg[512];
-    char action[20], args[256];
     session_t *sess = (session_t *) session;
-    app_t *app;
-    int ret;
 
     // Store the connection time
     sess->last_cmd_time = isaac_tvnow();
@@ -243,46 +240,9 @@ manage_session(void *session)
         return NULL;
     }
 
-    // While connection is up
-    while (session_read(sess, msg) > 0) {
-        // Store the last action time
-        sess->last_cmd_time = isaac_tvnow();
-        // Get message action
-        if (sscanf(msg, "%s %[^\n]", action, args)) {
-            if (!strlen(action))
-                continue;
-
-            if ((app = application_find(action))) {
-                // Run the application
-                if ((ret = application_run(app, sess, args)) != 0) {
-                    // If a generic error has occurred write it to the client
-                    if (ret > 100) session_write(sess, "ERROR %s\r\n", apperr2str(ret));
-                }
-            } else {
-                // What? Me no understand
-                session_write(sess, "%s\r\n", apperr2str(UNKNOWN_ACTION));
-            }
-        } else {
-            // A message must have at least... one word
-            session_write(sess, "%s\r\n", apperr2str(INVALID_FORMAT));
-        }
-        // Clean the buffers for the next run
-        memset(action, 0, sizeof(action));
-        memset(args, 0, sizeof(args));
-        memset(msg, 0, sizeof(msg));
-    }
-
-    // Connection closed, Thanks all for the fish
-    if (!session_test_flag(session, SESS_FLAG_LOCAL))
-        isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
+    g_main_loop_run(sess->loop);
 
 
-    // Remove all filters for this session
-    filter_unregister_session(sess);
-
-    // Deallocate session memory
-    session_finish(sess);
-    session_destroy(sess);
 
     return NULL;
 }

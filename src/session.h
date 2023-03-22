@@ -33,6 +33,7 @@
  */
 #ifndef __ISAAC_SESSION_H
 #define __ISAAC_SESSION_H
+#include <glib.h>
 #include <netinet/in.h>
 #include <pthread.h>
 
@@ -85,6 +86,8 @@ struct session
     struct timeval last_cmd_time;
     //! Session running thread
     pthread_t thread;
+    //! Session main loop
+    GMainLoop *loop;
     //! Sessions linked list
     session_t *next;
 };
