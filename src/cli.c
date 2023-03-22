@@ -843,20 +843,22 @@ cli_complete_session(const char *line, const char *word, int pos, int state, int
     int which = 0;
     char notfound = '\0';
     char *ret = &notfound; /* so NULL can break the loop */
-    session_iter_t *iter;
-    session_t *s;
 
     if (pos != rpos) {
         return NULL;
     }
 
-    iter = session_iterator_new();
-    while (ret == &notfound && (s = session_iterator_next(iter))) {
+    GSList *sessions = sessions_adquire_lock();
+    for (GSList *l = sessions; l; l = l->next) {
+        session_t *sess = l->data;
+        if (ret != &notfound)
+            break;
         if (++which > state) {
-            ret = s->id;
+            ret = sess->id;
         }
     }
-    session_iterator_destroy(iter);
+    sessions_release_lock();
+
     return ret == &notfound ? NULL : ret;
 }
 
@@ -1125,22 +1127,20 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     /* Print header for sessions */
     cli_write(args->cli, "%-10s%-25s%-20s%s\n", "ID", "Address", "Logged as", "Idle");
 
-    session_iter_t *iter = session_iterator_new();
-    session_t *sess;
-
     /* Print available sessions */
-    while ((sess = session_iterator_next(iter))) {
+    GSList *sessions = sessions_adquire_lock();
+    for (GSList *l = sessions; l; l = l->next) {
+        session_t *sess = l->data;
         sessioncnt++;
         isaac_tvelap(isaac_tvsub(curtime, sess->last_cmd_time), 1, idle);
         cli_write(args->cli, "%-10s%-25s%-20s%s\n", sess->id, sess->addrstr, ((session_test_flag(
-            sess, SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT")
-                                            : "not logged"), idle);
+                sess, SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT")
+                                                : "not logged"), idle);
     }
+    sessions_release_lock();
 
     cli_write(args->cli, "%d active sessions\n", sessioncnt);
     //cli_write(args->cli, "%d processed sessions\n", config.sessioncnt);
-    /* Destroy iterator after finishing */
-    session_iterator_destroy(iter);
 
     /* Set cli output unlocked */
     pthread_mutex_unlock(&clilock);

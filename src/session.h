@@ -86,10 +86,10 @@ struct session
     struct timeval last_cmd_time;
     //! Session running thread
     pthread_t thread;
+    //! Source of commands from network client
+    GSource *commands;
     //! Session main loop
     GMainLoop *loop;
-    //! Sessions linked list
-    session_t *next;
 };
 
 /**
@@ -107,17 +107,11 @@ enum session_flag
         SESS_FLAG_LOCAL = (1 << 4),
 };
 
-/**
- * \brief Iterator structure for session loops
- *
- * This structure is used to store the actual iterator state.\n
- */
-struct session_iterator
-{
-    session_t *next;
-    char prefix[80];
-    int prefix_len;
-};
+GSList *
+sessions_adquire_lock();
+
+void
+sessions_release_lock();
 
 /**
  * \brief Create a new session from client connection
@@ -142,10 +136,10 @@ session_create(const int fd, const struct sockaddr_in addr);
  * filters.
  *
  * \warning Dont use this function from apps. Use session_finish instead.
- * \param sess Session structure to be freed
+ * \param session Session structure to be freed
  */
 void
-session_destroy(session_t *sess);
+session_destroy(session_t *session);
 
 /**
  * \brief Closes session socket
@@ -246,19 +240,9 @@ session_get_variable(session_t *sess, const char *varname);
 int
 session_variable_idx(session_t *sess, const char *varname);
 
-extern session_iter_t *
-session_iterator_new();
-extern session_t *
-session_iterator_next(session_iter_t *iter);
-
-extern session_t *
-session_iterator_next_by_variable(session_iter_t *iter, const char *variable, const char *value);
-
-extern void
-session_iterator_destroy(session_iter_t *iter);
-
 extern session_t *
 session_by_id(const char *id);
+
 extern session_t *
 session_by_variable(const char *varname, const char *varvalue);
 

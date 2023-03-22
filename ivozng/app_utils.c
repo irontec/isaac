@@ -131,8 +131,6 @@ int get_exec(session_t *sess, app_t *app, const char *args)
  */
 int broadcast_exec(session_t *sess, app_t *app, const char *args)
 {
-    session_iter_t *iter;
-    session_t *cur;
     char variable[80], value[80], message[1024];
 
     // Check if message has a condition
@@ -142,9 +140,9 @@ int broadcast_exec(session_t *sess, app_t *app, const char *args)
         memset(value, 0, 80);
     }
 
-    // Loop through sessions
-    iter = session_iterator_new();
-    while ((cur = session_iterator_next(iter))) {
+    GSList *sessions = sessions_adquire_lock();
+    for (GSList *l = sessions; l; l = l->next) {
+        session_t *cur = l->data;
         // If there is a variable, check current session has the same value
         if (strlen(variable)) {
             const char *cur_value = session_get_variable(cur, variable);
@@ -155,7 +153,7 @@ int broadcast_exec(session_t *sess, app_t *app, const char *args)
         // Otherwise send the message to that session
         session_write(cur, "%s\r\n", message);
     }
-    session_iterator_destroy(iter);
+    sessions_release_lock();
     return 0;
 }
 

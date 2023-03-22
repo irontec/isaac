@@ -47,13 +47,24 @@
 #include "util.h"
 
 //! Session list
-session_t *sessions;
+GSList *sessions;
 //! Session List (and ID) lock
-pthread_mutex_t sessionlock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-//! Session Counter
-int sessioncnt;
+static GRecMutex session_mutex;
 //! Last created session id
-unsigned int last_sess_id = 0;
+guint session_last_id = 0;
+
+GSList *
+sessions_adquire_lock()
+{
+    g_rec_mutex_lock(&session_mutex);
+    return sessions;
+}
+
+void
+sessions_release_lock()
+{
+    g_rec_mutex_unlock(&session_mutex);
+}
 
 static gboolean
 session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
@@ -108,7 +119,6 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 session_t *
 session_create(const int fd, const struct sockaddr_in addr)
 {
-
     session_t *sess;
 
     // Get some memory for this session
@@ -128,36 +138,33 @@ session_create(const int fd, const struct sockaddr_in addr)
         // Special ID for this sessions
         sprintf(sess->id, "%s", "local");
         // Local session, this does not count as a session
-        session_set_flag(sess, SESS_FLAG_LOCAL);
+//        session_set_flag(sess, SESS_FLAG_LOCAL);
     } else {
         // Create a new session id
-        sprintf(sess->id, "%d", last_sess_id++);
-        // Increase session count in stats
-        sessioncnt++;
+        sprintf(sess->id, "%d", session_last_id++);
     }
 
     // Create a main loop for this session thread
     sess->loop = g_main_loop_new(g_main_context_new(), FALSE);
 
     // Create a source from session client file descriptor
-    GSource *commands = g_unix_fd_source_new(sess->fd, G_IO_IN | G_IO_ERR | G_IO_HUP);
+    sess->commands = g_unix_fd_source_new(sess->fd, G_IO_IN | G_IO_ERR | G_IO_HUP);
     g_source_set_callback(
-            commands,
+            sess->commands,
             (GSourceFunc) G_SOURCE_FUNC(session_handle_command),
             sess,
             NULL
     );
 
     // Add FD source to session main loop context
-    g_source_attach(commands, g_main_loop_get_context(sess->loop));
+    g_source_attach(sess->commands, g_main_loop_get_context(sess->loop));
 
     //session_set_flag(sess, SESS_FLAG_DEBUG);
 
     // Add it to the begining of session list
-    pthread_mutex_lock(&sessionlock);
-    sess->next = sessions;
-    sessions = sess;
-    pthread_mutex_unlock(&sessionlock);
+    g_rec_mutex_lock(&session_mutex);
+    sessions = g_slist_append(sessions, sess);
+    g_rec_mutex_unlock(&session_mutex);
 
     // Return created session;
     return sess;
@@ -165,32 +172,24 @@ session_create(const int fd, const struct sockaddr_in addr)
 
 /*****************************************************************************/
 void
-session_destroy(session_t *sess)
+session_destroy(session_t *session)
 {
-    session_t *cur, *prev = NULL;
-
     // Mark this session as leaving
-    session_set_flag(sess, SESS_FLAG_LEAVING);
+    session_set_flag(session, SESS_FLAG_LEAVING);
 
     // Remove this session from the list
-    pthread_mutex_lock(&sessionlock);
-    cur = sessions;
-    while (cur) {
-        if (cur == sess) {
-            if (prev) prev->next = cur->next;
-            else
-                sessions = cur->next;
-            break;
-        }
-        prev = cur;
-        cur = cur->next;
-    }
+    g_rec_mutex_lock(&session_mutex);
+    sessions = g_slist_remove(sessions, session);
+    g_rec_mutex_unlock(&session_mutex);
 
-    // Deallocate memory
-    isaac_free(sess);
+    // Free all session data
+    g_source_destroy(session->commands);
 
-    pthread_mutex_unlock(&sessionlock);
+    // Break thread loop
+    g_main_loop_quit(session->loop);
 
+    // Free session memory
+    g_free(session);
 }
 
 /*****************************************************************************/
@@ -251,8 +250,6 @@ int
 session_write_broadcast(session_t *sender, const char *fmt, ...)
 {
     // Write to the original session
-    session_iter_t *iter;
-    session_t *sess = NULL;
     va_list ap;
     char msgva[512];
     const char *orig_agent = session_get_variable(sender, "AGENT");
@@ -262,18 +259,18 @@ session_write_broadcast(session_t *sender, const char *fmt, ...)
     vsprintf(msgva, fmt, ap);
     va_end(ap);
 
-    iter = session_iterator_new();
-    while ((sess = session_iterator_next(iter))) {
+    g_rec_mutex_lock(&session_mutex);
+    for (GSList *l = sessions; l; l = l->next) {
+        session_t *sess = l->data;
         const char *agent = session_get_variable(sess, "AGENT");
-        //const char *broadcast = session_get_variable(sess, "CALLBRD");
         if (sender == sess ||
             (agent && !isaac_strcmp(agent, orig_agent))) {
             session_write(sess, msgva);
         }
     }
-    session_iterator_destroy(iter);
-    return 0;
+    g_rec_mutex_unlock(&session_mutex);
 
+    return 0;
 }
 
 /*****************************************************************************/
@@ -414,103 +411,49 @@ session_variable_idx(session_t *sess, const char *varname)
     return -1;
 }
 
-/*****************************************************************************/
-session_iter_t *
-session_iterator_new()
-{
-    session_iter_t *iter;
-
-    /* Reserve memory for iterator */
-    iter = malloc(sizeof(session_iter_t));
-    /* Lock the list, preventing anyone from editing it */
-    pthread_mutex_lock(&sessionlock);
-    /* Start with the first session */
-    iter->next = sessions;
-    /* Return iterator */
-    return iter;
-}
-
-session_t *
-session_iterator_next(session_iter_t *iter)
-{
-    session_t *next = iter->next;
-    // If not reached the last one, store the next iteration pointer
-    if (next) {
-        iter->next = next->next;
-    }
-    return next;
-}
-
-session_t *
-session_iterator_next_by_variable(session_iter_t *iter, const char *variable, const char *value)
-{
-    session_t *next = NULL;
-    if (!variable || !value)
-        return NULL;
-
-    while ((next = session_iterator_next(iter))) {
-        const char *sessvalue = session_get_variable(next, variable);
-        if (sessvalue && !strcasecmp(sessvalue, value)) {
-            break;
-        }
-    }
-
-    return next;
-}
-
-void
-session_iterator_destroy(session_iter_t *iter)
-{
-    /* Destroy iterator */
-    isaac_free(iter);
-    /* Just unlock the Sessions List lock */
-    pthread_mutex_unlock(&sessionlock);
-}
-
 session_t *
 session_by_id(const char *id)
 {
-    session_iter_t *iter;
     session_t *sess = NULL;
 
-    iter = session_iterator_new();
-    while ((sess = session_iterator_next(iter))) {
+    g_rec_mutex_lock(&session_mutex);
+    for (GSList *l = sessions; l; l = l->next) {
+        sess = l->data;
         if (!strcmp(sess->id, id)) break;
     }
-    session_iterator_destroy(iter);
+    g_rec_mutex_unlock(&session_mutex);
     return sess;
 }
 
 session_t *
 session_by_variable(const char *varname, const char *varvalue)
 {
-    session_iter_t *iter;
     session_t *sess = NULL;
 
-    iter = session_iterator_new();
-    while ((sess = session_iterator_next(iter))) {
+    g_rec_mutex_lock(&session_mutex);
+    for (GSList *l = sessions; l; l = l->next) {
+        sess = l->data;
         if (!isaac_strcmp(session_get_variable(sess, varname), varvalue)) {
             break;
         }
     }
-    session_iterator_destroy(iter);
+    g_rec_mutex_unlock(&session_mutex);
     return sess;
 }
 
 int
 session_finish_all(const char *message)
 {
-    session_iter_t *iter;
-    session_t *sess = NULL;
     char bye[256];
     sprintf(bye, "BYE %s\r\n", message);
 
-    iter = session_iterator_new();
-    while ((sess = session_iterator_next(iter))) {
+    g_rec_mutex_lock(&session_mutex);
+    for (GSList *l = sessions; l; l = l->next) {
+        session_t *sess = l->data;
         session_write(sess, bye);
         session_finish(sess);
     }
-    session_iterator_destroy(iter);
+    g_rec_mutex_unlock(&session_mutex);
     return 0;
 }
 

@@ -196,11 +196,9 @@ check_connections(void *unused)
 
     // Begin checking connections
     while (running) {
-        session_iter_t *iter = session_iterator_new();
-        session_t *sess;
-
-        /* Print available sessions */
-        while ((sess = session_iterator_next(iter))) {
+        GSList *sessions = sessions_adquire_lock();
+        for (GSList *l = sessions; l; l = l->next) {
+            session_t *sess = l->data;
             struct timeval idle = isaac_tvsub(isaac_tvnow(), sess->last_cmd_time);
             if (idle.tv_sec > config.idle_timeout) {
                 session_write(sess, "BYE Session is no longer active\r\n");
@@ -210,8 +208,7 @@ check_connections(void *unused)
                 }
             }
         }
-        /* Destroy iterator after finishing */
-        session_iterator_destroy(iter);
+        sessions_release_lock();
 
         // Wait to next iteration
         sleep(5);

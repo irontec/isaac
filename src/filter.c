@@ -384,18 +384,20 @@ filter_print_message(filter_t *filter, ami_message_t *msg)
 int
 filter_inject_message(filter_t *filter, ami_message_t *msg)
 {
-    session_iter_t *iter;
-    session_t *sess = NULL;
+    session_t *sess;
     const char *agent = session_get_variable(filter->sess, "AGENT");
 
-    iter = session_iterator_new();
-    while ((sess = session_iterator_next_by_variable(iter, "AGENT", agent))) {
-        if (session_id(sess) < session_id(filter->sess)) {
-            session_iterator_destroy(iter);
-            return 1;
+    GSList *sessions = sessions_adquire_lock();
+    for (GSList *l = sessions; l; l = l->next) {
+        sess = l->data;
+        const char *session_agent = session_get_variable(sess, "AGENT");
+        if (session_agent && !strcasecmp(session_agent, agent)) {
+            if (session_id(sess) < session_id(filter->sess)) {
+                break;
+            }
         }
     }
-    session_iterator_destroy(iter);
+    sessions_release_lock();
 
     // Show some log
     isaac_log(LOG_NOTICE, "[Session %s] Injecting fake %s message\n", filter->sess->id,

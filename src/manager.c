@@ -290,7 +290,7 @@ manager_read_thread(void *man)
 
         // Read the next message from AMI
         if ((res = manager_read_message(manager, &msg)) > 0) {
-            // Pass the readed msg to the Filter&Conditions logic
+            // Pass the read msg to the Filter&Conditions logic
             check_filters_for_message(&msg);
         } else if (res < 0) {
             // If no error, maybe we are shutting down?
