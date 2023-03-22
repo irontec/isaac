@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(isaac VERSION 0.1 LANGUAGES C)
+project(isaac VERSION 2.1 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 
@@ -41,7 +41,7 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GLIB REQUIRED glib-2.0>=2.42)
 include_directories(${GLIB_INCLUDE_DIRS})
-link_libraries(${GLIB_LIBRARIES})
+target_link_libraries(isaac ${GLIB_LIBRARIES})
 
 # libconfig
 pkg_check_modules(LIBCONFIG REQUIRED libconfig)

@@ -32,6 +32,7 @@
 #include "config.h"
 #include <unistd.h>
 #include <signal.h>
+#include <glib.h>
 #include "module.h"
 #include "manager.h"
 #include "log.h"
@@ -44,22 +45,20 @@
 //! Isaac configuration options
 cfg_t config;
 
-//! Determines CLI behaviour
-int opt_execute = 0;
 //! Debug flag (for -d argument)
 int debug = 0;
 
 void
-version()
+print_version()
 {
     printf("%s: Version %s, (C) 2013 Irontec S.L. \n", PACKAGE_NAME, PACKAGE_VERSION);
     printf("Created by Ivan Alonso [aka Kaian] <kaian@irontec.com>\n");
 }
 
 void
-usage()
+print_usage()
 {
-    version();
+    print_version();
 
     printf("\nUsage: %s [-d|-r|-h|-v|-x command]\n", PACKAGE_NAME);
     printf(" -d : Start in Debug Mode\n");
@@ -102,32 +101,41 @@ int
 main(int argc, char *argv[])
 {
     pid_t pid;
-    int opt_remote = 0;
-    char opt;
-    char *xarg = NULL;
+    GError *error = NULL;
+    gchar *opt_execute = NULL;
+    gboolean opt_version = FALSE;
+    gboolean opt_help = FALSE;
+    gboolean opt_debug = FALSE;
+    gboolean opt_remote = FALSE;
 
-    // Parse commandline arguments
-    while ((opt = getopt(argc, argv, "dhrvx:")) != EOF) {
-        switch (opt) {
-            case 'd':
-                debug++;
-                break;
-            case 'r':
-                opt_remote++;
-                break;
-            case 'x':
-                opt_execute++;
-                opt_remote++; // This is implicit in 'x'
-                xarg = strdup(optarg);
-                break;
-            case 'v':
-                version();
-                exit(EXIT_SUCCESS);
-            case 'h':
-            case '?':
-                usage();
-                exit(EXIT_SUCCESS);
-        }
+    GOptionEntry main_entries[] = {
+            {"version", 'v', 0, G_OPTION_ARG_NONE,   &opt_version, "Version information",                 NULL},
+            {"help",    'h', 0, G_OPTION_ARG_NONE,   &opt_help,    "Display help",                        NULL},
+            {"debug",   'd', 0, G_OPTION_ARG_NONE,   &opt_debug,   "Start in debug mode",                 NULL},
+            {"remote",  'r', 0, G_OPTION_ARG_NONE,   &opt_remote,  "Connect CLI to running isaac daemon", NULL},
+            {"execute", 'x', 0, G_OPTION_ARG_STRING, &opt_execute, "Execute CLI command and exit",        NULL},
+
+    };
+
+    /************************** Command Line Parsing **************************/
+    GOptionContext *context = g_option_context_new("[-d|-r|-h|-v|-x command]");
+    g_option_context_add_main_entries(context, main_entries, NULL);
+    g_option_context_parse(context, &argc, &argv, &error);
+    g_option_context_free(context);
+
+    if (error != NULL) {
+        g_printerr("Options parsing failed: %s\n", error->message);
+        return 1;
+    }
+
+    // Parse command line arguments that have high priority
+    if (opt_version) {
+        print_version();
+        return 0;
+    }
+    if (opt_help) {
+        print_usage();
+        return 0;
     }
 
     // Check if there is an Isaac is already running
@@ -137,7 +145,7 @@ main(int argc, char *argv[])
                 remote_control(NULL);
                 return 0;
             } else {
-                remote_control(xarg);
+                remote_control(opt_execute);
                 return 0;
             }
         } else {
@@ -154,7 +162,7 @@ main(int argc, char *argv[])
     }
 
     // If we are not in debug mode, then fork to background
-    if (!debug) {
+    if (!opt_debug) {
         if ((pid = fork()) < 0)
             exit(1);
         else if (pid > 0)
