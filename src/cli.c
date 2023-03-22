@@ -1256,8 +1256,9 @@ handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
         cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {
         cli_write(args->cli, "------------ Variables for session %s ------------\n", args->argv[2]);
-        for (i = 0; i < sess->varcount; i++) {
-            cli_write(args->cli, "%s = %s\n", sess->vars[i].varname, sess->vars[i].varvalue);
+        for (GSList *l = sess->vars; l; l = l->next) {
+            SessionVar *var = l->data;
+            cli_write(args->cli, "%s = %s\n", var->varname, var->varvalue);
         }
     }
 

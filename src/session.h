@@ -71,10 +71,8 @@ struct _Session
     char id[20];
     //! Session flags. @see session_flag
     unsigned int flags;
-    //! Session variables, TODO Make this a linked list
-    SessionVar vars[MAX_VARS];
-    //! Session variable counter
-    int varcount;
+    //! Session variables (SessionVar*)
+    GSList *vars;
     //! Session client file descriptor
     int fd;
     //! Socket address info

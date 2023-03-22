@@ -129,8 +129,6 @@ session_create(const int fd, const struct sockaddr_in addr)
     sess->fd = fd;
     sess->addr = addr;
     sess->flags = 0x00;
-    sess->varcount = 0;
-    memset(sess->vars, 0, sizeof(SessionVar) * MAX_VARS);
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
 
     // Initialize session fields
@@ -159,7 +157,6 @@ session_create(const int fd, const struct sockaddr_in addr)
     // Add FD source to session main loop context
     g_source_attach(sess->commands, g_main_loop_get_context(sess->loop));
 
-    //session_set_flag(sess, SESS_FLAG_DEBUG);
 
     // Add it to the begining of session list
     g_rec_mutex_lock(&session_mutex);
@@ -368,46 +365,49 @@ session_set_variable(Session *sess, char *varname, char *varvalue)
 
     int id = session_variable_idx(sess, varname);
     if (id == -1) {
-        if (sess->varcount == MAX_VARS) {
+        if (g_slist_length(sess->vars) == MAX_VARS) {
             isaac_log(LOG_ERROR, "Max Variable limit (%d) reached in session %d\n", MAX_VARS, sess->id);
             return;
         }
-        strcpy(sess->vars[sess->varcount].varname, varname);
-        strcpy(sess->vars[sess->varcount].varvalue, varvalue);
-        sess->varcount++;
+        SessionVar *var = g_malloc0(sizeof(SessionVar));
+        strcpy(var->varname, varname);
+        strcpy(var->varvalue, varvalue);
+        sess->vars = g_slist_append(sess->vars, var);
     } else {
-        strcpy(sess->vars[id].varname, varname);
-        strcpy(sess->vars[id].varvalue, varvalue);
+        GSList *l = g_slist_nth(sess->vars, id);
+        SessionVar *var = l->data;
+        strcpy(var->varname, varname);
+        strcpy(var->varvalue, varvalue);
     }
 }
 
 /*****************************************************************************/
-// TODO Implement linked lists
 const char *
 session_get_variable(Session *sess, const char *varname)
 {
-    char *varvalue = NULL;
-    if (!sess) return NULL;
-    int i;
-    for (i = 0; i < sess->varcount; i++) {
-        if (!strcasecmp(sess->vars[i].varname, varname)) {
-            varvalue = sess->vars[i].varvalue;
-            break;
+    g_return_val_if_fail(sess != NULL, NULL);
+
+    for (GSList *l = sess->vars; l; l = l->next) {
+        SessionVar *var = l->data;
+        if (!strcasecmp(var->varname, varname)) {
+            return var->varvalue;
         }
     }
-    return varvalue;
+    return NULL;
 }
 
 int
 session_variable_idx(Session *sess, const char *varname)
 {
-    if (!sess) return 0;
-    int i;
-    for (i = 0; i < sess->varcount; i++) {
-        if (!strcasecmp(sess->vars[i].varname, varname)) {
-            return i;
+    g_return_val_if_fail(sess != NULL, -1);
+
+    for (GSList *l = sess->vars; l; l = l->next) {
+        SessionVar *var = l->data;
+        if (!strcasecmp(var->varname, varname)) {
+            return g_slist_index(sess->vars, var);
         }
     }
+
     return -1;
 }
 
