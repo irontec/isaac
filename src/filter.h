@@ -157,7 +157,7 @@ struct isaac_filter_sync
 struct isaac_filter
 {
     //! Session that requested the application that registered this filter
-    session_t *sess;
+    Session *sess;
 
     //! Filter's conditions that will determine which messages are sent back to the app
     cond_t conds[MAX_CONDS];
@@ -192,7 +192,7 @@ struct isaac_filter
  * @return The new allocated filter structure or NULL in case of failure
  */
 extern filter_t *
-filter_create_async(session_t *sess, int (*callback)(filter_t *filter, ami_message_t *msg));
+filter_create_async(Session *sess, int (*callback)(filter_t *filter, ami_message_t *msg));
 
 /**
  * @brief Create a new filter structure (This won't add it to the Filter's list)
@@ -208,7 +208,7 @@ filter_create_async(session_t *sess, int (*callback)(filter_t *filter, ami_messa
  * @return The new allocated filter structure or NULL in case of failure
  */
 extern filter_t *
-filter_create_sync(session_t *sess);
+filter_create_sync(Session *sess);
 
 /**
  * @brief Add a cooked condition to the given filter
@@ -289,7 +289,7 @@ filter_unregister(filter_t *filter);
  * @param sess Session owning the filters
  */
 extern int
-filter_unregister_session(session_t *sess);
+filter_unregister_session(Session *sess);
 
 /**
  * @brief Remove a filter from the filters list.
@@ -373,7 +373,7 @@ filter_get_userdata(filter_t *filter);
  * @param userdata Pointer to the custom information
  */
 extern void *
-filter_from_userdata(session_t *sess, void *userdata);
+filter_from_userdata(Session *sess, void *userdata);
 
 /**
  * @brief Get the next filter for the given session
@@ -388,7 +388,7 @@ filter_from_userdata(session_t *sess, void *userdata);
  * @return The next filter of the session, or NULL if there are no more filters
  */
 extern filter_t *
-filter_from_session(session_t *sess, filter_t *from);
+filter_from_session(Session *sess, filter_t *from);
 
 /**
  * @brief Dummy callback for debugging purposes

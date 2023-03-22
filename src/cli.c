@@ -850,7 +850,7 @@ cli_complete_session(const char *line, const char *word, int pos, int state, int
 
     GSList *sessions = sessions_adquire_lock();
     for (GSList *l = sessions; l; l = l->next) {
-        session_t *sess = l->data;
+        Session *sess = l->data;
         if (ret != &notfound)
             break;
         if (++which > state) {
@@ -1130,7 +1130,7 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     /* Print available sessions */
     GSList *sessions = sessions_adquire_lock();
     for (GSList *l = sessions; l; l = l->next) {
-        session_t *sess = l->data;
+        Session *sess = l->data;
         sessioncnt++;
         isaac_tvelap(isaac_tvsub(curtime, sess->last_cmd_time), 1, idle);
         cli_write(args->cli, "%-10s%-25s%-20s%s\n", sess->id, sess->addrstr, ((session_test_flag(
@@ -1152,7 +1152,7 @@ char *
 handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     filter_t *filter = NULL;
-    session_t *sess;
+    Session *sess;
     int filter_cnt = 0;
     int ccnt = 0;
 
@@ -1227,7 +1227,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
 char *
 handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
-    session_t *sess;
+    Session *sess;
     int i = 0;
 
     switch (cmd) {
@@ -1271,7 +1271,7 @@ handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
 char *
 handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
-    session_t *sess;
+    Session *sess;
     switch (cmd) {
         case CLI_INIT:
             entry->command = "kill connection";
@@ -1304,7 +1304,7 @@ handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 char *
 handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
-    session_t *sess;
+    Session *sess;
     switch (cmd) {
         case CLI_INIT:
             entry->command = "debug connection";

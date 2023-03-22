@@ -69,7 +69,7 @@ struct lua_application
 struct lua_filter
 {
     //! Session pointer who requested this filter
-    session_t *sess;
+    Session *sess;
     //! Lua Application callback
     char callback[30];
     //! Lua userpointer data
@@ -85,7 +85,7 @@ lua_app_t *lua_apps;
 lua_filter_t *lua_filters;
 
 int
-lua_application_callback(session_t *sess, app_t *app, const char *args)
+lua_application_callback(Session *sess, app_t *app, const char *args)
 {
     lua_app_t *lua_app = lua_apps;
     // Find the lua application
@@ -194,7 +194,7 @@ lua_session_write(lua_State *L)
     const char *sessid = lua_tostring(L, 1);
     const char *msg = lua_tostring(L, 2);
 
-    session_t *sess = session_by_id(sessid);
+    Session *sess = session_by_id(sessid);
     if (sess) {
         return session_write(sess, msg);
     } else {
@@ -210,7 +210,7 @@ lua_filter_create(lua_State *L)
     int filter_type = lua_tonumber(L, 2);
     const char *callback = lua_tostring(L, 3);
 
-    session_t *sess = session_by_id(sessid);
+    Session *sess = session_by_id(sessid);
     if (sess) {
         // Create a LUA filter strctucture
         lua_filter_t *info = malloc(sizeof(lua_filter_t));

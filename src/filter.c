@@ -36,7 +36,7 @@ filter_t *filters = NULL;
 pthread_mutex_t filters_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 filter_t *
-filter_create_async(session_t *sess, int (*callback)(filter_t *filter, ami_message_t *msg))
+filter_create_async(Session *sess, int (*callback)(filter_t *filter, ami_message_t *msg))
 {
     filter_t *filter = NULL;
     // Allocate memory for a new filter
@@ -55,7 +55,7 @@ filter_create_async(session_t *sess, int (*callback)(filter_t *filter, ami_messa
 }
 
 filter_t *
-filter_create_sync(session_t *sess)
+filter_create_sync(Session *sess)
 {
     filter_t *filter = NULL;
     // Allocate memory for a new filter
@@ -168,7 +168,7 @@ filter_unregister(filter_t *filter)
 }
 
 int
-filter_unregister_session(session_t *sess)
+filter_unregister_session(Session *sess)
 {
     filter_t *filter;
     // Sanity check
@@ -234,7 +234,7 @@ filter_exec_async(filter_t *filter, ami_message_t *msg)
 {
     int oneshot = filter->data.async.oneshot;
     int ret = 1;
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
 
     // Check we have a valid filter
     if (!filter || filter->type != FILTER_ASYNC)
@@ -330,7 +330,7 @@ filter_get_userdata(filter_t *filter)
 }
 
 void *
-filter_from_userdata(session_t *sess, void *userdata)
+filter_from_userdata(Session *sess, void *userdata)
 {
     filter_t *filter = NULL;
     // Sanity check
@@ -348,7 +348,7 @@ filter_from_userdata(session_t *sess, void *userdata)
 }
 
 filter_t *
-filter_from_session(session_t *sess, filter_t *from)
+filter_from_session(Session *sess, filter_t *from)
 {
     filter_t *cur = NULL;
     pthread_mutex_lock(&filters_mutex);
@@ -384,7 +384,7 @@ filter_print_message(filter_t *filter, ami_message_t *msg)
 int
 filter_inject_message(filter_t *filter, ami_message_t *msg)
 {
-    session_t *sess;
+    Session *sess;
     const char *agent = session_get_variable(filter->sess, "AGENT");
 
     GSList *sessions = sessions_adquire_lock();

@@ -71,7 +71,7 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 {
     char msg[512];
     char action[20], args[256];
-    session_t *sess = (session_t *) user_data;
+    Session *sess = (Session *) user_data;
     app_t *app;
     int ret;
 
@@ -116,13 +116,13 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 }
 
 /*****************************************************************************/
-session_t *
+Session *
 session_create(const int fd, const struct sockaddr_in addr)
 {
-    session_t *sess;
+    Session *sess;
 
     // Get some memory for this session
-    if (!(sess = (session_t *) malloc(sizeof(session_t)))) {
+    if (!(sess = (Session *) malloc(sizeof(Session)))) {
         return NULL;
     }
 
@@ -130,7 +130,7 @@ session_create(const int fd, const struct sockaddr_in addr)
     sess->addr = addr;
     sess->flags = 0x00;
     sess->varcount = 0;
-    memset(sess->vars, 0, sizeof(session_var_t) * MAX_VARS);
+    memset(sess->vars, 0, sizeof(SessionVar) * MAX_VARS);
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
 
     // Initialize session fields
@@ -172,7 +172,7 @@ session_create(const int fd, const struct sockaddr_in addr)
 
 /*****************************************************************************/
 void
-session_destroy(session_t *session)
+session_destroy(Session *session)
 {
     // Mark this session as leaving
     session_set_flag(session, SESS_FLAG_LEAVING);
@@ -194,7 +194,7 @@ session_destroy(session_t *session)
 
 /*****************************************************************************/
 int
-session_finish(session_t *sess)
+session_finish(Session *sess)
 {
     int res = -1;
     if (sess) {
@@ -207,7 +207,7 @@ session_finish(session_t *sess)
 
 /*****************************************************************************/
 int
-session_write(session_t *sess, const char *fmt, ...)
+session_write(Session *sess, const char *fmt, ...)
 {
     int wbytes = 0;
     va_list ap;
@@ -247,7 +247,7 @@ session_write(session_t *sess, const char *fmt, ...)
 }
 
 int
-session_write_broadcast(session_t *sender, const char *fmt, ...)
+session_write_broadcast(Session *sender, const char *fmt, ...)
 {
     // Write to the original session
     va_list ap;
@@ -261,7 +261,7 @@ session_write_broadcast(session_t *sender, const char *fmt, ...)
 
     g_rec_mutex_lock(&session_mutex);
     for (GSList *l = sessions; l; l = l->next) {
-        session_t *sess = l->data;
+        Session *sess = l->data;
         const char *agent = session_get_variable(sess, "AGENT");
         if (sender == sess ||
             (agent && !isaac_strcmp(agent, orig_agent))) {
@@ -275,7 +275,7 @@ session_write_broadcast(session_t *sender, const char *fmt, ...)
 
 /*****************************************************************************/
 int
-session_read(session_t *sess, char *msg)
+session_read(Session *sess, char *msg)
 {
     int rbytes = 0;
     char buffer[1024]; // XXX This should be enough in most cases...
@@ -325,7 +325,7 @@ session_read(session_t *sess, char *msg)
 
 /*****************************************************************************/
 int
-session_test_flag(session_t *sess, int flag)
+session_test_flag(Session *sess, int flag)
 {
     int ret = 0;
     if (!sess) return -1;
@@ -335,7 +335,7 @@ session_test_flag(session_t *sess, int flag)
 
 /*****************************************************************************/
 void
-session_set_flag(session_t *sess, int flag)
+session_set_flag(Session *sess, int flag)
 {
     if (!sess) return;
     sess->flags |= flag;
@@ -343,7 +343,7 @@ session_set_flag(session_t *sess, int flag)
 
 /*****************************************************************************/
 void
-session_clear_flag(session_t *sess, int flag)
+session_clear_flag(Session *sess, int flag)
 {
     if (!sess) return;
     sess->flags &= ~flag;
@@ -352,7 +352,7 @@ session_clear_flag(session_t *sess, int flag)
 /*****************************************************************************/
 // TODO Implement linked lists
 void
-session_set_variable(session_t *sess, char *varname, char *varvalue)
+session_set_variable(Session *sess, char *varname, char *varvalue)
 {
     if (!sess) return;
 
@@ -384,7 +384,7 @@ session_set_variable(session_t *sess, char *varname, char *varvalue)
 /*****************************************************************************/
 // TODO Implement linked lists
 const char *
-session_get_variable(session_t *sess, const char *varname)
+session_get_variable(Session *sess, const char *varname)
 {
     char *varvalue = NULL;
     if (!sess) return NULL;
@@ -399,7 +399,7 @@ session_get_variable(session_t *sess, const char *varname)
 }
 
 int
-session_variable_idx(session_t *sess, const char *varname)
+session_variable_idx(Session *sess, const char *varname)
 {
     if (!sess) return 0;
     int i;
@@ -411,10 +411,10 @@ session_variable_idx(session_t *sess, const char *varname)
     return -1;
 }
 
-session_t *
+Session *
 session_by_id(const char *id)
 {
-    session_t *sess = NULL;
+    Session *sess = NULL;
 
     g_rec_mutex_lock(&session_mutex);
     for (GSList *l = sessions; l; l = l->next) {
@@ -425,10 +425,10 @@ session_by_id(const char *id)
     return sess;
 }
 
-session_t *
+Session *
 session_by_variable(const char *varname, const char *varvalue)
 {
-    session_t *sess = NULL;
+    Session *sess = NULL;
 
     g_rec_mutex_lock(&session_mutex);
     for (GSList *l = sessions; l; l = l->next) {
@@ -449,7 +449,7 @@ session_finish_all(const char *message)
 
     g_rec_mutex_lock(&session_mutex);
     for (GSList *l = sessions; l; l = l->next) {
-        session_t *sess = l->data;
+        Session *sess = l->data;
         session_write(sess, bye);
         session_finish(sess);
     }
@@ -458,7 +458,7 @@ session_finish_all(const char *message)
 }
 
 int
-session_id(session_t *sess)
+session_id(Session *sess)
 {
     return atoi(sess->id);
 }

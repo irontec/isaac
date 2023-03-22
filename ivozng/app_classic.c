@@ -56,7 +56,7 @@ classic_print(filter_t *filter, ami_message_t *msg)
  * @return 0 in call cases
  */
 int
-classic_exec(session_t *sess, app_t *app, const char *args)
+classic_exec(Session *sess, app_t *app, const char *args)
 {
     char action[10], buffer[MAX_LEN];
     ami_message_t msg;

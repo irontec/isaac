@@ -41,12 +41,11 @@
 //TODO Make vars a linked list to remove this limitation
 #define MAX_VARS        80
 
-//! Sorter declaration of session_var struct
-typedef struct session_var session_var_t;
+
 //! Sorter declaration of session struct
-typedef struct session session_t;
-//! Sorter declaration of session_iterator
-typedef struct session_iterator session_iter_t;
+typedef struct _Session Session;
+//! Sorter declaration of _SessionVar struct
+typedef struct _SessionVar SessionVar;
 
 /**
  * \brief Session variable
@@ -54,7 +53,7 @@ typedef struct session_iterator session_iter_t;
  * Structure to store session variables. Very useful for sharing
  * data between different applications.
  */
-struct session_var
+struct _SessionVar
 {
     char varname[128];
     char varvalue[8192];
@@ -66,14 +65,14 @@ struct session_var
  * Contains all data from an incoming client connection
  * \todo Make the Session variable list a linked list
  */
-struct session
+struct _Session
 {
     //! Session ID.
     char id[20];
     //! Session flags. @see session_flag
     unsigned int flags;
     //! Session variables, TODO Make this a linked list
-    struct session_var vars[MAX_VARS];
+    SessionVar vars[MAX_VARS];
     //! Session variable counter
     int varcount;
     //! Session client file descriptor
@@ -125,7 +124,7 @@ sessions_release_lock();
  * \param addr 	Address information of incoming connection
  * \return 		The new created session or NULL in case of alloc error
  */
-session_t *
+Session *
 session_create(const int fd, const struct sockaddr_in addr);
 
 /**
@@ -139,7 +138,7 @@ session_create(const int fd, const struct sockaddr_in addr);
  * \param session Session structure to be freed
  */
 void
-session_destroy(session_t *session);
+session_destroy(Session *session);
 
 /**
  * \brief Closes session socket
@@ -153,7 +152,7 @@ session_destroy(session_t *session);
  * \return close function return
  */
 int
-session_finish(session_t *sess);
+session_finish(Session *sess);
 
 /**
  * \brief Sends some text to client socket
@@ -167,7 +166,7 @@ session_finish(session_t *sess);
  * \return 0 in case of success, -1 otherwise
  */
 extern int
-session_write(session_t *sess, const char *fmt, ...);
+session_write(Session *sess, const char *fmt, ...);
 
 /**
  * \brief Broadcast text to all sessions of an agent
@@ -182,7 +181,7 @@ session_write(session_t *sess, const char *fmt, ...);
  * \return 0 in case of success, -1 otherwise
  */
 extern int
-session_write_broadcast(session_t *sender, const char *fmt, ...);
+session_write_broadcast(Session *sender, const char *fmt, ...);
 
 /**
  * \brief Read some text from client socket
@@ -202,54 +201,54 @@ session_write_broadcast(session_t *sender, const char *fmt, ...);
  * \return readed bytes or -1 in case of error
  */
 int
-session_read(session_t *sess, char *msg);
+session_read(Session *sess, char *msg);
 
 /**
  * \brief Checks if session has a flag enabled
  */
 int
-session_test_flag(session_t *sess, int flag);
+session_test_flag(Session *sess, int flag);
 
 /**
  * \brief Enables a flag in the session
  */
 void
-session_set_flag(session_t *sess, int flag);
+session_set_flag(Session *sess, int flag);
 
 /**
  * \brief Disables a flag in the session
  */
 void
-session_clear_flag(session_t *sess, int flag);
+session_clear_flag(Session *sess, int flag);
 
 /**
  * \brief Set a value in the given variable
  */
 void
-session_set_variable(session_t *sess, char *varname, char *varvalue);
+session_set_variable(Session *sess, char *varname, char *varvalue);
 
 /**
  * \brief Get a value of the given variable
  */
 const char *
-session_get_variable(session_t *sess, const char *varname);
+session_get_variable(Session *sess, const char *varname);
 
 /**
  * \brief Get index value of a given variable
  */
 int
-session_variable_idx(session_t *sess, const char *varname);
+session_variable_idx(Session *sess, const char *varname);
 
-extern session_t *
+extern Session *
 session_by_id(const char *id);
 
-extern session_t *
+extern Session *
 session_by_variable(const char *varname, const char *varvalue);
 
 extern int
 session_finish_all(const char *message);
 
 extern int
-session_id(session_t *sess);
+session_id(Session *sess);
 
 #endif

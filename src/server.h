@@ -84,7 +84,7 @@ check_connections(void *unused);
  * Incomming connections (aka session) will handle actions in this
  * Thread function spawned by start_server.
  *
- * \param session session_t structure pointer with the new connection
+ * \param session Session structure pointer with the new connection
  *                information.
  */
 void *

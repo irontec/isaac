@@ -44,7 +44,7 @@
  * @return 0 in all cases
  */
 int
-redirectto_exec(session_t *sess, app_t *app, const char *args)
+redirectto_exec(Session *sess, app_t *app, const char *args)
 {
     char channame[250], context[256], exten[80];
 

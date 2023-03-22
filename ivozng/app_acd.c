@@ -172,7 +172,7 @@ pcloseRWE(int pid, int *rwepipe)
 }
 
 int
-acd_exec(session_t *sess, app_t *app, const char *args)
+acd_exec(Session *sess, app_t *app, const char *args)
 {
     int pid;
     int out = 0;

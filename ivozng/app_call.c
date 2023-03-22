@@ -199,7 +199,7 @@ read_call_config(const char *cfile)
  * @return Call info structure
  */
 struct app_call_info *
-get_call_info_from_id(session_t *sess, const char *id)
+get_call_info_from_id(Session *sess, const char *id)
 {
     filter_t *filter = NULL;
     struct app_call_info *info = NULL;
@@ -517,7 +517,7 @@ call_state(filter_t *filter, ami_message_t *msg)
  * @return 0 in call cases
  */
 int
-call_exec(session_t *sess, app_t *app, const char *args)
+call_exec(Session *sess, app_t *app, const char *args)
 {
     char actionid[ACTIONID_LEN];
     char exten[128], options[80];
@@ -616,7 +616,7 @@ call_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-dtmf_exec(session_t *sess, app_t *app, const char *args)
+dtmf_exec(Session *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -664,7 +664,7 @@ dtmf_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-hangup_exec(session_t *sess, app_t *app, const char *args)
+hangup_exec(Session *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -711,7 +711,7 @@ hangup_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-hold_unhold_exec(session_t *sess, app_t *app, const char *args)
+hold_unhold_exec(Session *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -791,7 +791,7 @@ record_state(filter_t *filter, ami_message_t *msg)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-record_exec(session_t *sess, app_t *app, const char *args)
+record_exec(Session *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -928,7 +928,7 @@ record_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-recordstop_exec(session_t *sess, app_t *app, const char *args)
+recordstop_exec(Session *sess, app_t *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];

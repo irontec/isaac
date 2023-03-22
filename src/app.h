@@ -84,7 +84,7 @@ struct isaac_application
     char *name;
     //! Application exec function
     int
-    (*execute)(session_t *sess, app_t *app, const char *args);
+    (*execute)(Session *sess, app_t *app, const char *args);
     //! Next application in the linked list @ref apps
     app_t *next;
 };
@@ -119,7 +119,7 @@ struct isaac_application_args
  */
 extern int
 application_register(const char *name, int
-(*execute)(session_t *sess, app_t *app, const char *args));
+(*execute)(Session *sess, app_t *app, const char *args));
 
 /**
  * @brief Free an application memory and remove from applications list
@@ -167,7 +167,7 @@ application_count();
  * @return application execute function return code
  */
 extern int
-application_run(app_t *app, session_t *sess, const char *args);
+application_run(app_t *app, Session *sess, const char *args);
 
 /**
  * @brief Parse application arguments

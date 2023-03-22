@@ -51,7 +51,7 @@ extern pthread_mutex_t apps_lock;
  * @param args Aditional command line arguments (not used)
  * @return 0 in all cases
  */
-int help_exec(session_t *sess, app_t *app, const char *args)
+int help_exec(Session *sess, app_t *app, const char *args)
 {
     session_write(sess, "Available applications: ");
     pthread_mutex_lock(&apps_lock);
@@ -78,7 +78,7 @@ int help_exec(session_t *sess, app_t *app, const char *args)
  * @param args  Aditional command line arguments (Variable, Value)
  * @return 0 in all cases
  */
-int set_exec(session_t *sess, app_t *app, const char *args)
+int set_exec(Session *sess, app_t *app, const char *args)
 {
     char variable[80], value[250];
 
@@ -103,7 +103,7 @@ int set_exec(session_t *sess, app_t *app, const char *args)
  * @param args  Aditional command line arguments (Variable, Value)
  * @return 0 in all cases
  */
-int get_exec(session_t *sess, app_t *app, const char *args)
+int get_exec(Session *sess, app_t *app, const char *args)
 {
     char variable[80];
     const char *value;
@@ -129,7 +129,7 @@ int get_exec(session_t *sess, app_t *app, const char *args)
  * @param args  Aditional command line arguments (Variable, Value)
  * @return 0 in all cases
  */
-int broadcast_exec(session_t *sess, app_t *app, const char *args)
+int broadcast_exec(Session *sess, app_t *app, const char *args)
 {
     char variable[80], value[80], message[1024];
 
@@ -142,7 +142,7 @@ int broadcast_exec(session_t *sess, app_t *app, const char *args)
 
     GSList *sessions = sessions_adquire_lock();
     for (GSList *l = sessions; l; l = l->next) {
-        session_t *cur = l->data;
+        Session *cur = l->data;
         // If there is a variable, check current session has the same value
         if (strlen(variable)) {
             const char *cur_value = session_get_variable(cur, variable);

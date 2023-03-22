@@ -279,7 +279,7 @@ conference_guest_state(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 static int
-conference_guest_invite(session_t *sess, struct app_conference_info *info, struct app_conference_guest *guest)
+conference_guest_invite(Session *sess, struct app_conference_info *info, struct app_conference_guest *guest)
 {
     // Register a Filter to get Generated Channel
     filter_t *channel_filter = filter_create_async(sess, conference_guest_state);
@@ -392,7 +392,7 @@ conference_host_state(filter_t *filter, ami_message_t *msg)
  * @return 0 in call cases
  */
 int
-conference_exec(session_t *sess, app_t *app, const char *args)
+conference_exec(Session *sess, app_t *app, const char *args)
 {
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;

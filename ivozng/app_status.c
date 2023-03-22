@@ -167,7 +167,7 @@ read_status_config(const char *cfile)
  * @returns agent channel name or NULL if not found
  */
 char *
-find_agent_channel_by_uniqueid(session_t *sess, const char *uniqueid)
+find_agent_channel_by_uniqueid(Session *sess, const char *uniqueid)
 {
     filter_t *filter = NULL;
     struct app_status_info *info = NULL;
@@ -191,7 +191,7 @@ find_agent_channel_by_uniqueid(session_t *sess, const char *uniqueid)
  * @returns channel name or NULL if not found
  */
 char *
-find_channel_by_uniqueid(session_t *sess, const char *uniqueid)
+find_channel_by_uniqueid(Session *sess, const char *uniqueid)
 {
     filter_t *filter = NULL;
     struct app_status_info *info = NULL;
@@ -216,7 +216,7 @@ find_channel_by_uniqueid(session_t *sess, const char *uniqueid)
  * @returns status structure pointer or NULL if not found
  */
 struct app_status_info *
-find_channel_info_by_uniqueid(session_t *sess, const char *uniqueid)
+find_channel_info_by_uniqueid(Session *sess, const char *uniqueid)
 {
     filter_t *filter = NULL;
     struct app_status_info *info = NULL;
@@ -389,7 +389,7 @@ int
 status_print(filter_t *filter, ami_message_t *msg)
 {
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
     char statusevent[512];
 
@@ -513,7 +513,7 @@ status_print(filter_t *filter, ami_message_t *msg)
             isaac_log(LOG_NOTICE, "[Session %s] Detected Blind Transfer to %s\n", filter->sess->id, info->xfer_agent);
 
             // Find the session for the given interface
-            session_t *xfer_sess = session_by_variable("AGENT", info->xfer_agent);
+            Session *xfer_sess = session_by_variable("AGENT", info->xfer_agent);
 
             if (xfer_sess) {
                 // We get the Attender transfer type from masquearde Event
@@ -547,7 +547,7 @@ status_print(filter_t *filter, ami_message_t *msg)
                 char *interface = strtok(xferchan, "-");
 
                 // Find the session for the given interface
-                session_t *xfer_sess = session_by_variable("INTERFACE", interface);
+                Session *xfer_sess = session_by_variable("INTERFACE", interface);
 
                 if (xfer_sess) {
                     // We have enough information to inject messages in receiver bus
@@ -736,7 +736,7 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-status_exec(session_t *sess, app_t *app, const char *args)
+status_exec(Session *sess, app_t *app, const char *args)
 {
     const char *agent = session_get_variable(sess, "AGENT");
     const char *interface = session_get_variable(sess, "INTERFACE");
@@ -813,7 +813,7 @@ status_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-answer_exec(session_t *sess, app_t *app, const char *args)
+answer_exec(Session *sess, app_t *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -859,7 +859,7 @@ answer_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-holduid_exec(session_t *sess, app_t *app, const char *args)
+holduid_exec(Session *sess, app_t *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -905,7 +905,7 @@ holduid_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-unholduid_exec(session_t *sess, app_t *app, const char *args)
+unholduid_exec(Session *sess, app_t *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -950,7 +950,7 @@ unholduid_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-hangupuid_exec(session_t *sess, app_t *app, const char *args)
+hangupuid_exec(Session *sess, app_t *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -994,7 +994,7 @@ hangupuid_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-playbackuid_exec(session_t *sess, app_t *app, const char *args)
+playbackuid_exec(Session *sess, app_t *app, const char *args)
 {
     char uniqueid[50], filename[512], actionid[10];
     char *channame = NULL;
@@ -1054,7 +1054,7 @@ playbackuid_exec(session_t *sess, app_t *app, const char *args)
  *
  */
 int
-setvaruid_exec(session_t *sess, app_t *app, const char *args)
+setvaruid_exec(Session *sess, app_t *app, const char *args)
 {
     char uniqueid[50], options[512];
     const char *channame = NULL;
@@ -1104,7 +1104,7 @@ setvaruid_exec(session_t *sess, app_t *app, const char *args)
  * @brief RedirectUID application callback
  */
 int
-redirectuid_exec(session_t *sess, app_t *app, const char *args)
+redirectuid_exec(Session *sess, app_t *app, const char *args)
 {
     char uniqueid[50], context[256], exten[80];
     const char *channame = NULL;
@@ -1177,7 +1177,7 @@ recorduid_state(filter_t *filter, ami_message_t *msg)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-recorduid_exec(session_t *sess, app_t *app, const char *args)
+recorduid_exec(Session *sess, app_t *app, const char *args)
 {
     struct app_status_info *info;
     char uniqueid[ACTIONID_LEN];
@@ -1297,7 +1297,7 @@ recorduid_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-recordstopuid_exec(session_t *sess, app_t *app, const char *args)
+recordstopuid_exec(Session *sess, app_t *app, const char *args)
 {
     struct app_status_info *info;
     char uniqueid[ACTIONID_LEN];

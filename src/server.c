@@ -135,7 +135,7 @@ accept_connections(void *sock)
     int clifd;
     struct sockaddr_in cliaddr;
     socklen_t clilen;
-    session_t *sess;
+    Session *sess;
     pthread_attr_t attr;
     int keepalive = 1;
 
@@ -198,7 +198,7 @@ check_connections(void *unused)
     while (running) {
         GSList *sessions = sessions_adquire_lock();
         for (GSList *l = sessions; l; l = l->next) {
-            session_t *sess = l->data;
+            Session *sess = l->data;
             struct timeval idle = isaac_tvsub(isaac_tvnow(), sess->last_cmd_time);
             if (idle.tv_sec > config.idle_timeout) {
                 session_write(sess, "BYE Session is no longer active\r\n");
@@ -223,7 +223,7 @@ check_connections(void *unused)
 void *
 manage_session(void *session)
 {
-    session_t *sess = (session_t *) session;
+    Session *sess = (Session *) session;
 
     // Store the connection time
     sess->last_cmd_time = isaac_tvnow();

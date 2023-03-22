@@ -231,7 +231,7 @@ odbc_watchdog(void *args)
 int
 peer_status_check(filter_t *filter, ami_message_t *msg)
 {
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
     const char *interface = session_get_variable(sess, "INTERFACE");
     const char *event = message_get_header(msg, "Event");
 
@@ -278,7 +278,7 @@ peer_status_check(filter_t *filter, ami_message_t *msg)
  * @return 0 in case of login success, 1 otherwise
  */
 int
-login_exec(session_t *sess, app_t *app, const char *args)
+login_exec(Session *sess, app_t *app, const char *args)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
@@ -406,7 +406,7 @@ devicestatus_changed(filter_t *filter, ami_message_t *msg)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
     int status = atoi(message_get_header(msg, "Status"));
     const char *exten = message_get_header(msg, "Exten");
     int agent = atoi(session_get_variable(sess, "AGENT"));
@@ -484,7 +484,7 @@ devicestatus_changed(filter_t *filter, ami_message_t *msg)
  * @return 0 in case of login success, 1 otherwise
  */
 int
-devicestatus_exec(session_t *sess, app_t *app, const char *args)
+devicestatus_exec(Session *sess, app_t *app, const char *args)
 {
     // If session is not authenticated, show an error
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -544,7 +544,7 @@ devicestatus_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-logout_exec(session_t *sess, app_t *app, const char *args)
+logout_exec(Session *sess, app_t *app, const char *args)
 {
     session_write(sess, "BYE %s\r\n", "Thanks for all the fish");
     session_finish(sess);

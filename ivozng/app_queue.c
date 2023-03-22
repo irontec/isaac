@@ -129,7 +129,7 @@ int
 queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
 {
     char response[512];
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
     const char *queuename = message_get_header(msg, "Queue");
 
@@ -160,7 +160,7 @@ queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
 int
 queueinfo_print(filter_t *filter, ami_message_t *msg)
 {
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
     const char *queuename = message_get_header(msg, "Queue");
     const char *count = message_get_header(msg, "Count");
 
@@ -181,7 +181,7 @@ queueinfo_print(filter_t *filter, ami_message_t *msg)
 int
 queueagents_print(filter_t *filter, ami_message_t *msg)
 {
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
     const char *queuename = message_get_header(msg, "Queue");
     const char *count = message_get_header(msg, "Free");
 
@@ -203,7 +203,7 @@ int
 queueinfo_validate_queue(filter_t *filter, ami_message_t *msg)
 {
     char queuevar[512];
-    session_t *sess = filter->sess;
+    Session *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
     char *queuename = filter_get_userdata(filter);
 
@@ -247,7 +247,7 @@ queueinfo_validate_queue(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-queueinfo_exec(session_t *sess, app_t *app, const char *args)
+queueinfo_exec(Session *sess, app_t *app, const char *args)
 {
     // Store variable name to flag a queue being watched
     char queuevar[512];
@@ -348,7 +348,7 @@ queueinfo_exec(session_t *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-queueagents_exec(session_t *sess, app_t *app, const char *args)
+queueagents_exec(Session *sess, app_t *app, const char *args)
 {
     // Return message
     ami_message_t retmsg;
@@ -501,7 +501,7 @@ queueshow_print(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-queueshow_exec(session_t *sess, app_t *app, const char *args)
+queueshow_exec(Session *sess, app_t *app, const char *args)
 {
     // Check we are logged in.
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {

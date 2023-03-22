@@ -39,7 +39,7 @@ pthread_mutex_t apps_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 int
 application_register(const char *name, int
-(*execute)(session_t *sess, app_t *app, const char *args))
+(*execute)(Session *sess, app_t *app, const char *args))
 {
     // Check if another application is registered with the same name
     if (application_find(name)) {
@@ -118,7 +118,7 @@ application_count()
 }
 
 int
-application_run(app_t *app, session_t *sess, const char *args)
+application_run(app_t *app, Session *sess, const char *args)
 {
     // Sanity checks
     if (!app || !app->execute) {
