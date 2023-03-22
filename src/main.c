@@ -53,20 +53,6 @@ print_version()
 }
 
 void
-print_usage()
-{
-    print_version();
-
-    printf("\nUsage: %s [-d|-r|-h|-v|-x command]\n", PACKAGE_NAME);
-    printf(" -d : Start in Debug Mode\n");
-    printf(" -r : Start in CLI client Mode\n");
-    printf(" -x : Run CLI command and exit\n");
-    printf(" -h : Displays this usage\n");
-    printf(" -v : Displays version information\n");
-    printf("Start with no options to run as daemon\n");
-}
-
-void
 quit(int exitcode)
 {
     printf("Signal %d received\n", exitcode);
@@ -107,16 +93,16 @@ main(int argc, char *argv[])
 
     GOptionEntry main_entries[] = {
             {"version", 'v', 0, G_OPTION_ARG_NONE,   &opt_version, "Version information",                 NULL},
-            {"help",    'h', 0, G_OPTION_ARG_NONE,   &opt_help,    "Display help",                        NULL},
             {"debug",   'd', 0, G_OPTION_ARG_NONE,   &opt_debug,   "Start in debug mode",                 NULL},
             {"remote",  'r', 0, G_OPTION_ARG_NONE,   &opt_remote,  "Connect CLI to running isaac daemon", NULL},
             {"execute", 'x', 0, G_OPTION_ARG_STRING, &opt_execute, "Execute CLI command and exit",        NULL},
-
+            { NULL }
     };
 
     /************************** Command Line Parsing **************************/
     GOptionContext *context = g_option_context_new("[-d|-r|-h|-v|-x command]");
     g_option_context_add_main_entries(context, main_entries, NULL);
+    g_option_context_set_help_enabled(context, TRUE);
     g_option_context_parse(context, &argc, &argv, &error);
     g_option_context_free(context);
 
@@ -128,10 +114,6 @@ main(int argc, char *argv[])
     // Parse command line arguments that have high priority
     if (opt_version) {
         print_version();
-        return 0;
-    }
-    if (opt_help) {
-        print_usage();
         return 0;
     }
 
