@@ -230,7 +230,7 @@ get_call_info_from_id(Session *sess, const char *id)
  * @return 0 in all cases
  */
 int
-call_state(filter_t *filter, ami_message_t *msg)
+call_state(filter_t *filter, AmiMessage *msg)
 {
     // Get Call information
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
@@ -560,8 +560,8 @@ call_exec(Session *sess, app_t *app, const char *args)
     const char *rol = session_get_variable(sess, "ROL");
 
     // Construct a Request message
-    ami_message_t msg;
-    memset(&msg, 0, sizeof(ami_message_t));
+    AmiMessage msg;
+    memset(&msg, 0, sizeof(AmiMessage));
     message_add_header(&msg, "Action: Originate");
     message_add_header(&msg, "CallerID: %s", agent);
     message_add_header(&msg, "Channel: Local/%s@%s", agent, call_config.incontext);
@@ -635,8 +635,8 @@ dtmf_exec(Session *sess, app_t *app, const char *args)
     // Try to find the action info of the given actionid
     if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->dchannel)) {
         // Send the digit to remote channel using PlayDTMF manager action
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: PlayDTMF");
         message_add_header(&msg, "Channel: %s", info->dchannel);
         message_add_header(&msg, "Digit: %s", digit);
@@ -682,8 +682,8 @@ hangup_exec(Session *sess, app_t *app, const char *args)
     // Try to find the action info of the given actionid
     if ((info = get_call_info_from_id(sess, actionid))) {
         if (!isaac_strlen_zero(info->ochannel)) {
-            ami_message_t msg;
-            memset(&msg, 0, sizeof(ami_message_t));
+            AmiMessage msg;
+            memset(&msg, 0, sizeof(AmiMessage));
             message_add_header(&msg, "Action: Hangup");
             message_add_header(&msg, "Channel: %s", info->ochannel);
             manager_write_message(manager, &msg);
@@ -736,8 +736,8 @@ hold_unhold_exec(Session *sess, app_t *app, const char *args)
 
     // Try to find the action info of the given actionid
     if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: SIPNotifyChan");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "Event: %s", ((!strcasecmp(app->name, "Hold")) ? "hold" : "talk"));
@@ -751,7 +751,7 @@ hold_unhold_exec(Session *sess, app_t *app, const char *args)
 }
 
 int
-record_state(filter_t *filter, ami_message_t *msg)
+record_state(filter_t *filter, AmiMessage *msg)
 {
     // Get Call information
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
@@ -824,8 +824,8 @@ record_exec(Session *sess, app_t *app, const char *args)
         filter_set_userdata(record_status, (void *) info);
         filter_register_oneshot(record_status);
 
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: MixMonitor");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         message_add_header(&msg, "File: %s/%s.wav", call_config.record_path, filename);
@@ -835,35 +835,35 @@ record_exec(Session *sess, app_t *app, const char *args)
 
         isaac_log(LOG_NOTICE, "Setting debugging variables in %s\n", info->odchannel);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->oduid);
         message_add_header(&msg, "Value: %sCC", info->grabaciones_modulo);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->oduid);
         message_add_header(&msg, "Value: %s", info->grabaciones_plataforma);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->oduid);
         message_add_header(&msg, "Value: %son-demand_ISAAC", info->grabaciones_tipo);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_origen, session_get_variable(sess, "AGENT"));
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->oduid);
@@ -873,35 +873,35 @@ record_exec(Session *sess, app_t *app, const char *args)
         time(&timer);
         tm_info = localtime(&timer);
         strftime(timestr, 25, "%Y:%m:%d_%H:%M:%S", tm_info);
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_fecha_hora, timestr);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_ruta, call_config.record_path);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->oduid);
         message_add_header(&msg, "Value: %s%s.wav", info->grabaciones_fichero, filename);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_IDDIALPLANPARTITION", info->oduid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_partition, info->partition);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->odchannel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_IDCOLA", info->oduid);
@@ -952,8 +952,8 @@ recordstop_exec(Session *sess, app_t *app, const char *args)
             return -1;
         }
 
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: StopMixMonitor");
         message_add_header(&msg, "Channel: %s", info->ochannel);
         if (strlen(info->recording_id) != 0) {

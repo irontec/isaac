@@ -117,67 +117,26 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 }
 
 static gboolean
-session_check_message(ami_message_t *msg, gpointer user_data)
+session_check_message(AmiMessage *msg, gpointer user_data)
 {
     Session *session = (Session *) user_data;
 
     // Check message against all session's filters
     for (GSList *l = session->filters; l; l = l->next) {
-        // Initialize the matching headers count
-        guint matches = 0;
-        filter_t *cur = l->data;
-        // Loop through all filter conditions
-        for (gint i = 0; i < cur->condcount; i++) {
-            const gchar *msgvalue = message_get_header(msg, cur->conds[i].hdr);
-            gchar *condvalue = cur->conds[i].val;
-
-            // Depending on condition type, do the proper check
-            switch (cur->conds[i].type) {
-                case MATCH_EXACT:
-                    if (!isaac_strcmp(msgvalue, condvalue)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_EXACT_CASE:
-                    if (!isaac_strcasecmp(msgvalue, condvalue)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_START_WITH:
-                    if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_REGEX:
-                    if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                        matches++;
-                    }
-                    break;
-                case MATCH_REGEX_NOT:
-                    if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                        matches++;
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-            // If at this point, matches equals the loop counter, the last condition
-            // has not matched. No sense to continue checking.
-            if (matches == i) break;
-        }
-
-        // All condition matched! We have a winner!
-        if (matches == cur->condcount) {
-            if (cur->type == FILTER_ASYNC) {
+        filter_t *filter = l->data;
+        if (filter_check_message(filter, msg)) {
+            if (filter->type == FILTER_ASYNC) {
                 // Exec the filter callback with the current message
-                filter_exec_async(cur, msg);
+                filter_exec_async(filter, msg);
             } else {
                 // Store the message and leave
-                filter_exec_sync(cur, msg);
+                filter_exec_sync(filter, msg);
             }
         }
     }
+
+    // We are done with this message
+    g_atomic_rc_box_release(msg);
 
     return TRUE;
 }
@@ -197,7 +156,7 @@ session_create(const int fd, const struct sockaddr_in addr)
     sess->addr = addr;
     sess->flags = 0x00;
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
-    sess->msg_queue = g_async_queue_new();
+    sess->queue = g_async_queue_new();
 
 
     // Initialize session fields
@@ -225,7 +184,7 @@ session_create(const int fd, const struct sockaddr_in addr)
     g_source_attach(sess->commands, g_main_loop_get_context(sess->loop));
 
     // Create a source from AMI message async queue
-    sess->messages = g_async_queue_source_new(sess->msg_queue, NULL);
+    sess->messages = g_async_queue_source_new(sess->queue, NULL);
     g_source_set_callback(
             sess->messages,
             (GSourceFunc) G_SOURCE_FUNC(session_check_message),
@@ -539,3 +498,13 @@ session_id(Session *sess)
     return atoi(sess->id);
 }
 
+void
+sessions_enqueue_message(AmiMessage *msg)
+{
+    g_rec_mutex_lock(&session_mutex);
+    for (GSList *l = sessions; l; l = l->next) {
+        Session *sess = l->data;
+        g_async_queue_push(sess->queue, (gpointer) g_atomic_rc_box_acquire(msg));
+    }
+    g_rec_mutex_unlock(&session_mutex);
+}

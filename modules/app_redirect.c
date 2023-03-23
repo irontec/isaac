@@ -53,8 +53,8 @@ redirectto_exec(Session *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
 
     // Construct a Request message
-    ami_message_t msg;
-    memset(&msg, 0, sizeof(ami_message_t));
+    AmiMessage msg;
+    memset(&msg, 0, sizeof(AmiMessage));
     message_add_header(&msg, "Action: Redirect");
     message_add_header(&msg, "Channel: %s", channame);
     message_add_header(&msg, "Context: %s", context);

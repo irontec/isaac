@@ -267,8 +267,8 @@ status_inject_queue_call(filter_t *filter)
      * This will trigger the initial Status callback and will try to search a
      * Event: Dial message to obtain the real SIP/ channel name (not the Local/ one)
      */
-    ami_message_t usermsg;
-    memset(&usermsg, 0, sizeof(ami_message_t));
+    AmiMessage usermsg;
+    memset(&usermsg, 0, sizeof(AmiMessage));
     message_add_header(&usermsg, "Event: VarSet");
     message_add_header(&usermsg, "Variable: __ISAAC_MONITOR");
     message_add_header(&usermsg, "Value: %s!%s!%s!%s!%s", info->plat, info->clidnum, info->channel, info->uniqueid,
@@ -280,7 +280,7 @@ status_inject_queue_call(filter_t *filter)
      * We trigger the second callback of Status, now providing the SIP/ channel name
      * so the logic can detect when this channel status changes
      */
-    memset(&usermsg, 0, sizeof(ami_message_t));
+    memset(&usermsg, 0, sizeof(AmiMessage));
     message_add_header(&usermsg, "Event: Dial");
     message_add_header(&usermsg, "SubEvent: Begin");
     message_add_header(&usermsg, "Channel: Local/%s@agentes", info->xfer_agent);
@@ -294,7 +294,7 @@ status_inject_queue_call(filter_t *filter)
      * real status.
      */
     if (info->xfer_state >= 5) {
-        memset(&usermsg, 0, sizeof(ami_message_t));
+        memset(&usermsg, 0, sizeof(AmiMessage));
         message_add_header(&usermsg, "Event: Newstate");
         message_add_header(&usermsg, "Channel: %s", info->xfer_channel);
         message_add_header(&usermsg, "ChannelState: 5");
@@ -302,7 +302,7 @@ status_inject_queue_call(filter_t *filter)
     }
 
     if (info->xfer_state >= 6) {
-        memset(&usermsg, 0, sizeof(ami_message_t));
+        memset(&usermsg, 0, sizeof(AmiMessage));
         message_add_header(&usermsg, "Event: Newstate");
         message_add_header(&usermsg, "Channel: %s", info->xfer_channel);
         message_add_header(&usermsg, "ChannelState: 6");
@@ -324,7 +324,7 @@ status_inject_queue_call(filter_t *filter)
  * @return 0 in all cases
  */
 int
-status_blindxfer(filter_t *filter, ami_message_t *msg)
+status_blindxfer(filter_t *filter, AmiMessage *msg)
 {
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
 
@@ -348,7 +348,7 @@ status_blindxfer(filter_t *filter, ami_message_t *msg)
  *
  */
 int
-status_builtinxfer(filter_t *filter, ami_message_t *msg)
+status_builtinxfer(filter_t *filter, AmiMessage *msg)
 {
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
 
@@ -386,7 +386,7 @@ status_builtinxfer(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-status_print(filter_t *filter, ami_message_t *msg)
+status_print(filter_t *filter, AmiMessage *msg)
 {
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
     Session *sess = filter->sess;
@@ -585,7 +585,7 @@ status_print(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-status_call(filter_t *filter, ami_message_t *msg)
+status_call(filter_t *filter, AmiMessage *msg)
 {
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
 
@@ -608,7 +608,7 @@ status_call(filter_t *filter, ami_message_t *msg)
 }
 
 int
-record_variables(filter_t *filter, ami_message_t *msg)
+record_variables(filter_t *filter, AmiMessage *msg)
 {
     const char *varvalue = message_get_header(msg, "Value");
     const char *varname = message_get_header(msg, "Variable");
@@ -643,7 +643,7 @@ record_variables(filter_t *filter, ami_message_t *msg)
  *
  */
 int
-status_incoming_uniqueid(filter_t *filter, ami_message_t *msg)
+status_incoming_uniqueid(filter_t *filter, AmiMessage *msg)
 {
     char value[512];
     char plat[120], clidnum[20], uniqueid[20], channel[80], queue[150];
@@ -708,10 +708,10 @@ status_incoming_uniqueid(filter_t *filter, ami_message_t *msg)
             filter_register(recordfilter);
 
             // Construct a Request message
-            ami_message_t recordget;
+            AmiMessage recordget;
 
             for (i = 0; recordvars[i] != NULL; i++) {
-                memset(&recordget, 0, sizeof(ami_message_t));
+                memset(&recordget, 0, sizeof(AmiMessage));
                 message_add_header(&recordget, "Action: GetVar");
                 message_add_header(&recordget, "Channel: %s", info->channel);
                 message_add_header(&recordget, "ActionId: RECORD_%s", info->uniqueid);
@@ -830,8 +830,8 @@ answer_exec(Session *sess, app_t *app, const char *args)
 
     if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: SIPnotifyChan");
         message_add_header(&msg, "Channel: %s", channame);
         message_add_header(&msg, "Event: talk");
@@ -876,8 +876,8 @@ holduid_exec(Session *sess, app_t *app, const char *args)
 
     if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: SIPnotifyChan");
         message_add_header(&msg, "Channel: %s", channame);
         message_add_header(&msg, "Event: hold");
@@ -922,8 +922,8 @@ unholduid_exec(Session *sess, app_t *app, const char *args)
 
     if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: SIPnotifyChan");
         message_add_header(&msg, "Channel: %s", channame);
         message_add_header(&msg, "Event: talk");
@@ -967,8 +967,8 @@ hangupuid_exec(Session *sess, app_t *app, const char *args)
 
     if ((channame = find_agent_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Hangup");
         message_add_header(&msg, "Channel: %s", channame);
         manager_write_message(manager, &msg);
@@ -1019,8 +1019,8 @@ playbackuid_exec(Session *sess, app_t *app, const char *args)
         filter_register(respfilter);
 
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Playback");
         message_add_header(&msg, "Channel: %s", channame);
         message_add_header(&msg, "Filename: %s", filename);
@@ -1028,7 +1028,7 @@ playbackuid_exec(Session *sess, app_t *app, const char *args)
         manager_write_message(manager, &msg);
 
         // Get the response!
-        ami_message_t retmsg;
+        AmiMessage retmsg;
         if (filter_run(respfilter, 5000, &retmsg) == 0) {
             response = message_get_header(&retmsg, "Result");
             if (!strcasecmp(response, "Success")) {
@@ -1085,8 +1085,8 @@ setvaruid_exec(Session *sess, app_t *app, const char *args)
     // Get target channel
     if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", channame);
         message_add_header(&msg, "Variable: %s", varname);
@@ -1120,8 +1120,8 @@ redirectuid_exec(Session *sess, app_t *app, const char *args)
     // Get target channel
     if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Redirect");
         message_add_header(&msg, "Channel: %s", channame);
         message_add_header(&msg, "Context: %s", context);
@@ -1137,7 +1137,7 @@ redirectuid_exec(Session *sess, app_t *app, const char *args)
 }
 
 int
-recorduid_state(filter_t *filter, ami_message_t *msg)
+recorduid_state(filter_t *filter, AmiMessage *msg)
 {
     // Get Call information
     struct app_status_info *info = (struct app_status_info *) filter_get_userdata(filter);
@@ -1210,8 +1210,8 @@ recorduid_exec(Session *sess, app_t *app, const char *args)
         filter_set_userdata(record_status, (void *) info);
         filter_register_oneshot(record_status);
 
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: MixMonitor");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "File: %s/%s.wav", status_config.record_path, filename);
@@ -1219,35 +1219,35 @@ recorduid_exec(Session *sess, app_t *app, const char *args)
         message_add_header(&msg, "Options: i(ISAAC_RECORDING)");
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->uniqueid);
         message_add_header(&msg, "Value: %sCC", info->grabaciones_modulo);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_plataforma, info->plat);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->uniqueid);
         message_add_header(&msg, "Value: %son-demand_ISAAC", info->grabaciones_tipo);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_origen, info->clidnum);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->uniqueid);
@@ -1257,21 +1257,21 @@ recorduid_exec(Session *sess, app_t *app, const char *args)
         time(&timer);
         tm_info = localtime(&timer);
         strftime(timestr, 25, "%Y:%m:%d_%H:%M:%S", tm_info);
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_fecha_hora, timestr);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_ruta, status_config.record_path);
         manager_write_message(manager, &msg);
 
-        memset(&msg, 0, sizeof(ami_message_t));
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
         message_add_header(&msg, "Channel: %s", info->channel);
         message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->uniqueid);
@@ -1321,8 +1321,8 @@ recordstopuid_exec(Session *sess, app_t *app, const char *args)
             return -1;
         }
 
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: StopMixMonitor");
         message_add_header(&msg, "Channel: %s", info->channel);
         if (strlen(info->recording_id) != 0) {

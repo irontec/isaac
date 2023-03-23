@@ -40,8 +40,8 @@
 
 //! Sorter declaration of isaac_manager struct
 typedef struct isaac_manager manager_t;
-//! Sorter declaration of ami_message struct
-typedef struct ami_message ami_message_t;
+//! Sorter declaration of _AmiMessage struct
+typedef struct _AmiMessage AmiMessage;
 
 /**
  * @brief Asterisk Manager Connection Session structure
@@ -80,7 +80,7 @@ struct isaac_manager
  * or received through asterisk manager interface.
  *
  */
-struct ami_message
+struct _AmiMessage
 {
     //! Number of headers of this message
     int hdrcount;
@@ -125,7 +125,7 @@ manager_read_header(manager_t *man, char *output);
  * @retval -1   If some error occurs while reading
  */
 extern int
-manager_read_message(manager_t *man, ami_message_t *msg);
+manager_read_message(manager_t *man, AmiMessage *msg);
 
 /**
  * @brief Write a header to Asterisk Manager connection
@@ -157,7 +157,7 @@ manager_write_header(manager_t *man, char *header, int hdrlen);
  * @retval -1   If some error occurs while writing
  */
 extern int
-manager_write_message(manager_t *man, ami_message_t *msg);
+manager_write_message(manager_t *man, AmiMessage *msg);
 
 /**
  * @brief Add a new header with formatted value to an ami message
@@ -174,7 +174,7 @@ manager_write_message(manager_t *man, ami_message_t *msg);
  * @return 0 in case of success, 1 otherwise
  */
 extern int
-message_add_header(ami_message_t *msg, const char *fmt, ...);
+message_add_header(AmiMessage *msg, const char *fmt, ...);
 
 /**
  * @brief Get a header value from ami message
@@ -188,7 +188,7 @@ message_add_header(ami_message_t *msg, const char *fmt, ...);
  * @return Header value, or empty string if header is not found.
  */
 extern const char *
-message_get_header(ami_message_t *msg, const char *var);
+message_get_header(AmiMessage *msg, const char *var);
 
 /**
  * @brief Connect and authenticate through Asterisk Manager Interface
@@ -256,7 +256,7 @@ stop_manager();
  * @return a string with all header and values of the message
  */
 extern char *
-message_to_text(ami_message_t *msg);
+message_to_text(AmiMessage *msg);
 
 /**
  * @brief Build a random actionid

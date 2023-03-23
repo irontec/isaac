@@ -118,7 +118,7 @@ lua_application_callback(Session *sess, app_t *app, const char *args)
 }
 
 int
-lua_filter_callback(filter_t *filter, ami_message_t *msg)
+lua_filter_callback(filter_t *filter, AmiMessage *msg)
 {
     char fullheader[MAX_LEN], header[MAX_LEN], value[MAX_LEN];
     int i;

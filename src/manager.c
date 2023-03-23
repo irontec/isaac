@@ -94,12 +94,9 @@ manager_read_header(manager_t *man, char *output)
 }
 
 int
-manager_read_message(manager_t *man, struct ami_message *msg)
+manager_read_message(manager_t *man, AmiMessage *msg)
 {
     int res;
-
-    // Initialize the message before reading
-    memset(msg, 0, sizeof(struct ami_message));
 
     for (;;) {
         res = manager_read_header(man, msg->headers[msg->hdrcount]);
@@ -152,7 +149,7 @@ manager_write_header(manager_t *man, char *header, int hdrlen)
 }
 
 int
-manager_write_message(manager_t *man, struct ami_message *msg)
+manager_write_message(manager_t *man, AmiMessage *msg)
 {
     int i, wbytes = 0;
     // Lock the manager before writting to avoid multiple threads
@@ -174,7 +171,7 @@ manager_write_message(manager_t *man, struct ami_message *msg)
 }
 
 int
-message_add_header(struct ami_message *man, const char *fmt, ...)
+message_add_header(AmiMessage *man, const char *fmt, ...)
 {
     va_list ap;
 
@@ -189,7 +186,7 @@ message_add_header(struct ami_message *man, const char *fmt, ...)
 }
 
 const char *
-message_get_header(struct ami_message *man, const char *var)
+message_get_header(AmiMessage *man, const char *var)
 {
     char cmp[80];
     int x;
@@ -206,14 +203,14 @@ int
 manager_connect(manager_t *man)
 {
     int r = 1, res = 0;
-    struct ami_message msg;
+    AmiMessage msg;
 
     // Give some feedack
     isaac_log(LOG_NOTICE, "Manager: Connecting to AMI (host = %s, port = %d)\n", inet_ntoa(
         man->addr.sin_addr), ntohs(man->addr.sin_port));
 
     // Construct a Login message
-    memset(&msg, 0, sizeof(struct ami_message));
+    memset(&msg, 0, sizeof(AmiMessage));
     message_add_header(&msg, "Action: Login");
     message_add_header(&msg, "Username: %s", man->username);
     message_add_header(&msg, "Secret: %s", man->secret);
@@ -260,7 +257,6 @@ manager_connect(manager_t *man)
 void *
 manager_read_thread(void *man)
 {
-    ami_message_t msg;
     int res;
     manager_t *manager = (manager_t *) man;
 
@@ -285,13 +281,15 @@ manager_read_thread(void *man)
             }
         }
 
-        // Clean the message structure
-        memset(&msg, 0, sizeof(ami_message_t));
+        // Allocate memory to contain the new AMI message
+        AmiMessage *msg = g_atomic_rc_box_new0(AmiMessage);
 
         // Read the next message from AMI
-        if ((res = manager_read_message(manager, &msg)) > 0) {
-            // Pass the read msg to the Filter&Conditions logic
-            check_filters_for_message(&msg);
+        if ((res = manager_read_message(manager, msg)) > 0) {
+            // Add received message to all queues
+            sessions_enqueue_message(msg);
+            // Remove initial reference
+            g_atomic_rc_box_release(msg);
         } else if (res < 0) {
             // If no error, maybe we are shutting down?
             if (!running) break;
@@ -370,7 +368,7 @@ stop_manager()
 }
 
 char *
-message_to_text(ami_message_t *msg)
+message_to_text(AmiMessage *msg)
 {
     char *msgtxt = (char *) malloc(1024);
     int i;

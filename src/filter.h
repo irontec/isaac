@@ -131,7 +131,7 @@ enum filtertype
 struct isaac_filter_async
 {
     //! Pointer to the callback function
-    int (*callback)(filter_t *filter, ami_message_t *msg);
+    int (*callback)(filter_t *filter, AmiMessage *msg);
     //! If this flag is on, the filter will be unregisted after triggering once
     int oneshot;
     //! User pointer for storing application information if required
@@ -141,7 +141,7 @@ struct isaac_filter_async
 struct isaac_filter_sync
 {
     //! Stored ami message triggering the filter
-    ami_message_t msg;
+    AmiMessage msg;
     //! This filter has triggered and has a valid message
     int triggered;
     //! Filter sync lock (avoid timeout while setting filter sync data)
@@ -192,7 +192,7 @@ struct isaac_filter
  * @return The new allocated filter structure or NULL in case of failure
  */
 extern filter_t *
-filter_create_async(Session *sess, int (*callback)(filter_t *filter, ami_message_t *msg));
+filter_create_async(Session *sess, int (*callback)(filter_t *filter, AmiMessage *msg));
 
 /**
  * @brief Create a new filter structure (This won't add it to the Filter's list)
@@ -314,7 +314,7 @@ filter_destroy(filter_t *filter);
  * @return The filter callback return
  */
 extern int
-filter_exec_async(filter_t *filter, ami_message_t *msg);
+filter_exec_async(filter_t *filter, AmiMessage *msg);
 
 /**
  * @brief Store the triggering message in the filter and mark it as triggered
@@ -327,7 +327,7 @@ filter_exec_async(filter_t *filter, ami_message_t *msg);
  * @return The filter callback return
  */
 extern int
-filter_exec_sync(filter_t *filter, ami_message_t *msg);
+filter_exec_sync(filter_t *filter, AmiMessage *msg);
 
 /**
  * @brief Wait for an ami event to trigger the filter
@@ -341,7 +341,7 @@ filter_exec_sync(filter_t *filter, ami_message_t *msg);
  * @return 0 in case of triggered, 1 otherwise
  */
 extern int
-filter_run(filter_t *filter, int timeout, ami_message_t *msg);
+filter_run(filter_t *filter, int timeout, AmiMessage *msg);
 
 /**
  * @brief Set userdata pointer to the filter
@@ -404,7 +404,7 @@ filter_from_session(Session *sess, filter_t *from);
  * @return 0 if the message was successfully written to the session, -1 otherwise
  */
 extern int
-filter_print_message(filter_t *filter, ami_message_t *msg);
+filter_print_message(filter_t *filter, AmiMessage *msg);
 
 /**
  * @brief Inject a fake message as being received by manager
@@ -417,8 +417,8 @@ filter_print_message(filter_t *filter, ami_message_t *msg);
  * Be aware: If the function emitting the message is also triggered by the
  *           injected message, this can cause an infinite loop!
  */
-extern int
-filter_inject_message(filter_t *filter, ami_message_t *msg);
+extern void
+filter_inject_message(filter_t *filter, AmiMessage *msg);
 
 
 /**
@@ -428,10 +428,11 @@ filter_inject_message(filter_t *filter, ami_message_t *msg);
  * check if the message match any of the registered filters, invoking its
  * callback if required.
  *
+ * @param filter Filter to check conditions against
  * @param msg AMI message to be checked
  * @return 0 in all cases
  */
-int
-check_filters_for_message(ami_message_t *msg);
+gboolean
+filter_check_message(filter_t *filter, AmiMessage *msg);
 
 #endif /* __ISAAC_FILTER_H_ */

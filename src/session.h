@@ -36,6 +36,7 @@
 #include <glib.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include "manager.h"
 
 //! Maximun number of vars in a session
 //TODO Make vars a linked list to remove this limitation
@@ -84,7 +85,7 @@ struct _Session
     //! Session filter list (filter_t*)
     GSList *filters;
     //! Async queue for received AMI messages
-    GAsyncQueue *msg_queue;
+    GAsyncQueue *queue;
 
     //! Session running thread
     pthread_t thread;
@@ -255,5 +256,8 @@ session_finish_all(const char *message);
 
 extern int
 session_id(Session *sess);
+
+void
+sessions_enqueue_message(AmiMessage *msg);
 
 #endif

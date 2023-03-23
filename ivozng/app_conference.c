@@ -205,7 +205,7 @@ conference_guest_rom_uid(struct app_conference_info *info, const char *uid)
  * @return 0 in all cases
  */
 static int
-conference_guest_state(filter_t *filter, ami_message_t *msg)
+conference_guest_state(filter_t *filter, AmiMessage *msg)
 {
     // Get conference information (stored in filter)
     struct app_conference_info *info = (struct app_conference_info *) filter_get_userdata(filter);
@@ -290,8 +290,8 @@ conference_guest_invite(Session *sess, struct app_conference_info *info, struct 
     filter_register_oneshot(channel_filter);
 
     // Construct a Request message
-    ami_message_t msg;
-    memset(&msg, 0, sizeof(ami_message_t));
+    AmiMessage msg;
+    memset(&msg, 0, sizeof(AmiMessage));
     message_add_header(&msg, "Action: Originate");
     message_add_header(&msg, "CallerID: %s", guest->extension);
     message_add_header(&msg, "Channel: Local/%s@%s", guest->extension, conference_config.guest_incontext);
@@ -319,7 +319,7 @@ conference_guest_invite(Session *sess, struct app_conference_info *info, struct 
  * @return 0 in all cases
  */
 int
-conference_host_state(filter_t *filter, ami_message_t *msg)
+conference_host_state(filter_t *filter, AmiMessage *msg)
 {
     int i;
     struct app_conference_info *info = (struct app_conference_info *) filter_get_userdata(filter);
@@ -467,8 +467,8 @@ conference_exec(Session *sess, app_t *app, const char *args)
     const char *agent = info->conference_id = session_get_variable(sess, "AGENT");
 
     // Construct a Request message
-    ami_message_t msg;
-    memset(&msg, 0, sizeof(ami_message_t));
+    AmiMessage msg;
+    memset(&msg, 0, sizeof(AmiMessage));
     message_add_header(&msg, "Action: Originate");
     message_add_header(&msg, "CallerID: %s", agent);
     message_add_header(&msg, "Channel: Local/%s@%s", agent, conference_config.host_incontext);

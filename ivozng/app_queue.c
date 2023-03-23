@@ -126,7 +126,7 @@ read_queue_config(const char *cfile)
  * @return 0 in all cases
  */
 int
-queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
+queueinfo_print_queues(filter_t *filter, AmiMessage *msg)
 {
     char response[512];
     Session *sess = filter->sess;
@@ -158,7 +158,7 @@ queueinfo_print_queues(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-queueinfo_print(filter_t *filter, ami_message_t *msg)
+queueinfo_print(filter_t *filter, AmiMessage *msg)
 {
     Session *sess = filter->sess;
     const char *queuename = message_get_header(msg, "Queue");
@@ -179,7 +179,7 @@ queueinfo_print(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-queueagents_print(filter_t *filter, ami_message_t *msg)
+queueagents_print(filter_t *filter, AmiMessage *msg)
 {
     Session *sess = filter->sess;
     const char *queuename = message_get_header(msg, "Queue");
@@ -200,7 +200,7 @@ queueagents_print(filter_t *filter, ami_message_t *msg)
  * @return 0 in all cases
  */
 int
-queueinfo_validate_queue(filter_t *filter, ami_message_t *msg)
+queueinfo_validate_queue(filter_t *filter, AmiMessage *msg)
 {
     char queuevar[512];
     Session *sess = filter->sess;
@@ -274,8 +274,8 @@ queueinfo_exec(Session *sess, app_t *app, const char *args)
         filter_register(queuefilter);
 
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueStatus");
         message_add_header(&msg, "ActionID: QueueStatus%s", sess->id);
         manager_write_message(manager, &msg);
@@ -315,8 +315,8 @@ queueinfo_exec(Session *sess, app_t *app, const char *args)
         filter_register(queuevalidatefilter);
 
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueStatus");
         message_add_header(&msg, "Queue: %s", queuename);
         message_add_header(&msg, "ActionID: QueueValidate%s%s", queuename, sess->id);
@@ -351,7 +351,7 @@ int
 queueagents_exec(Session *sess, app_t *app, const char *args)
 {
     // Return message
-    ami_message_t retmsg;
+    AmiMessage retmsg;
 
     // Store variable name to flag a queue being watched
     char queuevar[256];
@@ -394,8 +394,8 @@ queueagents_exec(Session *sess, app_t *app, const char *args)
         filter_register(namefilter);
 
         // Construct a Request message
-        ami_message_t msg;
-        memset(&msg, 0, sizeof(ami_message_t));
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueSummary");
         message_add_header(&msg, "Queue: %s", queuename);
         message_add_header(&msg, "ActionID: %s", sess->id);
@@ -448,7 +448,7 @@ queueagents_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-queueshow_print(filter_t *filter, ami_message_t *msg)
+queueshow_print(filter_t *filter, AmiMessage *msg)
 {
 
     const char *event = message_get_header(msg, "Event");
@@ -516,8 +516,8 @@ queueshow_exec(Session *sess, app_t *app, const char *args)
 
 
     // Construct a Request message
-    ami_message_t msg;
-    memset(&msg, 0, sizeof(ami_message_t));
+    AmiMessage msg;
+    memset(&msg, 0, sizeof(AmiMessage));
     message_add_header(&msg, "Action: QueueStatus");
     message_add_header(&msg, "ActionID: QueueStatusID%s", sess->id);
     manager_write_message(manager, &msg);

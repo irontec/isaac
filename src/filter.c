@@ -27,6 +27,7 @@
  */
 #include "config.h"
 #include "filter.h"
+#include "session.h"
 #include "log.h"
 #include "util.h"
 
@@ -36,7 +37,7 @@ filter_t *filters = NULL;
 pthread_mutex_t filters_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 filter_t *
-filter_create_async(Session *sess, int (*callback)(filter_t *filter, ami_message_t *msg))
+filter_create_async(Session *sess, int (*callback)(filter_t *filter, AmiMessage *msg))
 {
     filter_t *filter = NULL;
     // Allocate memory for a new filter
@@ -242,7 +243,7 @@ filter_destroy(filter_t *filter)
 }
 
 int
-filter_exec_async(filter_t *filter, ami_message_t *msg)
+filter_exec_async(filter_t *filter, AmiMessage *msg)
 {
     int oneshot = filter->data.async.oneshot;
     int ret = 1;
@@ -273,7 +274,7 @@ filter_exec_async(filter_t *filter, ami_message_t *msg)
 }
 
 int
-filter_exec_sync(filter_t *filter, ami_message_t *msg)
+filter_exec_sync(filter_t *filter, AmiMessage *msg)
 {
     // Check we have a valid filter
     if (!filter || filter->type != FILTER_SYNC)
@@ -295,7 +296,7 @@ filter_exec_sync(filter_t *filter, ami_message_t *msg)
 }
 
 int
-filter_run(filter_t *filter, int timeout, ami_message_t *ret)
+filter_run(filter_t *filter, int timeout, AmiMessage *ret)
 {
     // Check we have a valid filter
     if (!filter || filter->type != FILTER_SYNC)
@@ -385,7 +386,7 @@ filter_from_session(Session *sess, filter_t *from)
 }
 
 int
-filter_print_message(filter_t *filter, ami_message_t *msg)
+filter_print_message(filter_t *filter, AmiMessage *msg)
 {
     return 1;
     // Only for debuging purposes
@@ -393,8 +394,8 @@ filter_print_message(filter_t *filter, ami_message_t *msg)
     return session_write(filter->sess, "D> %s\r\n", message_to_text(msg));
 }
 
-int
-filter_inject_message(filter_t *filter, ami_message_t *msg)
+void
+filter_inject_message(filter_t *filter, AmiMessage *msg)
 {
     Session *sess;
     const char *agent = session_get_variable(filter->sess, "AGENT");
@@ -416,16 +417,58 @@ filter_inject_message(filter_t *filter, ami_message_t *msg)
               message_get_header(msg, "Event"));
     isaac_log(LOG_DEBUG, "[Session %s] Injecting fake %s message: %s\n", filter->sess->id,
               message_get_header(msg, "Event"), message_to_text(msg));
-    return check_filters_for_message(msg);
+
+    // Add this message to all session queues
+    sessions_enqueue_message(msg);
 }
 
-int
-check_filters_for_message(ami_message_t *msg)
+gboolean
+filter_check_message(filter_t *filter, AmiMessage *msg)
 {
-    GSList *sessions = sessions_adquire_lock();
-    for (GSList *l = sessions; l; l = l->next) {
-        Session *sess = l->data;
-        g_async_queue_push(sess->msg_queue, (gpointer) msg);
+    // Initialize the matching headers count
+    gint matches = 0;
+
+    // Loop through all filter conditions
+    for (gint i = 0; i < filter->condcount; i++) {
+        const gchar *msgvalue = message_get_header(msg, filter->conds[i].hdr);
+        gchar *condvalue = filter->conds[i].val;
+
+        // Depending on condition type, do the proper check
+        switch (filter->conds[i].type) {
+            case MATCH_EXACT:
+                if (!isaac_strcmp(msgvalue, condvalue)) {
+                    matches++;
+                }
+                break;
+            case MATCH_EXACT_CASE:
+                if (!isaac_strcasecmp(msgvalue, condvalue)) {
+                    matches++;
+                }
+                break;
+            case MATCH_START_WITH:
+                if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
+                    matches++;
+                }
+                break;
+            case MATCH_REGEX:
+                if (!regexec(&filter->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                    matches++;
+                }
+                break;
+            case MATCH_REGEX_NOT:
+                if (regexec(&filter->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                    matches++;
+                }
+                break;
+            default:
+                break;
+        }
+
+        // If at this point, matches equals the loop counter, the last condition
+        // has not matched. No sense to continue checking.
+        if (matches == i) break;
     }
-    sessions_release_lock();
+
+    // All condition matched! We have a winner!
+    return matches == filter->condcount;
 }

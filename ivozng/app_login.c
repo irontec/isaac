@@ -229,7 +229,7 @@ odbc_watchdog(void *args)
  * @return 0 in all cases
  */
 int
-peer_status_check(filter_t *filter, ami_message_t *msg)
+peer_status_check(filter_t *filter, AmiMessage *msg)
 {
     Session *sess = filter->sess;
     const char *interface = session_get_variable(sess, "INTERFACE");
@@ -367,8 +367,8 @@ login_exec(Session *sess, app_t *app, const char *args)
             filter_register_oneshot(peerfilter);
 
             // Request Peer status right now
-            ami_message_t peermsg;
-            memset(&peermsg, 0, sizeof(ami_message_t));
+            AmiMessage peermsg;
+            memset(&peermsg, 0, sizeof(AmiMessage));
             message_add_header(&peermsg, "Action: SIPshowpeer");
             message_add_header(&peermsg, "Peer: %s", interface + 4);
             message_add_header(&peermsg, "ActionID: %s", interface + 4);
@@ -402,7 +402,7 @@ login_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-devicestatus_changed(filter_t *filter, ami_message_t *msg)
+devicestatus_changed(filter_t *filter, AmiMessage *msg)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
@@ -513,8 +513,8 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
     session_write(sess, "DEVICESTATUSOK for %s will be printed\r\n", agent);
 
     // Initial status (device)
-    ami_message_t devicemsg;
-    memset(&devicemsg, 0, sizeof(ami_message_t));
+    AmiMessage devicemsg;
+    memset(&devicemsg, 0, sizeof(AmiMessage));
     message_add_header(&devicemsg, "Action: ExtensionState");
     message_add_header(&devicemsg, "Exten: %s", agent);
     message_add_header(&devicemsg, "Context: cc-hints");
@@ -522,7 +522,7 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
     manager_write_message(manager, &devicemsg);
 
     // Initial status (pause)
-    memset(&devicemsg, 0, sizeof(ami_message_t));
+    memset(&devicemsg, 0, sizeof(AmiMessage));
     message_add_header(&devicemsg, "Action: ExtensionState");
     message_add_header(&devicemsg, "Exten: pause_%s", interface + 4);
     message_add_header(&devicemsg, "Context: cc-hints");

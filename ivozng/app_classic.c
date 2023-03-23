@@ -37,7 +37,7 @@
 #include "filter.h"
 
 int
-classic_print(filter_t *filter, ami_message_t *msg)
+classic_print(filter_t *filter, AmiMessage *msg)
 {
     int i;
     for (i = 0; i < msg->hdrcount; i++) {
@@ -59,7 +59,7 @@ int
 classic_exec(Session *sess, app_t *app, const char *args)
 {
     char action[10], buffer[MAX_LEN];
-    ami_message_t msg;
+    AmiMessage msg;
     int res;
 
     // Get Action name
@@ -68,7 +68,7 @@ classic_exec(Session *sess, app_t *app, const char *args)
     }
 
     // Initialize the message before reading
-    memset(&msg, 0, sizeof(struct ami_message));
+    memset(&msg, 0, sizeof(AmiMessage));
     // Add the first command header
     message_add_header(&msg, "Action: %s", action);
 
