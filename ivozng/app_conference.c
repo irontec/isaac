@@ -205,7 +205,7 @@ conference_guest_rom_uid(struct app_conference_info *info, const char *uid)
  * @return 0 in all cases
  */
 static int
-conference_guest_state(filter_t *filter, AmiMessage *msg)
+conference_guest_state(Filter *filter, AmiMessage *msg)
 {
     // Get conference information (stored in filter)
     struct app_conference_info *info = (struct app_conference_info *) filter_get_userdata(filter);
@@ -228,7 +228,7 @@ conference_guest_state(filter_t *filter, AmiMessage *msg)
             isaac_strcpy(guest->uid, message_get_header(msg, "UniqueID"));
 
             // Register a Filter for the agent status the custom manager application PlayDTMF.
-            filter_t *guest_filter = filter_create_async(filter->sess, conference_guest_state);
+            Filter *guest_filter = filter_create_async(filter->sess, conference_guest_state);
             filter_new_condition(guest_filter, MATCH_REGEX, "Event", "Hangup|MeetmeJoin|MeetmeLeave");
             filter_new_condition(guest_filter, MATCH_REGEX, "UniqueID", guest->uid);
             filter_set_userdata(guest_filter, (void *) info);
@@ -249,7 +249,7 @@ conference_guest_state(filter_t *filter, AmiMessage *msg)
         );
 
         // This is the last interesting message for this guest
-        filter_unregister(filter);
+        filter_destroy(filter);
     } else if (!strcasecmp(event, "MeetmeJoin")) {
         session_write(filter->sess,
                       "CONFERENCESTATUS %s %s JOINED\n",
@@ -264,7 +264,7 @@ conference_guest_state(filter_t *filter, AmiMessage *msg)
         );
 
         // This is the last interesting message for this guest
-        filter_unregister(filter);
+        filter_destroy(filter);
     }
 
     return 0;
@@ -282,7 +282,7 @@ static int
 conference_guest_invite(Session *sess, struct app_conference_info *info, struct app_conference_guest *guest)
 {
     // Register a Filter to get Generated Channel
-    filter_t *channel_filter = filter_create_async(sess, conference_guest_state);
+    Filter *channel_filter = filter_create_async(sess, conference_guest_state);
     filter_new_condition(channel_filter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(channel_filter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(channel_filter, MATCH_EXACT, "Value", "%s", guest->actionid);
@@ -319,7 +319,7 @@ conference_guest_invite(Session *sess, struct app_conference_info *info, struct 
  * @return 0 in all cases
  */
 int
-conference_host_state(filter_t *filter, AmiMessage *msg)
+conference_host_state(Filter *filter, AmiMessage *msg)
 {
     int i;
     struct app_conference_info *info = (struct app_conference_info *) filter_get_userdata(filter);
@@ -334,13 +334,13 @@ conference_host_state(filter_t *filter, AmiMessage *msg)
             isaac_strcpy(info->host_uid, message_get_header(msg, "UniqueID"));
 
             // Register a Filter for the agent status the custom manager application PlayDTMF.
-            filter_t *host_filter = filter_create_async(filter->sess, conference_host_state);
+            Filter *host_filter = filter_create_async(filter->sess, conference_host_state);
             filter_new_condition(host_filter, MATCH_REGEX, "Event", "Hangup|MeetmeJoin");
             filter_new_condition(host_filter, MATCH_REGEX, "UniqueID", info->host_uid);
             filter_set_userdata(host_filter, (void *) info);
             filter_register_oneshot(host_filter);
 
-            filter_t *conference_end_filter = filter_create_async(filter->sess, conference_host_state);
+            Filter *conference_end_filter = filter_create_async(filter->sess, conference_host_state);
             filter_new_condition(conference_end_filter, MATCH_EXACT, "Event", "MeetmeEnd");
             filter_new_condition(conference_end_filter, MATCH_EXACT, "Meetme", info->conference_id);
             filter_set_userdata(conference_end_filter, (void *) info);
@@ -456,7 +456,7 @@ conference_exec(Session *sess, app_t *app, const char *args)
         info->mute = 1;
 
     // Register a Filter to get Generated Channel
-    filter_t *channel_filter = filter_create_async(sess, conference_host_state);
+    Filter *channel_filter = filter_create_async(sess, conference_host_state);
     filter_new_condition(channel_filter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(channel_filter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(channel_filter, MATCH_EXACT, "Value", actionid);

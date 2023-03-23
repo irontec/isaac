@@ -1151,7 +1151,7 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
 char *
 handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
-    filter_t *filter = NULL;
+    Filter *filter = NULL;
     Session *sess;
     int filter_cnt = 0;
     int ccnt = 0;

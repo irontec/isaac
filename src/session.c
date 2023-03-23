@@ -67,6 +67,13 @@ sessions_release_lock()
     g_rec_mutex_unlock(&session_mutex);
 }
 
+static void
+session_destroy_filters(Session *session)
+{
+    g_return_if_fail(session != NULL);
+    g_slist_foreach(session->filters, (GFunc) filter_destroy, NULL);
+}
+
 static gboolean
 session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 {
@@ -106,7 +113,7 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 
 
         // Remove all filters for this session
-        filter_unregister_session(sess);
+        session_destroy_filters(sess);
 
         // Deallocate session memory
         session_finish(sess);
@@ -123,7 +130,7 @@ session_check_message(AmiMessage *msg, gpointer user_data)
 
     // Check message against all session's filters
     for (GSList *l = session->filters; l; l = l->next) {
-        filter_t *filter = l->data;
+        Filter *filter = l->data;
         if (filter_check_message(filter, msg)) {
             if (filter->type == FILTER_ASYNC) {
                 // Exec the filter callback with the current message

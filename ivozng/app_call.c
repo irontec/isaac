@@ -77,13 +77,13 @@ struct app_call_info
     //! Unique ID supplied during CALL action
     char actionid[ACTIONID_LEN];
     //! Filter for capturing the events of Dialed channels
-    filter_t *callfilter;
+    Filter *callfilter;
     //! Filter for capturing the events of agent channel
-    filter_t *ofilter;
+    Filter *ofilter;
     //! Filter for capturing the events of remote channel
-    filter_t *dfilter;
+    Filter *dfilter;
     //! Filter for capturing the events of agent displayed channel
-    filter_t *odfilter;
+    Filter *odfilter;
     //! Original call destiny
     char destiny[50];
     //! Dialplan partition id
@@ -201,7 +201,7 @@ read_call_config(const char *cfile)
 struct app_call_info *
 get_call_info_from_id(Session *sess, const char *id)
 {
-    filter_t *filter = NULL;
+    Filter *filter = NULL;
     struct app_call_info *info = NULL;
     // Get session filter and search the one with that id
     while ((filter = filter_from_session(sess, filter))) {
@@ -230,7 +230,7 @@ get_call_info_from_id(Session *sess, const char *id)
  * @return 0 in all cases
  */
 int
-call_state(filter_t *filter, AmiMessage *msg)
+call_state(Filter *filter, AmiMessage *msg)
 {
     // Get Call information
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
@@ -364,7 +364,7 @@ call_state(filter_t *filter, AmiMessage *msg)
             const char *linkedid = message_get_header(msg, "Linkedid");
 
             // These event now happen on a local channel, so try to find the final channel
-            filter_t *dial_filter = filter_create_async(filter->sess, call_state);
+            Filter *dial_filter = filter_create_async(filter->sess, call_state);
             filter_new_condition(dial_filter, MATCH_REGEX, "Event", "DialBegin");
             filter_new_condition(dial_filter, MATCH_EXACT, "Uniqueid", uniqueid);
             filter_set_userdata(dial_filter, (void *) info);
@@ -378,7 +378,7 @@ call_state(filter_t *filter, AmiMessage *msg)
                 isaac_strcpy(info->odchannel, message_get_header(msg, "Channel"));
 
                 // Try to find second Local channel
-                filter_t *callfilter = filter_create_async(filter->sess, call_state);
+                Filter *callfilter = filter_create_async(filter->sess, call_state);
                 filter_new_condition(callfilter, MATCH_EXACT, "Event", "VarSet");
                 filter_new_condition(callfilter, MATCH_EXACT, "Variable", "ACTIONID");
                 filter_new_condition(callfilter, MATCH_EXACT, "Value", message_get_header(msg, "Value"));
@@ -490,7 +490,7 @@ call_state(filter_t *filter, AmiMessage *msg)
 
     // We dont expect more info about this filter, it's safe to unregister it here
     if (finished)
-        filter_unregister(filter);
+        filter_destroy(filter);
 
     return 0;
 }
@@ -751,7 +751,7 @@ hold_unhold_exec(Session *sess, app_t *app, const char *args)
 }
 
 int
-record_state(filter_t *filter, AmiMessage *msg)
+record_state(Filter *filter, AmiMessage *msg)
 {
     // Get Call information
     struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
@@ -819,7 +819,7 @@ record_exec(Session *sess, app_t *app, const char *args)
             return -1;
         }
 
-        filter_t *record_status = filter_create_async(sess, record_state);
+        Filter *record_status = filter_create_async(sess, record_state);
         filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s", actionid);
         filter_set_userdata(record_status, (void *) info);
         filter_register_oneshot(record_status);

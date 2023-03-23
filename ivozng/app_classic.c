@@ -37,7 +37,7 @@
 #include "filter.h"
 
 int
-classic_print(filter_t *filter, AmiMessage *msg)
+classic_print(Filter *filter, AmiMessage *msg)
 {
     int i;
     for (i = 0; i < msg->hdrcount; i++) {
@@ -103,7 +103,7 @@ classic_exec(Session *sess, app_t *app, const char *args)
         session_write(sess, "Privilege: system,all\r\n");
         session_write(sess, "Status: Fully Booted\r\n");
         session_write(sess, "\r\n\r\n");
-        filter_t *filter = filter_create_async(sess, classic_print);
+        Filter *filter = filter_create_async(sess, classic_print);
         filter_register(filter);
     } else if (!strcasecmp(action, "Events")) {
         session_write(sess, "Response: Success\r\n");

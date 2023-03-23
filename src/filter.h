@@ -57,9 +57,9 @@
 #define MAX_CONDLEN     512
 
 //! Sorter declaration of isaac_filter struct
-typedef struct isaac_filter filter_t;
+typedef struct _Filter Filter;
 //! Sorter declaration of isaac_condition struct
-typedef struct isaac_condition cond_t;
+typedef struct _Condition Condition;
 
 #include <regex.h>
 #include "manager.h"
@@ -75,18 +75,17 @@ typedef struct isaac_condition cond_t;
  * but are kept to make conditions easier to understand.
  *
  */
-enum condtype
-{
+enum ConditionType {
     //! Message must contain the condition header and value
-        MATCH_EXACT = 0,
+    MATCH_EXACT = 0,
     //! Message must contain the condition header and value (Case Insensitive)
-        MATCH_EXACT_CASE,
+    MATCH_EXACT_CASE,
     //! Message must contain the condition header and value starting with conds value
-        MATCH_START_WITH,
+    MATCH_START_WITH,
     //! Message must contain the condition header and value that match cond regexp
-        MATCH_REGEX,
+    MATCH_REGEX,
     //! Message must not contain the condition header and value that match cond regexp
-        MATCH_REGEX_NOT,
+    MATCH_REGEX_NOT,
 };
 
 /**
@@ -98,13 +97,12 @@ enum condtype
  * condition must match in order to trigger filter's callback.
  */
 
-struct isaac_condition
-{
-    //! Condition check type, one of @ref condtype values
-    enum condtype type;
+struct _Condition {
+    //! Condition check type, one of @ref ConditionType values
+    enum ConditionType type;
     //! Header to find while checking the condition
     char hdr[MAX_CONDLEN];
-    //! Desired value or expresion that header should match
+    //! Desired value or expression that header should match
     char val[MAX_CONDLEN];
     //! For condition types MATCH_REGEX, this is the compiled expresion
     regex_t regex;
@@ -120,26 +118,24 @@ struct isaac_condition
  * which won't block manager thread, but only should be used for filters that don't
  * have to make further filters.
  */
-enum filtertype
-{
+enum FilterType {
     //! Invoke filters callback from the scheduler thread
-        FILTER_ASYNC = 0,
+    FILTER_ASYNC = 0,
     //! Invoke filters callback from the manager thread (will block manager reads from AMI)
-        FILTER_SYNC,
+    FILTER_SYNC,
 };
 
-struct isaac_filter_async
-{
+struct _AsyncFilter {
     //! Pointer to the callback function
-    int (*callback)(filter_t *filter, AmiMessage *msg);
+    int (*callback)(Filter *filter, AmiMessage *msg);
+
     //! If this flag is on, the filter will be unregisted after triggering once
     int oneshot;
     //! User pointer for storing application information if required
     void *app_info;
 };
 
-struct isaac_filter_sync
-{
+struct _SyncFilter {
     //! Stored ami message triggering the filter
     AmiMessage msg;
     //! This filter has triggered and has a valid message
@@ -149,33 +145,27 @@ struct isaac_filter_sync
 };
 
 /**
- * @brief Filter Strucure. Core and Heart of Isaac funcionality
+ * @brief Filter Structure. Core and Heart of Isaac functionality
  *
- * A filter acts as a callback for Isaac aplications. It can contain 0-n conditions
+ * A filter acts as a callback for Isaac applications. It can contain 0-n conditions
  * that will determine which messages are sent back to the applications.
  */
-struct isaac_filter
-{
+struct _Filter {
     //! Session that requested the application that registered this filter
     Session *sess;
-
+    //! Useful for debugging purposes
+    const gchar *name;
     //! Filter's conditions that will determine which messages are sent back to the app
-    cond_t conds[MAX_CONDS];
+    Condition conds[MAX_CONDS];
     //! How many conditions must match
     unsigned int condcount;
-
     //! How the callback function is invoked
-    enum filtertype type;
-
+    enum FilterType type;
     //! Depending on the filter type
-    union
-    {
-        struct isaac_filter_async async;
-        struct isaac_filter_sync sync;
+    union {
+        struct _AsyncFilter async;
+        struct _SyncFilter sync;
     } data;
-
-    //! Pointer for Filters Linked list
-    filter_t *next;
 };
 
 /**
@@ -191,8 +181,8 @@ struct isaac_filter
  * @param callback  Pointer to the callback function
  * @return The new allocated filter structure or NULL in case of failure
  */
-extern filter_t *
-filter_create_async(Session *sess, int (*callback)(filter_t *filter, AmiMessage *msg));
+extern Filter *
+filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *msg));
 
 /**
  * @brief Create a new filter structure (This won't add it to the Filter's list)
@@ -207,8 +197,11 @@ filter_create_async(Session *sess, int (*callback)(filter_t *filter, AmiMessage 
  * @param callback  Pointer to the callback function
  * @return The new allocated filter structure or NULL in case of failure
  */
-extern filter_t *
+extern Filter *
 filter_create_sync(Session *sess);
+
+void
+filter_set_name(Filter *filter, const gchar *name);
 
 /**
  * @brief Add a cooked condition to the given filter
@@ -223,7 +216,7 @@ filter_create_sync(Session *sess);
  * @return 0 in case of success, 1 if the filter does not allow more filters
  */
 extern int
-filter_new_cooked_condition(filter_t *filter, cond_t cond);
+filter_new_cooked_condition(Filter *filter, Condition cond);
 
 /**
  * @brief Create a new condition structure and add if to the given filter
@@ -231,14 +224,14 @@ filter_new_cooked_condition(filter_t *filter, cond_t cond);
  * This is the basic function to add conditions to filters from applications.
  *
  * @param filter Filter to which add the condition
- * @param type Condition check type, one of @ref condtype values
+ * @param type Condition check type, one of @ref ConditionType values
  * @param hdr Header to find while checking the condition
  * @param fmt Format for the condition value
  * @param ... Variables to fill the condition format
  * @return 0 in case of success, 1 if the filter does not allow more filters
  */
 extern int
-filter_new_condition(filter_t *filter, enum condtype type, const char *hdr, const char *fmt, ...);
+filter_new_condition(Filter *filter, enum ConditionType type, const char *hdr, const char *fmt, ...);
 
 /**
  * @brief Remove all conditions from the given filter
@@ -249,7 +242,7 @@ filter_new_condition(filter_t *filter, enum condtype type, const char *hdr, cons
  * @param filter Filter to remove all conditions
  */
 extern void
-filter_remove_conditions(filter_t *filter);
+filter_remove_conditions(Filter *filter);
 
 /**
  * @brief Add filter to the filters list. This will allow the filter to trigger
@@ -261,7 +254,7 @@ filter_remove_conditions(filter_t *filter);
  * @param filter Filter to be registered
  */
 extern int
-filter_register(filter_t *filter);
+filter_register(Filter *filter);
 
 /**
  * @brief Add filter to the filters list. This will allow the filter to trigger once
@@ -273,23 +266,7 @@ filter_register(filter_t *filter);
  * @param filter Filter to be registered
  */
 extern int
-filter_register_oneshot(filter_t *filter);
-
-/**
- * @brief Mark a filter as no longer valid
- *
- * @param filter Filter to be removed
- */
-extern int
-filter_unregister(filter_t *filter);
-
-/**
- * @brief Unregister all fiters from a session
- *
- * @param sess Session owning the filters
- */
-extern int
-filter_unregister_session(Session *sess);
+filter_register_oneshot(Filter *filter);
 
 /**
  * @brief Remove a filter from the filters list.
@@ -298,8 +275,8 @@ filter_unregister_session(Session *sess);
  *
  * @param filter Filter to be removed
  */
-extern int
-filter_destroy(filter_t *filter);
+void
+filter_destroy(Filter *filter);
 
 /**
  * @brief Excute the filters callback when a AMI message match its conditions
@@ -314,7 +291,7 @@ filter_destroy(filter_t *filter);
  * @return The filter callback return
  */
 extern int
-filter_exec_async(filter_t *filter, AmiMessage *msg);
+filter_exec_async(Filter *filter, AmiMessage *msg);
 
 /**
  * @brief Store the triggering message in the filter and mark it as triggered
@@ -327,7 +304,7 @@ filter_exec_async(filter_t *filter, AmiMessage *msg);
  * @return The filter callback return
  */
 extern int
-filter_exec_sync(filter_t *filter, AmiMessage *msg);
+filter_exec_sync(Filter *filter, AmiMessage *msg);
 
 /**
  * @brief Wait for an ami event to trigger the filter
@@ -341,7 +318,7 @@ filter_exec_sync(filter_t *filter, AmiMessage *msg);
  * @return 0 in case of triggered, 1 otherwise
  */
 extern int
-filter_run(filter_t *filter, int timeout, AmiMessage *msg);
+filter_run(Filter *filter, int timeout, AmiMessage *msg);
 
 /**
  * @brief Set userdata pointer to the filter
@@ -354,7 +331,7 @@ filter_run(filter_t *filter, int timeout, AmiMessage *msg);
  * @param userdata Pointer to the custom information
  */
 extern void
-filter_set_userdata(filter_t *filter, void *userdata);
+filter_set_userdata(Filter *filter, void *userdata);
 
 /**
  * @brief Get the userdata pointer of the filter
@@ -364,7 +341,7 @@ filter_set_userdata(filter_t *filter, void *userdata);
  * @param filter Filter that contains the custom information
  */
 extern void *
-filter_get_userdata(filter_t *filter);
+filter_get_userdata(Filter *filter);
 
 /**
  * @brief Get next filter in session using <userdata>
@@ -387,8 +364,8 @@ filter_from_userdata(Session *sess, void *userdata);
  *             or a filter to start searching from that filter onwards.
  * @return The next filter of the session, or NULL if there are no more filters
  */
-extern filter_t *
-filter_from_session(Session *sess, filter_t *from);
+extern Filter *
+filter_from_session(Session *sess, Filter *from);
 
 /**
  * @brief Dummy callback for debugging purposes
@@ -404,7 +381,7 @@ filter_from_session(Session *sess, filter_t *from);
  * @return 0 if the message was successfully written to the session, -1 otherwise
  */
 extern int
-filter_print_message(filter_t *filter, AmiMessage *msg);
+filter_print_message(Filter *filter, AmiMessage *msg);
 
 /**
  * @brief Inject a fake message as being received by manager
@@ -418,7 +395,7 @@ filter_print_message(filter_t *filter, AmiMessage *msg);
  *           injected message, this can cause an infinite loop!
  */
 extern void
-filter_inject_message(filter_t *filter, AmiMessage *msg);
+filter_inject_message(Filter *filter, AmiMessage *msg);
 
 
 /**
@@ -433,6 +410,6 @@ filter_inject_message(filter_t *filter, AmiMessage *msg);
  * @return 0 in all cases
  */
 gboolean
-filter_check_message(filter_t *filter, AmiMessage *msg);
+filter_check_message(Filter *filter, AmiMessage *msg);
 
 #endif /* __ISAAC_FILTER_H_ */

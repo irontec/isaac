@@ -31,19 +31,14 @@
 #include "log.h"
 #include "util.h"
 
-//! Filters registered list. Only this fillter will be triggered
-filter_t *filters = NULL;
-//! Lock for concurrent access to filters list
-pthread_mutex_t filters_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-
-filter_t *
-filter_create_async(Session *sess, int (*callback)(filter_t *filter, AmiMessage *msg))
+Filter *
+filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *msg))
 {
-    filter_t *filter = NULL;
+    Filter *filter = NULL;
     // Allocate memory for a new filter
-    if ((filter = malloc(sizeof(filter_t)))) {
+    if ((filter = malloc(sizeof(Filter)))) {
         // Initialice basic fields
-        memset(filter, 0, sizeof(filter_t));
+        memset(filter, 0, sizeof(Filter));
         filter->sess = sess;
         filter->condcount = 0;
         filter->type = FILTER_ASYNC;
@@ -51,21 +46,18 @@ filter_create_async(Session *sess, int (*callback)(filter_t *filter, AmiMessage 
         filter->data.async.oneshot = 0;
     }
 
-    // Add filter to session
-    sess->filters = g_slist_append(sess->filters, filter);
-
     // Return the allocated filter (or NULL ;p)
     return filter;
 }
 
-filter_t *
+Filter *
 filter_create_sync(Session *sess)
 {
-    filter_t *filter = NULL;
+    Filter *filter = NULL;
     // Allocate memory for a new filter
-    if ((filter = malloc(sizeof(filter_t)))) {
-        // Initialice basic fields
-        memset(filter, 0, sizeof(filter_t));
+    if ((filter = malloc(sizeof(Filter)))) {
+        // Initialize basic fields
+        memset(filter, 0, sizeof(Filter));
         filter->sess = sess;
         filter->condcount = 0;
         filter->type = FILTER_SYNC;
@@ -75,15 +67,20 @@ filter_create_sync(Session *sess)
         pthread_mutex_init(&filter->data.sync.lock, &attr);
     }
 
-    // Add filter to session
-    sess->filters = g_slist_append(sess->filters, filter);
-
     // Return the allocated filter (or NULL ;p)
     return filter;
 }
 
+void
+filter_set_name(Filter *filter, const gchar *name)
+{
+    g_return_if_fail(filter != NULL);
+    g_return_if_fail(name != NULL);
+    filter->name = name;
+}
+
 int
-filter_new_cooked_condition(filter_t *filter, cond_t cond)
+filter_new_cooked_condition(Filter *filter, Condition cond)
 {
     // Check if we have reached the maximum of conditions
     if (filter->condcount == MAX_CONDS) return 1;
@@ -95,9 +92,9 @@ filter_new_cooked_condition(filter_t *filter, cond_t cond)
 }
 
 int
-filter_new_condition(filter_t *filter, enum condtype type, const char *hdr, const char *fmt, ...)
+filter_new_condition(Filter *filter, enum ConditionType type, const char *hdr, const char *fmt, ...)
 {
-    cond_t cond;
+    Condition cond;
     char condva[MAX_CONDLEN];
     va_list ap;
 
@@ -124,13 +121,13 @@ filter_new_condition(filter_t *filter, enum condtype type, const char *hdr, cons
 }
 
 void
-filter_remove_conditions(filter_t *filter)
+filter_remove_conditions(Filter *filter)
 {
     filter->condcount = 0;
 }
 
 int
-filter_register_oneshot(filter_t *filter)
+filter_register_oneshot(Filter *filter)
 {
     if (!filter) return 1;
     if (filter->type == FILTER_ASYNC)
@@ -140,9 +137,8 @@ filter_register_oneshot(filter_t *filter)
 }
 
 int
-filter_register(filter_t *filter)
+filter_register(Filter *filter)
 {
-    pthread_mutex_lock(&filters_mutex);
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
         isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter [%p] with %d conditions\n",
                   filter->sess->id,
@@ -151,99 +147,52 @@ filter_register(filter_t *filter)
                   filter->condcount);
     }
 
-    filter->next = filters;
-    filters = filter;
-    pthread_mutex_unlock(&filters_mutex);
+    // Add filter to session
+    filter->sess->filters = g_slist_append(filter->sess->filters, filter);
     return 0;
 }
 
-int
-filter_unregister(filter_t *filter)
+void
+filter_destroy(Filter *filter)
 {
-    pthread_mutex_lock(&filters_mutex);
-    // Sanity check
-    if (!filter) return 1;
+    g_return_if_fail(filter != NULL);
 
     // Some debug info
-    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG))
-        isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
+    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
+        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter [%p]\n", filter->sess->id, filter);
+    }
 
     // Remove filter from session
     filter->sess->filters = g_slist_remove(filter->sess->filters, filter);
 
-    // Mark this filter as not valid
-    filter->sess = 0;
-
-
-    pthread_mutex_unlock(&filters_mutex);
-
-    return 0;
-}
-
-int
-filter_unregister_session(Session *sess)
-{
-    filter_t *filter;
-    // Sanity check
-    if (!sess) return 1;
-
-    pthread_mutex_lock(&filters_mutex);
-    // Unregister all this connection filters
-    while ((filter = filter_from_session(sess, NULL))) {
-        filter_unregister(filter);
-    }
-    pthread_mutex_unlock(&filters_mutex);
-
-    return 0;
-}
-
-int
-filter_destroy(filter_t *filter)
-{
-    int i;
-    pthread_mutex_lock(&filters_mutex);
-    // Sanity check
-    if (!filter) return 1;
-    filter_t *cur = filters, *prev = NULL;
-
-    // Remove the filter from the filters list
-    while (cur) {
-        if (cur == filter) {
-            if (!prev) filters = cur->next;
-            else
-                prev->next = cur->next;
-            break;
-        }
-        prev = cur;
-        cur = cur->next;
-    }
-
     // Check if the info is still being shared by someone
-    void *userdata = filter_get_userdata(filter);
-    if (userdata) {
-        for (cur = filters; cur; cur = cur->next) {
-            if (filter_get_userdata(cur) == userdata) break;
+    gpointer user_data = filter_get_userdata(filter);
+    gboolean shared = FALSE;
+    if (user_data) {
+        for (GSList *l = filter->sess->filters; l; l = l->next) {
+            Filter *other = l->data;
+            if (filter_get_userdata(other) == user_data) {
+                shared = TRUE;
+            }
         }
-        if (!cur) isaac_free(userdata);
+        if (!shared) {
+            g_free(user_data);
+        }
     }
 
     // Deallocate filter conditions
-    for (i = 0; i < filter->condcount; i++) {
+    for (gint i = 0; i < filter->condcount; i++) {
         if (filter->conds[i].type == MATCH_REGEX) {
             regfree(&filter->conds[i].regex);
         }
     }
 
     // Deallocate filter memory
-    isaac_free(filter);
-
-    pthread_mutex_unlock(&filters_mutex);
-    //@todo remove conditions and filter allocated memory
-    return 0;
+    g_free(filter);
 }
 
 int
-filter_exec_async(filter_t *filter, AmiMessage *msg)
+filter_exec_async(Filter *filter, AmiMessage *msg)
 {
     int oneshot = filter->data.async.oneshot;
     int ret = 1;
@@ -269,12 +218,14 @@ filter_exec_async(filter_t *filter, AmiMessage *msg)
     }
 
     // If the filter is marked for only triggering once, unregister it
-    if (oneshot) filter_unregister(filter);
+    if (oneshot) {
+        filter_destroy(filter);
+    }
     return ret;
 }
 
 int
-filter_exec_sync(filter_t *filter, AmiMessage *msg)
+filter_exec_sync(Filter *filter, AmiMessage *msg)
 {
     // Check we have a valid filter
     if (!filter || filter->type != FILTER_SYNC)
@@ -296,7 +247,7 @@ filter_exec_sync(filter_t *filter, AmiMessage *msg)
 }
 
 int
-filter_run(filter_t *filter, int timeout, AmiMessage *ret)
+filter_run(Filter *filter, int timeout, AmiMessage *ret)
 {
     // Check we have a valid filter
     if (!filter || filter->type != FILTER_SYNC)
@@ -308,9 +259,9 @@ filter_run(filter_t *filter, int timeout, AmiMessage *ret)
         remaining -= 500;
     }
 
-    // Tiemout!
+    // Timeout!
     if (!remaining) {
-        filter_unregister(filter);
+        filter_destroy(filter);
         return 1;
     }
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
@@ -322,12 +273,12 @@ filter_run(filter_t *filter, int timeout, AmiMessage *ret)
     *ret = filter->data.sync.msg;
 
     // Unregister the filter
-    filter_unregister(filter);
+    filter_destroy(filter);
     return 0;
 }
 
 void
-filter_set_userdata(filter_t *filter, void *userdata)
+filter_set_userdata(Filter *filter, void *userdata)
 {
     if (!filter || filter->type != FILTER_ASYNC)
         return;
@@ -335,7 +286,7 @@ filter_set_userdata(filter_t *filter, void *userdata)
 }
 
 void *
-filter_get_userdata(filter_t *filter)
+filter_get_userdata(Filter *filter)
 {
     if (!filter || filter->type != FILTER_ASYNC)
         return NULL;
@@ -345,48 +296,35 @@ filter_get_userdata(filter_t *filter)
 void *
 filter_from_userdata(Session *sess, void *userdata)
 {
-    filter_t *filter = NULL;
+    Filter *filter = NULL;
     // Sanity check
     if (!sess) return NULL;
 
-    pthread_mutex_lock(&filters_mutex);
     // Unregister all this connection filters
     while ((filter = filter_from_session(sess, filter))) {
         if (filter_get_userdata(filter) == userdata)
             break;
     }
-    pthread_mutex_unlock(&filters_mutex);
 
     return filter;
 }
 
-filter_t *
-filter_from_session(Session *sess, filter_t *from)
+Filter *
+filter_from_session(Session *sess, Filter *from)
 {
-    filter_t *cur = NULL;
-    pthread_mutex_lock(&filters_mutex);
-    // From which filter will search onward?
-    if (!from) {
-        // Start from the beginning
-        cur = filters;
+    g_return_val_if_fail(sess != NULL, NULL);
+    if (from == NULL) {
+        return g_slist_nth_data(sess->filters, 0);
     } else {
-        // Continue searching
-        cur = from->next;
+        return g_slist_nth_data(
+                sess->filters,
+                g_slist_index(sess->filters, from)
+        );
     }
-    while (cur) {
-        // This filter belongs to the given session
-        if (cur->sess == sess) {
-            break;
-        }
-        cur = cur->next;
-    }
-    pthread_mutex_unlock(&filters_mutex);
-    // Return the next found filter (or NULL if none found)
-    return cur;
 }
 
 int
-filter_print_message(filter_t *filter, AmiMessage *msg)
+filter_print_message(Filter *filter, AmiMessage *msg)
 {
     return 1;
     // Only for debuging purposes
@@ -395,7 +333,7 @@ filter_print_message(filter_t *filter, AmiMessage *msg)
 }
 
 void
-filter_inject_message(filter_t *filter, AmiMessage *msg)
+filter_inject_message(Filter *filter, AmiMessage *msg)
 {
     Session *sess;
     const char *agent = session_get_variable(filter->sess, "AGENT");
@@ -423,7 +361,7 @@ filter_inject_message(filter_t *filter, AmiMessage *msg)
 }
 
 gboolean
-filter_check_message(filter_t *filter, AmiMessage *msg)
+filter_check_message(Filter *filter, AmiMessage *msg)
 {
     // Initialize the matching headers count
     gint matches = 0;

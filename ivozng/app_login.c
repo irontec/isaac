@@ -89,7 +89,7 @@ read_login_config(const char *cfile)
     // Initialize configuration
     config_init(&cfg);
 
-    // Read configuraiton file
+    // Read configuration file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
         isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
                   config_error_line(&cfg), config_error_text(&cfg));
@@ -110,7 +110,7 @@ read_login_config(const char *cfile)
     // Dealloc libconfig structure
     config_destroy(&cfg);
 
-    isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
+    isaac_log(LOG_VERBOSE_3, "Read configuration from %s\n", cfile);
     return 0;
 }
 
@@ -229,7 +229,7 @@ odbc_watchdog(void *args)
  * @return 0 in all cases
  */
 int
-peer_status_check(filter_t *filter, AmiMessage *msg)
+peer_status_check(Filter *filter, AmiMessage *msg)
 {
     Session *sess = filter->sess;
     const char *interface = session_get_variable(sess, "INTERFACE");
@@ -347,22 +347,25 @@ login_exec(Session *sess, app_t *app, const char *args)
         // Also check for status changes
         // Check if device is registerd
         if (login_config.check_unregistered) {
-            filter_t *peerstatusfilter = filter_create_async(sess, peer_status_check);
+            Filter *peerstatusfilter = filter_create_async(sess, peer_status_check);
+            filter_set_name(peerstatusfilter, "Peer unregistered");
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "Event", "PeerStatus");
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "Peer", interface);
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "PeerStatus", "Unregistered");
             filter_register(peerstatusfilter);
         }
 
-        filter_t *agentstatus = filter_create_async(sess, peer_status_check);
+        Filter *agentstatus = filter_create_async(sess, peer_status_check);
         filter_new_condition(agentstatus, MATCH_EXACT, "Event", "ExtensionStatus");
+        filter_set_name(agentstatus, "Agent Logged out");
         filter_new_condition(agentstatus, MATCH_EXACT, "Exten", "access_%s", interface + 4);
         filter_new_condition(agentstatus, MATCH_EXACT, "Status", "1");
         filter_register(agentstatus);
 
         if (login_config.validate_registered) {
-            // Check if device is registerd
-            filter_t *peerfilter = filter_create_async(sess, peer_status_check);
+            // Check if device is registered
+            Filter *peerfilter = filter_create_async(sess, peer_status_check);
+            filter_set_name(peerfilter, "Check initial peer status");
             filter_new_condition(peerfilter, MATCH_EXACT, "ActionID", interface + 4);
             filter_register_oneshot(peerfilter);
 
@@ -402,7 +405,7 @@ login_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-devicestatus_changed(filter_t *filter, AmiMessage *msg)
+devicestatus_changed(Filter *filter, AmiMessage *msg)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
@@ -500,9 +503,10 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
     }
 
     // Add a filter for handling device state changes
-    filter_t *devicefilter = filter_create_async(sess, devicestatus_changed);
+    Filter *devicefilter = filter_create_async(sess, devicestatus_changed);
     filter_new_condition(devicefilter, MATCH_EXACT, "Context", "cc-hints");
     sprintf(exten, "%s$|pause_%s", agent, interface + 4);
+    filter_set_name(devicefilter, "Pause and Exten hint filter");
     filter_new_condition(devicefilter, MATCH_REGEX, "Exten", exten);
     filter_register(devicefilter);
 

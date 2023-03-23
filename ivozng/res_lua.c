@@ -118,7 +118,7 @@ lua_application_callback(Session *sess, app_t *app, const char *args)
 }
 
 int
-lua_filter_callback(filter_t *filter, AmiMessage *msg)
+lua_filter_callback(Filter *filter, AmiMessage *msg)
 {
     char fullheader[MAX_LEN], header[MAX_LEN], value[MAX_LEN];
     int i;
@@ -224,7 +224,7 @@ lua_filter_create(lua_State *L)
         isaac_log(LOG_DEBUG, "Creating new filter for LUA module [%s]\n", callback);
 
         if (filter_type == FILTER_ASYNC) {
-            filter_t *filter = filter_create_async(sess, lua_filter_callback);
+            Filter *filter = filter_create_async(sess, lua_filter_callback);
             filter_set_userdata(filter, info);
             lua_pushlightuserdata(L, filter);
         }
@@ -237,7 +237,7 @@ lua_filter_create(lua_State *L)
 int
 lua_filter_register(lua_State *L)
 {
-    filter_t *filter = lua_touserdata(L, 1);
+    Filter *filter = lua_touserdata(L, 1);
     if (filter) {
         filter_register(filter);
     }
@@ -247,7 +247,7 @@ lua_filter_register(lua_State *L)
 int
 lua_filter_register_oneshot(lua_State *L)
 {
-    filter_t *filter = lua_touserdata(L, 1);
+    Filter *filter = lua_touserdata(L, 1);
     if (filter) {
         filter_register_oneshot(filter);
     }
@@ -257,7 +257,7 @@ lua_filter_register_oneshot(lua_State *L)
 int
 lua_filter_unregister(lua_State *L)
 {
-    filter_t *filter = lua_touserdata(L, 1);
+    Filter *filter = lua_touserdata(L, 1);
     if (filter) {
         filter_unregister(filter);
     }
@@ -267,7 +267,7 @@ lua_filter_unregister(lua_State *L)
 int
 lua_filter_new_condition(lua_State *L)
 {
-    filter_t *filter = lua_touserdata(L, 1);
+    Filter *filter = lua_touserdata(L, 1);
     int cond_type = lua_tonumber(L, 2);
     const char *header = lua_tostring(L, 3);
     const char *value = lua_tostring(L, 4);

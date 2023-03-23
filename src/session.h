@@ -82,7 +82,7 @@ struct _Session
     char addrstr[25];
     //! Time of last command (for idle calculation)
     struct timeval last_cmd_time;
-    //! Session filter list (filter_t*)
+    //! Session filter list (Filter*)
     GSList *filters;
     //! Async queue for received AMI messages
     GAsyncQueue *queue;
