@@ -49,9 +49,12 @@ filter_create_async(Session *sess, int (*callback)(filter_t *filter, ami_message
         filter->data.async.callback = callback;
         filter->data.async.oneshot = 0;
     }
+
+    // Add filter to session
+    sess->filters = g_slist_append(sess->filters, filter);
+
     // Return the allocated filter (or NULL ;p)
     return filter;
-
 }
 
 filter_t *
@@ -70,6 +73,10 @@ filter_create_sync(Session *sess)
         pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
         pthread_mutex_init(&filter->data.sync.lock, &attr);
     }
+
+    // Add filter to session
+    sess->filters = g_slist_append(sess->filters, filter);
+
     // Return the allocated filter (or NULL ;p)
     return filter;
 }
@@ -160,8 +167,13 @@ filter_unregister(filter_t *filter)
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG))
         isaac_log(LOG_DEBUG, "[Session %s] Unregistering filter [%p]\n", filter->sess->id, filter);
 
+    // Remove filter from session
+    filter->sess->filters = g_slist_remove(filter->sess->filters, filter);
+
     // Mark this filter as not valid
     filter->sess = 0;
+
+
     pthread_mutex_unlock(&filters_mutex);
 
     return 0;
@@ -410,81 +422,10 @@ filter_inject_message(filter_t *filter, ami_message_t *msg)
 int
 check_filters_for_message(ami_message_t *msg)
 {
-    filter_t *cur, *next;
-    int i, matches;
-    const char *msgvalue, *condvalue;
-
-    pthread_mutex_lock(&filters_mutex);
-    cur = filters;
-    // Let's start checking if the given message match any registered filter!
-    while (cur) {
-        // Save here the next filter for the loop. This is required because the pointer
-        // can disappear during the loop process (unregisted oneshot filters)
-        next = cur->next;
-
-        // Check if this filter can be triggered
-        if (cur->sess == 0) {
-            // Clean this filter allocated memory
-            filter_destroy(cur);
-        } else {
-            // Initialize the matching headers count
-            matches = 0;
-            // Loop through all filter conditions
-            for (i = 0; i < cur->condcount; i++) {
-                msgvalue = message_get_header(msg, cur->conds[i].hdr);
-                condvalue = cur->conds[i].val;
-
-                // Depending on condition type, do the proper check
-                switch (cur->conds[i].type) {
-                    case MATCH_EXACT:
-                        if (!isaac_strcmp(msgvalue, condvalue)) {
-                            matches++;
-                        }
-                        break;
-                    case MATCH_EXACT_CASE:
-                        if (!isaac_strcasecmp(msgvalue, condvalue)) {
-                            matches++;
-                        }
-                        break;
-                    case MATCH_START_WITH:
-                        if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
-                            matches++;
-                        }
-                        break;
-                    case MATCH_REGEX:
-                        if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                            matches++;
-                        }
-                        break;
-                    case MATCH_REGEX_NOT:
-                        if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
-                            matches++;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-
-                // If at this point, matches equals the loop counter, the last condition
-                // has not matched. No sense to continue checking.
-                if (matches == i) break;
-            }
-
-            // All condition matched! We have a winner!
-            if (matches == cur->condcount) {
-                if (cur->type == FILTER_ASYNC) {
-                    // Exec the filter callback with the current message
-                    filter_exec_async(cur, msg);
-                } else {
-                    // Store the message and leave
-                    filter_exec_sync(cur, msg);
-                }
-            }
-        }
-
-        // Go on with the next message
-        cur = next;
+    GSList *sessions = sessions_adquire_lock();
+    for (GSList *l = sessions; l; l = l->next) {
+        Session *sess = l->data;
+        g_async_queue_push(sess->msg_queue, (gpointer) msg);
     }
-    pthread_mutex_unlock(&filters_mutex);
-    return 0;
+    sessions_release_lock();
 }

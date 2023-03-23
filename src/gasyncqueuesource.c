@@ -34,9 +34,11 @@
 #include "gasyncqueuesource.h"
 
 static gboolean
-g_async_queue_source_prepare(GSource *source, G_GNUC_UNUSED gint *timeout)
+g_async_queue_source_prepare(GSource *source, gint *timeout)
 {
     GAsyncQueueSource *g_async_queue_source = (GAsyncQueueSource *) source;
+    // Max timeout before calling dispatch
+    *timeout = 500; // milliseconds
     return (g_async_queue_length(g_async_queue_source->queue) > 0);
 }
 

@@ -83,7 +83,7 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
         // Get message action
         if (sscanf(msg, "%s %[^\n]", action, args)) {
             if (!strlen(action))
-                return FALSE;
+                return TRUE;
 
             if ((app = application_find(action))) {
                 // Run the application
@@ -113,12 +113,72 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
         session_destroy(sess);
     }
 
-    return FALSE;
+    return TRUE;
 }
 
 static gboolean
-session_check_message(ami_message_t *msg, G_GNUC_UNUSED gpointer user_data)
+session_check_message(ami_message_t *msg, gpointer user_data)
 {
+    Session *session = (Session *) user_data;
+
+    // Check message against all session's filters
+    for (GSList *l = session->filters; l; l = l->next) {
+        // Initialize the matching headers count
+        guint matches = 0;
+        filter_t *cur = l->data;
+        // Loop through all filter conditions
+        for (gint i = 0; i < cur->condcount; i++) {
+            const gchar *msgvalue = message_get_header(msg, cur->conds[i].hdr);
+            gchar *condvalue = cur->conds[i].val;
+
+            // Depending on condition type, do the proper check
+            switch (cur->conds[i].type) {
+                case MATCH_EXACT:
+                    if (!isaac_strcmp(msgvalue, condvalue)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_EXACT_CASE:
+                    if (!isaac_strcasecmp(msgvalue, condvalue)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_START_WITH:
+                    if (!isaac_strncmp(msgvalue, condvalue, strlen(condvalue) - 1)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_REGEX:
+                    if (!regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                        matches++;
+                    }
+                    break;
+                case MATCH_REGEX_NOT:
+                    if (regexec(&cur->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                        matches++;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            // If at this point, matches equals the loop counter, the last condition
+            // has not matched. No sense to continue checking.
+            if (matches == i) break;
+        }
+
+        // All condition matched! We have a winner!
+        if (matches == cur->condcount) {
+            if (cur->type == FILTER_ASYNC) {
+                // Exec the filter callback with the current message
+                filter_exec_async(cur, msg);
+            } else {
+                // Store the message and leave
+                filter_exec_sync(cur, msg);
+            }
+        }
+    }
+
     return TRUE;
 }
 
@@ -169,7 +229,7 @@ session_create(const int fd, const struct sockaddr_in addr)
     g_source_set_callback(
             sess->messages,
             (GSourceFunc) G_SOURCE_FUNC(session_check_message),
-            NULL,
+            sess,
             NULL
     );
     g_source_attach(sess->messages, g_main_loop_get_context(sess->loop));
