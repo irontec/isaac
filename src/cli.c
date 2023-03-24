@@ -23,17 +23,11 @@
  * @author Iván Alonso [aka Kaian] <kaian@irontec.com>
  *
  * @brief Source code for functions defined in cli.h
- *
- * @todo Comment this file completely
  */
 
 #include "config.h"
 #include <errno.h>
-#include <fcntl.h>
 #include <sys/socket.h>
-#include <netdb.h>
-#include <signal.h>
-#include <ctype.h>
 #include <unistd.h>
 #include "cfg.h"
 #include "cli.h"
@@ -387,7 +381,7 @@ cli_entry_cmd(cli_entry_t *entry)
         isaac_log(LOG_WARNING, "-- cannot allocate <%s>\n", buf);
         return -1;
     }
-    // Return the comman part avoiding the Arguments
+    // Return the command part avoiding the Arguments
     entry->cmdlen = strcspn(entry->_full_cmd, cli_rsvd);
     for (i = 0; entry->cmda[i]; i++);
     entry->args = i;
@@ -1181,16 +1175,19 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     if (!(sess = session_by_id(args->argv[2]))) {
         cli_write(args->cli, "Unable to find session with id %s\n", args->argv[2]);
     } else {
-        while ((filter = filter_from_session(sess, filter))) {
+        for (GSList *l = sess->filters; l; l = l->next) {
+            Filter *filter = l->data;
+
             // Print session filters
-            cli_write(args->cli, "------------ %s Filter %d %s ------------\n",
+            cli_write(args->cli, "------------ \e[1;32m%s\e[0m %s %d %s ------------\n",
+                      (filter->name) ? filter->name : "Filter",
                       (filter->type == FILTER_ASYNC) ? "(Async)" : "(Sync)",
                       filter_cnt++,
                       (filter->type == FILTER_ASYNC && filter->data.async.oneshot) ? "(OneShot)" : "");
 
             for (ccnt = 0; ccnt < filter->condcount; ccnt++) {
 
-                cli_write(args->cli, " %-10s", filter->conds[ccnt].hdr);
+                cli_write(args->cli, " %-12s", filter->conds[ccnt].hdr);
                 switch (filter->conds[ccnt].type) {
                     case MATCH_EXACT:
                         cli_write(args->cli, "%-5s", "==");

@@ -400,16 +400,17 @@ filter_inject_message(Filter *filter, AmiMessage *msg);
 
 /**
  * @brief Check which of the registered filters match the given message
+ *        and execs its callback function
  *
- * This function is invoked from manager thread for each received message to
- * check if the message match any of the registered filters, invoking its
- * callback if required.
+ * This function is invoked for each received message to check if
+ * message match any of the registered filters, invoking its callback
+ * if required.
  *
  * @param filter Filter to check conditions against
  * @param msg AMI message to be checked
  * @return 0 in all cases
  */
 gboolean
-filter_check_message(Filter *filter, AmiMessage *msg);
+filter_check_and_exec(Filter *filter, AmiMessage *msg);
 
 #endif /* __ISAAC_FILTER_H_ */

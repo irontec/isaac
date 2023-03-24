@@ -127,24 +127,10 @@ static gboolean
 session_check_message(AmiMessage *msg, gpointer user_data)
 {
     Session *session = (Session *) user_data;
-
-    // Check message against all session's filters
-    for (GSList *l = session->filters; l; l = l->next) {
-        Filter *filter = l->data;
-        if (filter_check_message(filter, msg)) {
-            if (filter->type == FILTER_ASYNC) {
-                // Exec the filter callback with the current message
-                filter_exec_async(filter, msg);
-            } else {
-                // Store the message and leave
-                filter_exec_sync(filter, msg);
-            }
-        }
-    }
-
+    // Check message against all session filters
+    g_slist_foreach(session->filters, (GFunc) filter_check_and_exec, msg);
     // We are done with this message
     g_atomic_rc_box_release(msg);
-
     return TRUE;
 }
 

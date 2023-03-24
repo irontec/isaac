@@ -37,7 +37,7 @@ filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *m
     Filter *filter = NULL;
     // Allocate memory for a new filter
     if ((filter = malloc(sizeof(Filter)))) {
-        // Initialice basic fields
+        // Initialize basic fields
         memset(filter, 0, sizeof(Filter));
         filter->sess = sess;
         filter->condcount = 0;
@@ -136,13 +136,24 @@ filter_register_oneshot(Filter *filter)
     return filter_register(filter);
 }
 
+static gboolean
+filter_is_oneshot(Filter *filter)
+{
+    g_return_val_if_fail(filter != NULL, FALSE);
+    if (filter->type != FILTER_ASYNC)
+        return FALSE;
+
+    return filter->data.async.oneshot;
+}
+
 int
 filter_register(Filter *filter)
 {
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter [%p] with %d conditions\n",
+        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter \e[1;32m%s\e[0m [%p] with %d conditions\n",
                   filter->sess->id,
                   (filter->type == FILTER_ASYNC) ? "asnyc" : "sync",
+                  filter->name,
                   filter,
                   filter->condcount);
     }
@@ -159,7 +170,11 @@ filter_destroy(Filter *filter)
 
     // Some debug info
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter [%p]\n", filter->sess->id, filter);
+        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter \e[1;31m%s\e[0m [%p]\n",
+                  filter->sess->id,
+                  filter->name,
+                  filter
+        );
     }
 
     // Remove filter from session
@@ -194,7 +209,6 @@ filter_destroy(Filter *filter)
 int
 filter_exec_async(Filter *filter, AmiMessage *msg)
 {
-    int oneshot = filter->data.async.oneshot;
     int ret = 1;
     Session *sess = filter->sess;
 
@@ -211,15 +225,11 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
     // Invoke callback right now!
     if (filter->data.async.callback) {
         if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
+            gboolean oneshot = filter_is_oneshot(filter);
             isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n",
                       filter->sess->id, filter, (oneshot) ? "(oneshot)" : "");
         }
         ret = filter->data.async.callback(filter, msg);
-    }
-
-    // If the filter is marked for only triggering once, unregister it
-    if (oneshot) {
-        filter_destroy(filter);
     }
     return ret;
 }
@@ -409,4 +419,23 @@ filter_check_message(Filter *filter, AmiMessage *msg)
 
     // All condition matched! We have a winner!
     return matches == filter->condcount;
+}
+
+gboolean
+filter_check_and_exec(Filter *filter, AmiMessage *msg)
+{
+    if (filter_check_message(filter, msg)) {
+        if (filter->type == FILTER_ASYNC) {
+            // Exec the filter callback with the current message
+            filter_exec_async(filter, msg);
+        } else {
+            // Store the message and leave
+            filter_exec_sync(filter, msg);
+        }
+
+        // If the filter is marked for only triggering once, unregister it
+        if (filter_is_oneshot(filter)) {
+            filter_destroy(filter);
+        }
+    }
 }
