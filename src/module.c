@@ -35,9 +35,6 @@
 #include "util.h"
 #include "cfg.h"
 
-//! General isaac configuration
-extern cfg_t config;
-
 //! Loaded modules list
 // We wont mutexlock this list because is only accessed on startup or
 // shutdown. This will only be a problem if \ref quit is called from
@@ -53,7 +50,7 @@ load_modules()
     char *ext; // File extension (incling dot)
     char lfullfile[512];
     module_t *module;
-    int modcnt = 0, i;
+    int modcnt = 0;
 
     // Some feedback
     isaac_log(LOG_VERBOSE, "Loading modules ...\n");
@@ -76,13 +73,16 @@ load_modules()
         if (strcasecmp(ext, ".so")) continue;
 
         // Check if this module should be loaded
-        for (i = 0; i < config.modulecnt; i++) {
-            if (!strcmp(l->d_name, config.modules[i])) {
+        gboolean found = FALSE;
+        for (GSList *m = cfg_get_modules(); m; m = m->next) {
+            if (!strcmp(l->d_name, m->data)) {
+                found = TRUE;
                 break;
             }
         }
+
         // Not in configuration module list
-        if (i == config.modulecnt) {
+        if (!found) {
             continue;
         }
 

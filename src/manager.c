@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <poll.h>
+#include "cfg.h"
 #include "manager.h"
 #include "filter.h"
 #include "log.h"
@@ -309,18 +310,16 @@ manager_read_thread(void *man)
     return NULL;
 }
 
-int
-start_manager(const char *addrstr, const int port, const char *username, const char *secret)
+gboolean
+start_manager()
 {
     struct in_addr maddr;
 
     // Allocate memory for the manager data
-    if (!(manager = malloc(sizeof(manager_t)))) {
+    if (!(manager = g_malloc0(sizeof(manager_t)))) {
         isaac_log(LOG_ERROR, "Failed to allocate server manager: %s\n", strerror(errno));
         return 1;
     }
-    // Initialize manager structure
-    memset(manager, 0, sizeof(manager_t));
 
     // Create a socket for a new TCP IPv4 connection
     if ((manager->fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -329,7 +328,7 @@ start_manager(const char *addrstr, const int port, const char *username, const c
     }
 
     // Get network address
-    if (inet_aton(addrstr, &maddr) == 0) {
+    if (inet_aton(cfg_get_manager_address(), &maddr) == 0) {
         isaac_log(LOG_ERROR, "Error getting network address: %s\n", strerror(errno));
         return -1;
     }
@@ -338,18 +337,19 @@ start_manager(const char *addrstr, const int port, const char *username, const c
     bzero(&manager->addr, sizeof(manager->addr));
     manager->addr.sin_family = AF_INET;
     manager->addr.sin_addr = maddr;
-    manager->addr.sin_port = htons(port);
-    manager->username = username;
-    manager->secret = secret;
+    manager->addr.sin_port = htons(cfg_get_manager_port());
+    manager->username = cfg_get_manager_user();
+    manager->secret = cfg_get_manager_pass();
     pthread_mutex_init(&manager->lock, NULL);
 
     // Create the manager thread to do the rest of the process (Connection, Authentication,
     // and message reading)
     if (pthread_create(&manager_thread, NULL, (void *) manager_read_thread, manager)) {
         isaac_log(LOG_WARNING, "Error creating manager thread: %s\n", strerror(errno));
-        return 1;
+        return FALSE;
     }
-    return 0;
+
+    return TRUE;
 }
 
 int

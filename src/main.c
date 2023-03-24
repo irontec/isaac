@@ -42,9 +42,6 @@
 #include "server.h"
 #include "util.h"
 
-//! Isaac configuration options
-cfg_t config;
-
 void
 print_version()
 {
@@ -96,7 +93,7 @@ main(int argc, char *argv[])
             {"debug",   'd', 0, G_OPTION_ARG_NONE,   &opt_debug,   "Start in debug mode",                 NULL},
             {"remote",  'r', 0, G_OPTION_ARG_NONE,   &opt_remote,  "Connect CLI to running isaac daemon", NULL},
             {"execute", 'x', 0, G_OPTION_ARG_STRING, &opt_execute, "Execute CLI command and exit",        NULL},
-            { NULL }
+            {NULL}
     };
 
     /************************** Command Line Parsing **************************/
@@ -148,21 +145,19 @@ main(int argc, char *argv[])
             exit(0);
     }
 
-    cfg_init(&config);
-
     // Setup signal handlers
     (void) signal(SIGINT, quit);
     (void) signal(SIGTERM, quit);
     (void) signal(SIGPIPE, SIG_IGN);
 
     // Read configuration files
-    if (cfg_read(&config, CFILE) != 0) {
+    if (cfg_read(CFILE) != 0) {
         fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
         quit(EXIT_FAILURE);
     }
 
     // Initialize logging
-    if (start_logging(config.logtype, config.logfile, config.logtag, config.loglevel, opt_debug) != 0) {
+    if (!start_logging(opt_debug)) {
         fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
         quit(EXIT_FAILURE);
     }
@@ -173,22 +168,22 @@ main(int argc, char *argv[])
     }
 
     // Start manager thread
-    if (start_manager(config.manaddr, config.manport, config.manuser, config.manpass) != 0) {
+    if (!start_manager()) {
         quit(EXIT_FAILURE);
     }
 
     // Start cli service
-    if (cli_server_start() != 0) {
+    if (!cli_server_start()) {
         quit(EXIT_FAILURE);
     }
 
     // Start server thread
-    if (start_server(config.listenaddr, config.listenport) == -1) {
+    if (!start_server()) {
         quit(EXIT_FAILURE);
     }
 
     // All subsystems Up!
-    isaac_log(LOG_NONE, "\e[1;37m%s Ready.\e[0m\n", PACKAGE_NAME);
+    isaac_log(LOG_NONE, "\e[1;37m%s is Ready.\e[0m\n", PACKAGE_NAME);
 
     // Wait here until any signal is sent
     pause();

@@ -30,6 +30,8 @@
  */
 #ifndef __ISAAC_MANAGER_H_
 #define __ISAAC_MANAGER_H_
+
+#include <glib.h>
 #include <pthread.h>
 #include <arpa/inet.h>
 
@@ -227,14 +229,10 @@ manager_read_thread(void *man);
  * and authenticate against Asterisk AMI. Given parameters are readed
  * from configuration file.
  *
- * @param addrstr  Asterisk AMI Listening address
- * @param port     Asterisk AMI Listening port
- * @param username Asterisk AMI Username for Login action
- * @param secret   Asterisk AMI Secret for Login action
- * @return 0 in case of thread launch success, 1 otherwise
+ * @return TRUE in case of thread launch success, 1 otherwise
  */
-extern int
-start_manager(const char *addrstr, const int port, const char *username, const char *secret);
+gboolean
+start_manager();
 
 /**
  * @brief Disconnect from AMI and stops manager thread

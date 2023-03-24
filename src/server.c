@@ -44,8 +44,6 @@
 #include "cli.h"
 #include "cfg.h"
 
-//! General isaac configuration
-extern cfg_t config;
 //! Server socket
 int server_sock = 0;
 //! Server accept connections thread
@@ -53,8 +51,8 @@ pthread_t accept_thread;
 //! Running flag
 static int running;
 
-int
-start_server(const char *addrstr, const int port)
+gboolean
+start_server()
 {
     struct in_addr addr;
     struct sockaddr_in srvaddr;
@@ -63,54 +61,57 @@ start_server(const char *addrstr, const int port)
     // Create a socket for a new TCP IPv4 connection
     if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         isaac_log(LOG_ERROR, "Error creating server socket: %s\n", strerror(errno));
-        return -1;
+        return FALSE;
     }
 
     // Force reuse address (in case there are ending connections in TIME_WAIT)
     if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) == -1) {
         isaac_log(LOG_ERROR, "Error setting socket options: %s\n", strerror(errno));
-        return -1;
+        return FALSE;
     }
 
     // Get network address
-    if (inet_aton(addrstr, &addr) == 0) {
+    if (inet_aton(cfg_get_server_address(), &addr) == 0) {
         isaac_log(LOG_ERROR, "Error getting network address: %s\n", strerror(errno));
-        return -1;
+        return FALSE;
     }
 
     // Bind that socket to the requested address and port
     bzero(&srvaddr, sizeof(srvaddr));
     srvaddr.sin_family = AF_INET;
     srvaddr.sin_addr = addr;
-    srvaddr.sin_port = htons(port);
+    srvaddr.sin_port = htons(cfg_get_server_port());
     if (bind(server_sock, (struct sockaddr *) &srvaddr, sizeof(srvaddr)) == -1) {
         isaac_log(LOG_ERROR, "Error binding address: %s\n", strerror(errno));
-        return -1;
+        return FALSE;
     }
 
     // Listen for new connections (Max queue 512)
     if (listen(server_sock, 512) == -1) {
         isaac_log(LOG_ERROR, "Error listening on address: %s\n", strerror(errno));
-        return -1;
+        return FALSE;
     }
 
     // Create a new thread for accepting client connections
     if (pthread_create(&accept_thread, NULL, accept_connections, NULL) != 0) {
         isaac_log(LOG_WARNING, "Error creating accept thread: %s\n", strerror(errno));
-        return -1;
+        return FALSE;
     }
 
-    if (config.idle_timeout > 0) {
+    if (cfg_get_idle_timeout() > 0) {
         // Create a new thread for removing stalled client connections
         if (pthread_create(&accept_thread, NULL, check_connections, NULL) != 0) {
             isaac_log(LOG_WARNING, "Error creating check connections thread: %s\n", strerror(errno));
-            return -1;
+            return FALSE;
         }
     }
 
     // Successfully initialized server
-    isaac_log(LOG_VERBOSE, "Server listening for connections on %s:%d\n", addrstr, port);
-    return 0;
+    isaac_log(LOG_VERBOSE, "Server listening for connections on %s:%d\n",
+              cfg_get_server_address(),
+              cfg_get_server_port()
+    );
+    return TRUE;
 }
 
 int
@@ -162,7 +163,7 @@ accept_connections(void *sock)
             continue;
         }
 
-        if (config.keepalive) {
+        if (cfg_get_keepalive()) {
             // Set keepalive in this client socket
             if (setsockopt(clifd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) == -1) {
                 isaac_log(LOG_ERROR, "Error setting keepalive on socket %d: %s\n", clifd, strerror(errno));
@@ -200,7 +201,7 @@ check_connections(void *unused)
         for (GSList *l = sessions; l; l = l->next) {
             Session *sess = l->data;
             struct timeval idle = isaac_tvsub(isaac_tvnow(), sess->last_cmd_time);
-            if (idle.tv_sec > config.idle_timeout) {
+            if (idle.tv_sec > cfg_get_idle_timeout()) {
                 session_write(sess, "BYE Session is no longer active\r\n");
                 res = session_finish(sess);
                 if (res == -1) {
@@ -238,7 +239,6 @@ manage_session(void *session)
     }
 
     g_main_loop_run(sess->loop);
-
 
 
     return NULL;

@@ -54,8 +54,6 @@ int cli_sock;
 static int running;
 //! Starting time, used to count the uptime time
 struct timeval startuptime;
-// Current configuration
-extern cfg_t config;
 
 /**
  * @brief List with all default CLI commands
@@ -103,13 +101,13 @@ cli_server_start()
     // Bind socket to local address
     if (bind(cli_sock, (struct sockaddr *) &sunaddr, sizeof(sunaddr)) < 0) {
         isaac_log(LOG_ERROR, "Cannot bind to listener socket %s!: %s\n", CLI_SOCKET, strerror(errno));
-        return -1;
+        return FALSE;
     }
 
     // Open the socket to new incoming connections
     if (listen(cli_sock, 5) < 0) {
         isaac_log(LOG_ERROR, "Cannot listen on socket!: %s\n", strerror(errno));
-        return -1;
+        return FALSE;
     }
 
     // Register Core commands
@@ -120,7 +118,7 @@ cli_server_start()
         fprintf(stderr, "Unable to create CLI Thread!\n");
     }
 
-    return 0;
+    return TRUE;
 }
 
 void
@@ -1035,23 +1033,23 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
 
     cli_write(args->cli, "\n%s Core settings\n----------------------\n", PACKAGE_NAME);
     cli_write(args->cli, "   %-20s: %s\n", "Version", PACKAGE_VERSION);
-    cli_write(args->cli, "   %-20s: %d (%s)\n", "Log Type", config.logtype, "syslog");
-    cli_write(args->cli, "   %-20s: %d\n", "Log Level", config.loglevel);
-    cli_write(args->cli, "   %-20s: %s\n", "Log Tag", config.logtag);
+    cli_write(args->cli, "   %-20s: %d (%s)\n", "Log Type", cfg_get_log_type(), "syslog");
+    cli_write(args->cli, "   %-20s: %d\n", "Log Level", cfg_get_log_level());
+    cli_write(args->cli, "   %-20s: %s\n", "Log Tag", cfg_get_log_tag());
     cli_write(args->cli, "   %-20s: %d apps \n", "Aplications", application_count());
     cli_write(args->cli, "   %-20s:%s\n", "Running since", running);
     cli_write(args->cli, "\nManager settings\n----------------------\n");
-    cli_write(args->cli, "   %-20s: %s\n", "Address", config.manaddr);
-    cli_write(args->cli, "   %-20s: %d\n", "Port", config.manport);
-    cli_write(args->cli, "   %-20s: %s\n", "Username", config.manuser);
+    cli_write(args->cli, "   %-20s: %s\n", "Address", cfg_get_manager_address());
+    cli_write(args->cli, "   %-20s: %d\n", "Port", cfg_get_manager_port());
+    cli_write(args->cli, "   %-20s: %s\n", "Username", cfg_get_manager_user());
     cli_write(args->cli, "   %-20s:%s\n", "Connected since", ((manager->connected) ? manconnected
                                                                                    : " Disconnected"));
     cli_write(args->cli, "\nServer settings\n----------------------\n");
-    cli_write(args->cli, "   %-20s: %s\n", "Address", config.listenaddr);
-    cli_write(args->cli, "   %-20s: %d\n", "Port", config.listenport);
-    cli_write(args->cli, "   %-20s: %d\n", "Keep-Alive", config.keepalive);
+    cli_write(args->cli, "   %-20s: %s\n", "Address", cfg_get_server_address());
+    cli_write(args->cli, "   %-20s: %d\n", "Port", cfg_get_server_port());
+    cli_write(args->cli, "   %-20s: %d\n", "Keep-Alive", cfg_get_keepalive());
     //cli_write(args->cli, "   %-20s: %d\n", "Processed sessions", config.sessioncnt);
-    cli_write(args->cli, "   %-20s: %d\n", "Hide local sessions", config.hidelocal);
+    cli_write(args->cli, "   %-20s: %d\n", "Hide local sessions", cfg_get_hide_local());
     cli_write(args->cli, "\n\n");
 
     return CLI_SUCCESS;
@@ -1092,7 +1090,7 @@ handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args)
 
     if (sscanf(argv[entry->args], "%30d", &newlevel) != 1) return CLI_SHOWUSAGE;
 
-    config.loglevel = newlevel;
+    cfg_set_log_level(newlevel);
     cli_write(args->cli, "Verbosity level is %d\n", newlevel);
 
     return CLI_SUCCESS;

@@ -41,12 +41,10 @@
  * Create a server socket, bind on address and listen on given port,
  * then creates a new thread to accept connections.
  *
- * \param addr TCP IPv4 Address in format xxx.xxx.xxx.xxx
- * \param port Listening port
- * \returns -1 if server setup fails, 0 on success
+ * \returns FALSE if server setup fails, TRUE on success
  */
 int
-start_server(const char *addr, const int port);
+start_server();
 
 /**
  * \brief Closes the TCP server socket, releasing all connections

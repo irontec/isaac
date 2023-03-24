@@ -31,47 +31,88 @@
 #ifndef __ISAAC_CFG_H
 #define __ISAAC_CFG_H
 
-#include <sys/time.h>
-#include "util.h"
-
 //! Isaac main configuration file
 #define CFILE CONFDIR "/isaac.conf"
 
+#include <glib.h>
+
 //! Sorter declaration of isaac_cfg struct
-typedef struct isaac_cfg cfg_t;
+typedef struct _Config Config;
 
 /**
  * @brief Application configuration
  *
- * This structure stores all information readed from CFILE
+ * This structure stores all information read from CFILE
  * in @ref read_config.
  * It should include manager, server, log and modules configuration.
- *
  */
-struct isaac_cfg
-{
-    char manaddr[18];
-    int manport;
-    char manuser[128];
-    char manpass[128];
-    char listenaddr[18];
-    int listenport;
-    int hidelocal;
-    int keepalive;
-    int idle_timeout;
-    int logtype;
-    int loglevel;
-    char logfile[256];
-    char logtag[20];
-    char modules[256][50];
-    int modulecnt;
+struct _Config {
+    gchar *manager_address;
+    gint manager_port;
+    gchar *manager_user;
+    gchar *manager_pass;
+    gchar *server_address;
+    gint server_port;
+    gboolean hide_local;
+    gboolean keepalive;
+    gint idle_timeout;
+    gint log_type;
+    gint log_level;
+    gchar *log_file;
+    gchar *log_tag;
+    GSList *modules;
 
 };
 
-void
-cfg_init(cfg_t *config);
+gboolean
+cfg_read(const char *cfile);
 
-int
-cfg_read(cfg_t *config, const char *cfile);
+gchar *
+cfg_get_manager_address();
+
+gint
+cfg_get_manager_port();
+
+gchar *
+cfg_get_manager_user();
+
+gchar *
+cfg_get_manager_pass();
+
+gchar *
+cfg_get_server_address();
+
+gint
+cfg_get_server_port();
+
+gboolean
+cfg_get_hide_local();
+
+gboolean
+cfg_get_keepalive();
+
+gint
+cfg_get_idle_timeout();
+
+gint
+cfg_get_log_type();
+
+gint
+cfg_get_log_level();
+
+void
+cfg_set_log_level(gint log_level);
+
+gchar *
+cfg_get_log_file();
+
+gchar *
+cfg_get_log_tag();
+
+GSList *
+cfg_get_modules();
+
+gint
+cfg_get_idle_timeout();
 
 #endif /* __ISAAC_CFG_H */

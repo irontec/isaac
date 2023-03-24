@@ -36,8 +36,6 @@
 #include "util.h"
 #include "cfg.h"
 
-//! General isaac configuration
-extern cfg_t config;
 //! Debug configuration
 gboolean debug_mode;
 //! Pointer for File descriptor. Only used if logtype is LOG_TYPE_FILE
@@ -87,7 +85,7 @@ isaac_log_location(int log_level, const char *file, int line, const char *functi
 
     // Check if the log message has enough level to be printed or it's a verbose message
     // Verbose messages are always printed to CLI but not to syslog mediums
-    if (log_level > config.loglevel && log_level < LOG_VERBOSE_1) {
+    if (log_level > cfg_get_log_level() && log_level < LOG_VERBOSE_1) {
         return;
     }
 
@@ -125,16 +123,16 @@ isaac_log_location(int log_level, const char *file, int line, const char *functi
     pthread_mutex_unlock(&loglock);
 }
 
-int
-start_logging(enum log_type type, const char *tag, const char *file, int level, gboolean debug)
+gboolean
+start_logging(gboolean debug)
 {
-    if (config.logtype == LOG_TYPE_SYSLOG) {
-        openlog(config.logtag, LOG_PID | LOG_CONS, LOG_USER);
-    } else if (config.logtype == LOG_TYPE_FILE) {
+    if (cfg_get_log_type() == LOG_TYPE_SYSLOG) {
+        openlog(cfg_get_log_tag(), LOG_PID | LOG_CONS, LOG_USER);
+    } else if (cfg_get_log_type() == LOG_TYPE_FILE) {
         // Open requested Log File
-        if (!(logfile = fopen(config.logfile, "a"))) {
-            isaac_log(LOG_ERROR, "Unable to open logfile: %s!\n", config.logfile);
-            return -1;
+        if (!(logfile = fopen(cfg_get_log_file(), "a"))) {
+            isaac_log(LOG_ERROR, "Unable to open logfile: %s!\n", cfg_get_log_file());
+            return FALSE;
         }
     }
 
@@ -142,15 +140,15 @@ start_logging(enum log_type type, const char *tag, const char *file, int level, 
     debug_mode = debug;
 
     // We have succeeded opening medium
-    return 0;
+    return TRUE;
 }
 
 int
 stop_logging()
 {
-    if (config.logtype == LOG_TYPE_SYSLOG) {
+    if (cfg_get_log_type() == LOG_TYPE_SYSLOG) {
         closelog();
-    } else if (config.logtype == LOG_TYPE_FILE) {
+    } else if (cfg_get_log_type() == LOG_TYPE_FILE) {
         // Close the log file
         if (logfile) {
             fflush(logfile);
@@ -164,10 +162,10 @@ void
 write_log(int log_level, const char *message)
 {
     // Only log to medium levels lower or same than configured
-    if (log_level <= config.loglevel) {
-        if (config.logtype == LOG_TYPE_SYSLOG) {
+    if (log_level <= cfg_get_log_level()) {
+        if (cfg_get_log_type() == LOG_TYPE_SYSLOG) {
             syslog(log_level, "%s", message);
-        } else if (config.logtype == LOG_TYPE_FILE) {
+        } else if (cfg_get_log_type() == LOG_TYPE_FILE) {
             //\todo write log to file
         }
     }
