@@ -421,7 +421,7 @@ remote_el_initialize(void)
 }
 
 int
-remote_el_read_char(EditLine *editline, char *cp)
+remote_el_read_char(EditLine *editline, wchar_t *cp)
 {
     int num_read = 0;
     int lastpos = 0;

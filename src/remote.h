@@ -159,7 +159,7 @@ remote_el_initialize(void);
  * @return 0 in case of success, 1 otherwise
  */
 extern int
-remote_el_read_char(EditLine *editline, char *cp);
+remote_el_read_char(EditLine *editline, wchar_t *cp);
 
 /**
  * @brief Splits an string with spaces into an array of words
