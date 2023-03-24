@@ -36,7 +36,6 @@
 #include "config.h"
 #include <glib.h>
 #include <glib-unix.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
 #include "manager.h"
@@ -49,7 +48,7 @@
 #include "gasyncqueuesource.h"
 
 //! Session list
-GSList *sessions;
+GSList *sessions = NULL;
 //! Session List (and ID) lock
 static GRecMutex session_mutex;
 //! Last created session id
@@ -163,6 +162,9 @@ session_create(const int fd, const struct sockaddr_in addr)
     sess->flags = 0x00;
     sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
     sess->queue = g_async_queue_new();
+    sess->last_cmd_time = g_get_monotonic_time();
+    sess->vars = NULL;
+    sess->filters = NULL;
 
 
     // Initialize session fields
