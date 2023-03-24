@@ -98,14 +98,6 @@ start_server()
         return FALSE;
     }
 
-    if (cfg_get_idle_timeout() > 0) {
-        // Create a new thread for removing stalled client connections
-        if (pthread_create(&accept_thread, NULL, check_connections, NULL) != 0) {
-            isaac_log(LOG_WARNING, "Error creating check connections thread: %s\n", strerror(errno));
-            return FALSE;
-        }
-    }
-
     // Successfully initialized server
     isaac_log(LOG_VERBOSE, "Server listening for connections on %s:%d\n",
               cfg_get_server_address(),
@@ -189,45 +181,9 @@ accept_connections(void *sock)
 }
 
 void *
-check_connections(void *unused)
-{
-    int res = 0;
-    // Start running
-    running = 1;
-
-    // Begin checking connections
-    while (running) {
-        GSList *sessions = sessions_adquire_lock();
-        for (GSList *l = sessions; l; l = l->next) {
-            Session *sess = l->data;
-            struct timeval idle = isaac_tvsub(isaac_tvnow(), sess->last_cmd_time);
-            if (idle.tv_sec > cfg_get_idle_timeout()) {
-                session_write(sess, "BYE Session is no longer active\r\n");
-                res = session_finish(sess);
-                if (res == -1) {
-                    session_destroy(sess);
-                }
-            }
-        }
-        sessions_release_lock();
-
-        // Wait to next iteration
-        sleep(5);
-    }
-
-    // Leave the thread gracefully
-    pthread_exit(NULL);
-    return 0;
-}
-
-/*****************************************************************************/
-void *
 manage_session(void *session)
 {
     Session *sess = (Session *) session;
-
-    // Store the connection time
-    sess->last_cmd_time = isaac_tvnow();
 
     if (!session_test_flag(session, SESS_FLAG_LOCAL))
         isaac_log(LOG_DEBUG, "[Session %s] Received connection from %s [ID %ld].\n", sess->id, sess->addrstr, TID);

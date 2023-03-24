@@ -1099,8 +1099,6 @@ handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args)
 char *
 handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
-    int sessioncnt = 0;
-    struct timeval curtime = isaac_tvnow();
     char idle[256];
 
     switch (cmd) {
@@ -1123,16 +1121,14 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     GSList *sessions = sessions_adquire_lock();
     for (GSList *l = sessions; l; l = l->next) {
         Session *sess = l->data;
-        sessioncnt++;
-        isaac_tvelap(isaac_tvsub(curtime, sess->last_cmd_time), 1, idle);
-        cli_write(args->cli, "%-10s%-25s%-20s%s\n", sess->id, sess->addrstr, ((session_test_flag(
+        gint64 idle = (g_get_monotonic_time() - sess->last_cmd_time) / G_USEC_PER_SEC;
+        cli_write(args->cli, "%-10s%-25s%-20s%jd\n", sess->id, sess->addrstr, ((session_test_flag(
                 sess, SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT")
                                                 : "not logged"), idle);
     }
-    sessions_release_lock();
-
-    cli_write(args->cli, "%d active sessions\n", sessioncnt);
     //cli_write(args->cli, "%d processed sessions\n", config.sessioncnt);
+    cli_write(args->cli, "%d active sessions\n", g_slist_length(sessions));
+    sessions_release_lock();
 
     /* Set cli output unlocked */
     pthread_mutex_unlock(&clilock);

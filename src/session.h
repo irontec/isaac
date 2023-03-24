@@ -81,7 +81,7 @@ struct _Session
     //! Address string IPv4:Port
     char addrstr[25];
     //! Time of last command (for idle calculation)
-    struct timeval last_cmd_time;
+    gint64 last_cmd_time;
     //! Session filter list (Filter*)
     GSList *filters;
     //! Async queue for received AMI messages
@@ -89,6 +89,8 @@ struct _Session
 
     //! Session running thread
     pthread_t thread;
+    //! Source for idle timeout checker
+    GSource *timeout;
     //! Source of commands from network client
     GSource *commands;
     //! Source of AMI messages from manager thread

@@ -68,14 +68,6 @@ stop_server();
 void *
 accept_connections(void *sockfd);
 
-
-/**
- * \brief Check existing sessions idle timeout
- *
- */
-void *
-check_connections(void *unused);
-
 /**
  * \brief Manages a new incoming connection
  *

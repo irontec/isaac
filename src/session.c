@@ -45,6 +45,7 @@
 #include "app.h"
 #include "log.h"
 #include "util.h"
+#include "cfg.h"
 #include "gasyncqueuesource.h"
 
 //! Session list
@@ -86,7 +87,8 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
     // While connection is up
     if (session_read(sess, msg) > 0) {
         // Store the last action time
-        sess->last_cmd_time = isaac_tvnow();
+        sess->last_cmd_time = g_get_monotonic_time();
+
         // Get message action
         if (sscanf(msg, "%s %[^\n]", action, args)) {
             if (!strlen(action))
@@ -132,6 +134,17 @@ session_check_message(AmiMessage *msg, gpointer user_data)
     // We are done with this message
     g_atomic_rc_box_release(msg);
     return TRUE;
+}
+
+static gboolean
+session_check_idle(Session *session)
+{
+    g_return_val_if_fail(session != NULL, FALSE);
+    gint64 idle_secs = (g_get_monotonic_time() - session->last_cmd_time) / G_USEC_PER_SEC;
+    if (idle_secs > cfg_get_idle_timeout()) {
+        session_write(session, "BYE Session is no longer active\r\n");
+        session_finish(session);
+    }
 }
 
 /*****************************************************************************/
@@ -186,7 +199,20 @@ session_create(const int fd, const struct sockaddr_in addr)
     );
     g_source_attach(sess->messages, g_main_loop_get_context(sess->loop));
 
-    // Add it to the begining of session list
+    // If there is idle timeout configured
+    gint idle_timeout = cfg_get_idle_timeout();
+    if (idle_timeout) {
+        sess->timeout = g_timeout_source_new_seconds(5);
+        g_source_set_callback(
+                sess->timeout,
+                (GSourceFunc) G_SOURCE_FUNC(session_check_idle),
+                sess,
+                NULL
+        );
+        g_source_attach(sess->timeout, g_main_loop_get_context(sess->loop));
+    }
+
+    // Add it to the beginning of session list
     g_rec_mutex_lock(&session_mutex);
     sessions = g_slist_append(sessions, sess);
     g_rec_mutex_unlock(&session_mutex);
@@ -208,7 +234,9 @@ session_destroy(Session *session)
     g_rec_mutex_unlock(&session_mutex);
 
     // Free all session data
+    g_source_destroy(session->timeout);
     g_source_destroy(session->commands);
+    g_source_destroy(session->messages);
 
     // Break thread loop
     g_main_loop_quit(session->loop);
