@@ -89,6 +89,8 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
         sess->last_cmd_time = g_get_monotonic_time();
 
         // Get message action
+        memset(action, 0, sizeof(action));
+        memset(args, 0, sizeof(args));
         if (sscanf(msg, "%s %[^\n]", action, args)) {
             if (!strlen(action))
                 return TRUE;
@@ -236,9 +238,10 @@ session_destroy(Session *session)
     g_rec_mutex_unlock(&session_mutex);
 
     // Free all session data
-    g_source_destroy(session->timeout);
+    if (session->timeout) g_source_destroy(session->timeout);
     g_source_destroy(session->commands);
     g_source_destroy(session->messages);
+    g_slist_free_full(session->vars, g_free);
 
     // Break thread loop
     g_main_loop_quit(session->loop);
