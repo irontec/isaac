@@ -40,7 +40,7 @@ set(CONFDIR ${CMAKE_INSTALL_FULL_SYSCONFDIR}/isaac)
 # Use pkg-config when possible
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(GLIB REQUIRED glib-2.0>=2.44 gobject-2.0>=2.44)
+pkg_check_modules(GLIB REQUIRED glib-2.0 gobject-2.0 gio-2.0)
 include_directories(${GLIB_INCLUDE_DIRS})
 target_link_libraries(isaac ${GLIB_LIBRARIES})
 

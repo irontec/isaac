@@ -36,6 +36,7 @@
 #include "config.h"
 #include <glib.h>
 #include <glib-unix.h>
+#include <gio/gio.h>
 #include <unistd.h>
 #include <errno.h>
 #include "manager.h"
@@ -150,7 +151,7 @@ session_check_idle(Session *session)
 
 /*****************************************************************************/
 Session *
-session_create(const int fd, const struct sockaddr_in addr)
+session_create(const int fd, GSocketAddress *addr)
 {
     Session *sess;
 
@@ -161,15 +162,19 @@ session_create(const int fd, const struct sockaddr_in addr)
 
     sess->fd = fd;
     sess->flags = 0x00;
-    sprintf(sess->addrstr, "%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    GInetAddress *inet = g_inet_socket_address_get_address(G_INET_SOCKET_ADDRESS(addr));
+    sess->addrstr = g_strdup_printf(
+        "%s:%d",
+        g_inet_address_to_string(inet),
+        g_inet_socket_address_get_port(G_INET_SOCKET_ADDRESS(addr))
+    );
     sess->queue = g_async_queue_new();
     sess->last_cmd_time = g_get_monotonic_time();
     sess->vars = NULL;
     sess->filters = NULL;
 
-
     // Initialize session fields
-    if (addr.sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
+    if (g_inet_address_get_is_loopback(inet)) {
         // Special ID for this sessions
         sprintf(sess->id, "%s", "local");
         // Local session, this does not count as a session
@@ -185,20 +190,20 @@ session_create(const int fd, const struct sockaddr_in addr)
     // Create a source from session client file descriptor
     sess->commands = g_unix_fd_source_new(sess->fd, G_IO_IN | G_IO_ERR | G_IO_HUP);
     g_source_set_callback(
-            sess->commands,
-            (GSourceFunc) G_SOURCE_FUNC(session_handle_command),
-            sess,
-            NULL
+        sess->commands,
+        (GSourceFunc) G_SOURCE_FUNC(session_handle_command),
+        sess,
+        NULL
     );
     g_source_attach(sess->commands, g_main_loop_get_context(sess->loop));
 
     // Create a source from AMI message async queue
     sess->messages = g_async_queue_source_new(sess->queue, NULL);
     g_source_set_callback(
-            sess->messages,
-            (GSourceFunc) G_SOURCE_FUNC(session_check_message),
-            sess,
-            NULL
+        sess->messages,
+        (GSourceFunc) G_SOURCE_FUNC(session_check_message),
+        sess,
+        NULL
     );
     g_source_attach(sess->messages, g_main_loop_get_context(sess->loop));
 
@@ -207,10 +212,10 @@ session_create(const int fd, const struct sockaddr_in addr)
     if (idle_timeout) {
         sess->timeout = g_timeout_source_new_seconds(5);
         g_source_set_callback(
-                sess->timeout,
-                (GSourceFunc) G_SOURCE_FUNC(session_check_idle),
-                sess,
-                NULL
+            sess->timeout,
+            (GSourceFunc) G_SOURCE_FUNC(session_check_idle),
+            sess,
+            NULL
         );
         g_source_attach(sess->timeout, g_main_loop_get_context(sess->loop));
     }
@@ -236,13 +241,13 @@ session_destroy(Session *session)
     sessions = g_slist_remove(sessions, session);
     g_rec_mutex_unlock(&session_mutex);
 
-    // Free all session data
+    // Detach and free sources
     if (session->timeout) g_source_destroy(session->timeout);
     g_source_destroy(session->commands);
     g_source_destroy(session->messages);
 
     // Remove queue pending messages
-    while(g_async_queue_length(session->queue) != 0) {
+    while (g_async_queue_length(session->queue) != 0) {
         AmiMessage *msg = g_async_queue_pop(session->queue);
         g_atomic_rc_box_release_full(msg, (GDestroyNotify) mamanger_unref_message);
     }
@@ -266,6 +271,7 @@ session_destroy(Session *session)
     g_main_loop_quit(session->loop);
 
     // Free session memory
+    g_free(session->addrstr);
     g_free(session);
 }
 

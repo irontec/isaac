@@ -44,35 +44,22 @@
  * \returns FALSE if server setup fails, TRUE on success
  */
 int
-start_server();
+server_start();
 
 /**
  * \brief Closes the TCP server socket, releasing all connections
  *
  * Closing this socket will cause all sessions to be destroyed (which means
  * disconnected and deallocated).
- *
- * \returns 0 in all cases;
  */
-int
-stop_server();
-
-/**
- * \brief Accept new connections and dispatch them
- *
- * This function will accept incoming connections, create sessions for
- * them and launch a manage_session thread.
- *
- * \param sockfd Server socket descriptor
- */
-void *
-accept_connections(void *sockfd);
+void
+server_stop();
 
 /**
  * \brief Manages a new incoming connection
  *
- * Incomming connections (aka session) will handle actions in this
- * Thread function spawned by start_server.
+ * Incoming connections (aka session) will handle actions in this
+ * Thread function spawned by server_start.
  *
  * \param session Session structure pointer with the new connection
  *                information.

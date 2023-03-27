@@ -54,7 +54,7 @@ quit(int exitcode)
 {
     printf("Signal %d received\n", exitcode);
     // Stop server thread
-    stop_server();
+    server_stop();
     // Stop CLI server thread
     cli_server_stop();
     // Stop manager thread
@@ -178,7 +178,7 @@ main(int argc, char *argv[])
     }
 
     // Start server thread
-    if (!start_server()) {
+    if (!server_start()) {
         quit(EXIT_FAILURE);
     }
 

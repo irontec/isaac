@@ -35,6 +35,7 @@
 #define __ISAAC_SESSION_H
 
 #include <glib.h>
+#include <gio/gio.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include "manager.h"
@@ -75,7 +76,7 @@ struct _Session
     //! Session client file descriptor
     int fd;
     //! Address string IPv4:Port
-    char addrstr[25];
+    gchar *addrstr;
     //! Time of last command (for idle calculation)
     gint64 last_cmd_time;
     //! Session filter list (Filter*)
@@ -129,7 +130,7 @@ sessions_release_lock();
  * \return 		The new created session or NULL in case of alloc error
  */
 Session *
-session_create(const int fd, const struct sockaddr_in addr);
+session_create(const int fd, GSocketAddress *addr);
 
 /**
  * \brief Free session memory

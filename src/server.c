@@ -27,157 +27,119 @@
  */
 #include "config.h"
 #include <glib.h>
+#include <gio/gio.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <string.h>
 #include <pthread.h>
-#include <stdio.h>
 #include <errno.h>
-#include "util.h"
 #include "log.h"
 #include "server.h"
 #include "session.h"
-#include "app.h"
-#include "filter.h"
 #include "cli.h"
 #include "cfg.h"
 
-//! Server socket
-int server_sock = 0;
-//! Server accept connections thread
-pthread_t accept_thread;
-//! Running flag
-static int running;
+//! GIO TCP Socket server
+GSocketService *server;
+
+static gboolean
+accept_connections(G_GNUC_UNUSED GSocketService *service,
+                   GSocketConnection *connection,
+                   G_GNUC_UNUSED GObject *source_object,
+                   G_GNUC_UNUSED gpointer user_data)
+{
+    GError *error = NULL;
+
+    // Add a ref to the connection so it keeps alive after this callback
+    g_object_ref (connection);
+
+    GSocket *socket = g_socket_connection_get_socket(connection);
+    g_return_val_if_fail(socket != NULL, TRUE);
+
+    // Get Local address
+    GSocketAddress *address = g_socket_get_remote_address(socket, &error);
+    if (!address) {
+        isaac_log(LOG_WARNING, "Unable to get Socket local address\n");
+        return TRUE;
+    }
+
+    // Create a new session for this connection
+    Session *sess = session_create(g_socket_get_fd(socket), address);
+    if (sess == NULL) {
+        isaac_log(LOG_WARNING, "Unable to create a new session\n");
+        return TRUE;
+    }
+
+    // Configure socket keep-alive
+    g_socket_set_keepalive(socket, cfg_get_keepalive());
+
+    // Create a new thread for this client and manage its connection
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if (pthread_create(&sess->thread, &attr, manage_session, (void *) sess) != 0) {
+        isaac_log(LOG_WARNING, "Error creating session thread: %s\n", strerror(errno));
+        pthread_attr_destroy(&attr);
+        session_destroy(sess);
+        return TRUE;
+    }
+    pthread_attr_destroy(&attr);
+
+    return TRUE;
+}
 
 gboolean
-start_server()
+server_start()
 {
-    struct in_addr addr;
-    struct sockaddr_in srvaddr;
-    int reuse = 1;
+    GError *error = NULL;
 
-    // Create a socket for a new TCP IPv4 connection
-    if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        isaac_log(LOG_ERROR, "Error creating server socket: %s\n", strerror(errno));
+    // Get Server address and port from configuration
+    GInetAddress *address = g_inet_address_new_from_string(cfg_get_server_address());
+    GSocketAddress *socket_address = g_inet_socket_address_new(address, cfg_get_server_port());
+
+    // Allocate memory for the Socket service
+    server = g_socket_service_new();
+
+    // Configure server listen address
+    if (!g_socket_listener_add_address(
+        G_SOCKET_LISTENER(server),
+        socket_address,
+        G_SOCKET_TYPE_STREAM,
+        G_SOCKET_PROTOCOL_TCP,
+        NULL,
+        NULL,
+        &error
+    )) {
+        g_printerr("Failed to server socket: '%s'\n", error->message);
         return FALSE;
     }
 
-    // Force reuse address (in case there are ending connections in TIME_WAIT)
-    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) == -1) {
-        isaac_log(LOG_ERROR, "Error setting socket options: %s\n", strerror(errno));
-        return FALSE;
-    }
+    // Connect signal on new connections
+    g_signal_connect (server, "incoming", G_CALLBACK(accept_connections), NULL);
 
-    // Get network address
-    if (inet_aton(cfg_get_server_address(), &addr) == 0) {
-        isaac_log(LOG_ERROR, "Error getting network address: %s\n", strerror(errno));
-        return FALSE;
-    }
-
-    // Bind that socket to the requested address and port
-    bzero(&srvaddr, sizeof(srvaddr));
-    srvaddr.sin_family = AF_INET;
-    srvaddr.sin_addr = addr;
-    srvaddr.sin_port = htons(cfg_get_server_port());
-    if (bind(server_sock, (struct sockaddr *) &srvaddr, sizeof(srvaddr)) == -1) {
-        isaac_log(LOG_ERROR, "Error binding address: %s\n", strerror(errno));
-        return FALSE;
-    }
-
-    // Listen for new connections (Max queue 512)
-    if (listen(server_sock, 512) == -1) {
-        isaac_log(LOG_ERROR, "Error listening on address: %s\n", strerror(errno));
-        return FALSE;
-    }
-
-    // Create a new thread for accepting client connections
-    if (pthread_create(&accept_thread, NULL, accept_connections, NULL) != 0) {
-        isaac_log(LOG_WARNING, "Error creating accept thread: %s\n", strerror(errno));
-        return FALSE;
-    }
+    // Remove allocated memory
+    g_object_unref(socket_address);
+    g_object_unref(address);
 
     // Successfully initialized server
     isaac_log(LOG_VERBOSE, "Server listening for connections on %s:%d\n",
               cfg_get_server_address(),
               cfg_get_server_port()
     );
+
     return TRUE;
 }
 
-int
-stop_server()
+void
+server_stop()
 {
-    // Mark ourselfs as not running
-    running = 0;
-    // Say bye to all the sessions
-    session_finish_all("Isaac has been stopped.");
-    // Stop the socket from receiving new connections
-    shutdown(server_sock, SHUT_RDWR);
-    // Wait for the accept thread to finish
-    if (accept_thread)
-        pthread_join(accept_thread, NULL);
-
-    return 0;
-}
-
-void *
-accept_connections(void *sock)
-{
-    int clifd;
-    struct sockaddr_in cliaddr;
-    socklen_t clilen;
-    Session *sess;
-    pthread_attr_t attr;
-    int keepalive = 1;
-
-    // Give some feedback about us
-    isaac_log(LOG_VERBOSE, "Launched server thread [ID %ld].\n", TID);
-
-    // Start running
-    running = 1;
-
-    // Begin accepting connections
-    while (running) {
-        // Accept the next connections
-        clilen = sizeof(cliaddr);
-        if ((clifd = accept(server_sock, (struct sockaddr *) &cliaddr, &clilen)) == -1) {
-            if (errno != EINVAL) {
-                isaac_log(LOG_WARNING, "Error accepting new connection: %s\n", strerror(errno));
-            }
-            break;
-        }
-
-        // Create a new session for this connection
-        if ((sess = session_create(clifd, cliaddr)) == NULL) {
-            isaac_log(LOG_WARNING, "Unable to create a new session\n");
-            continue;
-        }
-
-        if (cfg_get_keepalive()) {
-            // Set keepalive in this client socket
-            if (setsockopt(clifd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof(keepalive)) == -1) {
-                isaac_log(LOG_ERROR, "Error setting keepalive on socket %d: %s\n", clifd, strerror(errno));
-            }
-        }
-
-        // Create a new thread for this client and manage its connection
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (pthread_create(&sess->thread, &attr, manage_session, (void *) sess) != 0) {
-            isaac_log(LOG_WARNING, "Error creating session thread: %s\n", strerror(errno));
-            pthread_attr_destroy(&attr);
-            session_destroy(sess);
-            continue;
-        }
-        pthread_attr_destroy(&attr);
-    }
-    // Some goodbye logging
-    isaac_log(LOG_VERBOSE, "Shutting down server thread...\n");
-    // Leave the thread gracefully
-    pthread_exit(NULL);
-    return 0;
+    // Notify all CLI connections
+    isaac_log(LOG_VERBOSE, "Shutting down TCP server.\n");
+    // Stop Socket service
+    g_socket_service_stop(server);
+    // Close the underlying socket
+    g_socket_listener_close(G_SOCKET_LISTENER(server));
+    // Deallocate its memory
+    g_object_unref(server);
 }
 
 void *
@@ -186,7 +148,12 @@ manage_session(void *session)
     Session *sess = (Session *) session;
 
     if (!session_test_flag(session, SESS_FLAG_LOCAL))
-        isaac_log(LOG_DEBUG, "[Session %s] Received connection from %s [ID %ld].\n", sess->id, sess->addrstr, TID);
+        isaac_log(LOG_DEBUG,
+                  "[Session %s] Received connection from %s [socket: %d][ID %ld].\n",
+                  sess->id,
+                  sess->addrstr,
+                  sess->fd,
+                  TID);
 
     // Write the welcome banner
     if (session_write(sess, "%s/%s\r\n", CLI_BANNER, PACKAGE_VERSION) == -1) {
