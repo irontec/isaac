@@ -1249,7 +1249,7 @@ handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
         cli_write(args->cli, "------------ Variables for session %s ------------\n", args->argv[2]);
         for (GSList *l = sess->vars; l; l = l->next) {
             SessionVar *var = l->data;
-            cli_write(args->cli, "%s = %s\n", var->varname, var->varvalue);
+            cli_write(args->cli, "%s = %s\n", var->name, var->value);
         }
     }
 

@@ -160,9 +160,8 @@ session_create(const int fd, const struct sockaddr_in addr)
     }
 
     sess->fd = fd;
-    sess->addr = addr;
     sess->flags = 0x00;
-    sprintf(sess->addrstr, "%s:%d", inet_ntoa(sess->addr.sin_addr), ntohs(sess->addr.sin_port));
+    sprintf(sess->addrstr, "%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
     sess->queue = g_async_queue_new();
     sess->last_cmd_time = g_get_monotonic_time();
     sess->vars = NULL;
@@ -241,7 +240,23 @@ session_destroy(Session *session)
     if (session->timeout) g_source_destroy(session->timeout);
     g_source_destroy(session->commands);
     g_source_destroy(session->messages);
-    g_slist_free_full(session->vars, g_free);
+
+    // Remove queue pending messages
+    while(g_async_queue_length(session->queue) != 0) {
+        AmiMessage *msg = g_async_queue_pop(session->queue);
+        g_atomic_rc_box_release_full(msg, (GDestroyNotify) mamanger_unref_message);
+    }
+    g_async_queue_unref(session->queue);
+
+    // Remove all session variables
+    while (g_slist_length(session->vars) != 0) {
+        SessionVar *var = g_slist_nth_data(session->vars, 0);
+        session->vars = g_slist_remove(session->vars, var);
+        g_free(var->name);
+        g_free(var->value);
+        g_free(var);
+    }
+    g_slist_free(session->vars);
 
     // Break thread loop
     g_main_loop_quit(session->loop);
@@ -408,11 +423,10 @@ session_clear_flag(Session *sess, int flag)
 }
 
 /*****************************************************************************/
-// TODO Implement linked lists
 void
 session_set_variable(Session *sess, char *varname, char *varvalue)
 {
-    if (!sess) return;
+    g_return_if_fail(sess != NULL);
 
     if (!varname) {
         isaac_log(LOG_ERROR, "No variable name supplied in session %d\n", sess->id);
@@ -426,19 +440,15 @@ session_set_variable(Session *sess, char *varname, char *varvalue)
 
     int id = session_variable_idx(sess, varname);
     if (id == -1) {
-        if (g_slist_length(sess->vars) == MAX_VARS) {
-            isaac_log(LOG_ERROR, "Max Variable limit (%d) reached in session %d\n", MAX_VARS, sess->id);
-            return;
-        }
         SessionVar *var = g_malloc0(sizeof(SessionVar));
-        strcpy(var->varname, varname);
-        strcpy(var->varvalue, varvalue);
+        var->name = g_strdup(varname);
+        var->value = g_strdup(varvalue);
         sess->vars = g_slist_append(sess->vars, var);
     } else {
         GSList *l = g_slist_nth(sess->vars, id);
         SessionVar *var = l->data;
-        strcpy(var->varname, varname);
-        strcpy(var->varvalue, varvalue);
+        g_free(var->value);
+        var->value = g_strdup(var->value);
     }
 }
 
@@ -450,8 +460,8 @@ session_get_variable(Session *sess, const char *varname)
 
     for (GSList *l = sess->vars; l; l = l->next) {
         SessionVar *var = l->data;
-        if (!strcasecmp(var->varname, varname)) {
-            return var->varvalue;
+        if (!strcasecmp(var->name, varname)) {
+            return var->value;
         }
     }
     return NULL;
@@ -464,7 +474,7 @@ session_variable_idx(Session *sess, const char *varname)
 
     for (GSList *l = sess->vars; l; l = l->next) {
         SessionVar *var = l->data;
-        if (!strcasecmp(var->varname, varname)) {
+        if (!strcasecmp(var->name, varname)) {
             return g_slist_index(sess->vars, var);
         }
     }

@@ -33,18 +33,15 @@
  */
 #ifndef __ISAAC_SESSION_H
 #define __ISAAC_SESSION_H
+
 #include <glib.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include "manager.h"
 
-//! Maximun number of vars in a session
-//TODO Make vars a linked list to remove this limitation
-#define MAX_VARS        80
-
-
 //! Sorter declaration of session struct
 typedef struct _Session Session;
+
 //! Sorter declaration of _SessionVar struct
 typedef struct _SessionVar SessionVar;
 
@@ -56,28 +53,27 @@ typedef struct _SessionVar SessionVar;
  */
 struct _SessionVar
 {
-    char varname[128];
-    char varvalue[8192];
+    //! Variable Name
+    gchar *name;
+    //! Variable value
+    gchar *value;
 };
 
 /**
  * \brief Session related information.
  *
  * Contains all data from an incoming client connection
- * \todo Make the Session variable list a linked list
  */
 struct _Session
 {
     //! Session ID.
     char id[20];
-    //! Session flags. @see session_flag
+    //! Session flags. @see SessionFlags
     unsigned int flags;
     //! Session variables (SessionVar*)
     GSList *vars;
     //! Session client file descriptor
     int fd;
-    //! Socket address info
-    struct sockaddr_in addr;
     //! Address string IPv4:Port
     char addrstr[25];
     //! Time of last command (for idle calculation)
@@ -102,16 +98,16 @@ struct _Session
 /**
  * \brief Session generic flags.
  */
-enum session_flag
+enum SessionFlags
 {
     //! Session is authenticated
-        SESS_FLAG_AUTHENTICATED = (1 << 1),
+    SESS_FLAG_AUTHENTICATED = (1 << 1),
     //! Session messages will be written to CLI
-        SESS_FLAG_DEBUG = (1 << 2),
+    SESS_FLAG_DEBUG = (1 << 2),
     //! Session is leaving
-        SESS_FLAG_LEAVING = (1 << 3),
+    SESS_FLAG_LEAVING = (1 << 3),
     //! Session has been started from localhost
-        SESS_FLAG_LOCAL = (1 << 4),
+    SESS_FLAG_LOCAL = (1 << 4),
 };
 
 GSList *
