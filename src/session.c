@@ -78,38 +78,40 @@ session_destroy_filters(Session *session)
 static gboolean
 session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 {
-    char msg[512];
-    char action[20], args[256];
+    char msg[1024];
     Session *sess = (Session *) user_data;
-    app_t *app;
-    int ret;
+
+    // Initialize message data
+    memset(&msg, 0, sizeof(msg));
 
     // While connection is up
     if (session_read(sess, msg) > 0) {
         // Store the last action time
         sess->last_cmd_time = g_get_monotonic_time();
 
-        // Get message action
-        memset(action, 0, sizeof(action));
-        memset(args, 0, sizeof(args));
-        if (sscanf(msg, "%s %[^\n]", action, args)) {
-            if (!strlen(action))
-                return TRUE;
-
-            if ((app = application_find(action))) {
-                // Run the application
-                if ((ret = application_run(app, sess, args)) != 0) {
-                    // If a generic error has occurred write it to the client
-                    if (ret > 100) session_write(sess, "ERROR %s\r\n", apperr2str(ret));
-                }
-            } else {
-                // What? Me no understand
-                session_write(sess, "%s\r\n", apperr2str(UNKNOWN_ACTION));
-            }
-        } else {
+        // Split the input in command + args
+        gchar **command = g_strsplit(msg, " ", 2);
+        if (g_strv_length(command) < 1) {
             // A message must have at least... one word
             session_write(sess, "%s\r\n", apperr2str(INVALID_FORMAT));
+            g_strfreev(command);
+            return TRUE;
         }
+
+        app_t *app = application_find(command[0]);
+        if (!app) {
+            // What? Me no understand
+            session_write(sess, "%s\r\n", apperr2str(UNKNOWN_ACTION));
+            g_strfreev(command);
+            return TRUE;
+        }
+
+        int ret = application_run(app, sess, command[1]);
+        if (ret > 100) {
+            session_write(sess, "ERROR %s\r\n", apperr2str(ret));
+        }
+
+        g_strfreev(command);
     } else {
         // Connection closed, Thanks all for the fish
         if (!session_test_flag(sess, SESS_FLAG_LOCAL))
