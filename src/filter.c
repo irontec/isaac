@@ -34,17 +34,17 @@
 Filter *
 filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *msg))
 {
-    Filter *filter = NULL;
+    g_return_val_if_fail(sess != NULL, NULL);
+
     // Allocate memory for a new filter
-    if ((filter = malloc(sizeof(Filter)))) {
-        // Initialize basic fields
-        memset(filter, 0, sizeof(Filter));
-        filter->sess = sess;
-        filter->condcount = 0;
-        filter->type = FILTER_ASYNC;
-        filter->data.async.callback = callback;
-        filter->data.async.oneshot = 0;
-    }
+    Filter *filter = g_malloc0(sizeof(Filter));
+    g_return_val_if_fail(filter != NULL, NULL);
+
+    filter->sess = sess;
+    filter->conditions = g_ptr_array_new();
+    filter->type = FILTER_ASYNC;
+    filter->data.async.callback = callback;
+    filter->data.async.oneshot = 0;
 
     // Return the allocated filter (or NULL ;p)
     return filter;
@@ -53,19 +53,21 @@ filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *m
 Filter *
 filter_create_sync(Session *sess)
 {
-    Filter *filter = NULL;
+    g_return_val_if_fail(sess != NULL, NULL);
+
     // Allocate memory for a new filter
-    if ((filter = malloc(sizeof(Filter)))) {
-        // Initialize basic fields
-        memset(filter, 0, sizeof(Filter));
-        filter->sess = sess;
-        filter->condcount = 0;
-        filter->type = FILTER_SYNC;
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
-        pthread_mutex_init(&filter->data.sync.lock, &attr);
-    }
+    Filter *filter = g_malloc0(sizeof(Filter));
+    g_return_val_if_fail(filter != NULL, NULL);
+
+    // Initialize basic fields
+    memset(filter, 0, sizeof(Filter));
+    filter->sess = sess;
+    filter->conditions = g_ptr_array_new();
+    filter->type = FILTER_SYNC;
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
+    pthread_mutex_init(&filter->data.sync.lock, &attr);
 
     // Return the allocated filter (or NULL ;p)
     return filter;
@@ -79,22 +81,9 @@ filter_set_name(Filter *filter, const gchar *name)
     filter->name = name;
 }
 
-int
-filter_new_cooked_condition(Filter *filter, Condition cond)
-{
-    // Check if we have reached the maximum of conditions
-    if (filter->condcount == MAX_CONDS) return 1;
-    // Add the condition to the next slot
-    filter->conds[filter->condcount] = cond;
-    // And increase the conditions counter
-    filter->condcount++;
-    return 0;
-}
-
-int
+void
 filter_new_condition(Filter *filter, enum ConditionType type, const char *hdr, const char *fmt, ...)
 {
-    Condition cond;
     char condva[MAX_CONDLEN];
     va_list ap;
 
@@ -103,27 +92,24 @@ filter_new_condition(Filter *filter, enum ConditionType type, const char *hdr, c
     vsprintf(condva, fmt, ap);
     va_end(ap);
 
+    // Allocate memory for this filter
+    Condition *cond = g_malloc0(sizeof(Condition));
+
     // Compile given values for Regex conditions
     if (type == MATCH_REGEX || type == MATCH_REGEX_NOT) {
-        if (regcomp(&cond.regex, condva, REG_EXTENDED | REG_NOSUB)) {
+        if (regcomp(&cond->regex, condva, REG_EXTENDED | REG_NOSUB)) {
             isaac_log(LOG_WARNING, "Unable to compile regex %s for filter\n", condva);
-            return 1;
+            return;
         }
     }
 
     // Copy condition data
-    cond.type = type;
-    strcpy(cond.hdr, hdr);
-    strcpy(cond.val, condva);
+    cond->type = type;
+    cond->header = g_strdup(hdr);
+    cond->value = g_strdup(condva);
 
-    // Actually add the cooked condition to the filter
-    return filter_new_cooked_condition(filter, cond);
-}
-
-void
-filter_remove_conditions(Filter *filter)
-{
-    filter->condcount = 0;
+    // Add the condition to the array
+    g_ptr_array_add(filter->conditions, cond);
 }
 
 int
@@ -155,7 +141,7 @@ filter_register(Filter *filter)
                   (filter->type == FILTER_ASYNC) ? "asnyc" : "sync",
                   filter->name,
                   filter,
-                  filter->condcount);
+                  filter->conditions->len);
     }
 
     // Add filter to session
@@ -196,13 +182,17 @@ filter_destroy(Filter *filter)
     }
 
     // Deallocate filter conditions
-    for (gint i = 0; i < filter->condcount; i++) {
-        if (filter->conds[i].type == MATCH_REGEX) {
-            regfree(&filter->conds[i].regex);
+    for (gint i = 0; i < filter->conditions->len; i++) {
+        Condition *cond = g_ptr_array_index(filter->conditions, i);
+        if (cond->type == MATCH_REGEX) {
+            regfree(&cond->regex);
         }
+        g_free(cond->header);
+        g_free(cond->value);
     }
 
     // Deallocate filter memory
+    g_ptr_array_free(filter->conditions, TRUE);
     g_free(filter);
 }
 
@@ -248,7 +238,7 @@ filter_exec_sync(Filter *filter, AmiMessage *msg)
     // Lock the filter before updating
     pthread_mutex_lock(&filter->data.sync.lock);
     // Copy the message
-    filter->data.sync.msg = *msg;
+    filter->data.sync.msg = msg;
     // Mark as triggered
     filter->data.sync.triggered = 1;
     // Unlock and exit
@@ -280,7 +270,7 @@ filter_run(Filter *filter, int timeout, AmiMessage *ret)
     }
 
     // Copy the message to be returned
-    *ret = filter->data.sync.msg;
+    ret = filter->data.sync.msg;
 
     // Unregister the filter
     filter_destroy(filter);
@@ -377,12 +367,13 @@ filter_check_message(Filter *filter, AmiMessage *msg)
     gint matches = 0;
 
     // Loop through all filter conditions
-    for (gint i = 0; i < filter->condcount; i++) {
-        const gchar *msgvalue = message_get_header(msg, filter->conds[i].hdr);
-        gchar *condvalue = filter->conds[i].val;
+    for (gint i = 0; i < filter->conditions->len; i++) {
+        Condition *cond = g_ptr_array_index(filter->conditions, i);
+        const gchar *msgvalue = message_get_header(msg, cond->header);
+        gchar *condvalue = cond->value;
 
         // Depending on condition type, do the proper check
-        switch (filter->conds[i].type) {
+        switch (cond->type) {
             case MATCH_EXACT:
                 if (!isaac_strcmp(msgvalue, condvalue)) {
                     matches++;
@@ -399,12 +390,12 @@ filter_check_message(Filter *filter, AmiMessage *msg)
                 }
                 break;
             case MATCH_REGEX:
-                if (!regexec(&filter->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                if (!regexec(&cond->regex, msgvalue, 0, NULL, 0)) {
                     matches++;
                 }
                 break;
             case MATCH_REGEX_NOT:
-                if (regexec(&filter->conds[i].regex, msgvalue, 0, NULL, 0)) {
+                if (regexec(&cond->regex, msgvalue, 0, NULL, 0)) {
                     matches++;
                 }
                 break;
@@ -418,7 +409,7 @@ filter_check_message(Filter *filter, AmiMessage *msg)
     }
 
     // All condition matched! We have a winner!
-    return matches == filter->condcount;
+    return matches == filter->conditions->len;
 }
 
 gboolean

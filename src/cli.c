@@ -1142,7 +1142,6 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     Filter *filter = NULL;
     Session *sess;
     int filter_cnt = 0;
-    int ccnt = 0;
 
     switch (cmd) {
         case CLI_INIT:
@@ -1179,10 +1178,10 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
                       filter_cnt++,
                       (filter->type == FILTER_ASYNC && filter->data.async.oneshot) ? "(OneShot)" : "");
 
-            for (ccnt = 0; ccnt < filter->condcount; ccnt++) {
-
-                cli_write(args->cli, " %-12s", filter->conds[ccnt].hdr);
-                switch (filter->conds[ccnt].type) {
+            for (gint ccnt = 0; ccnt < filter->conditions->len; ccnt++) {
+                Condition *cond = g_ptr_array_index(filter->conditions, ccnt);
+                cli_write(args->cli, " %-12s", cond->header);
+                switch (cond->type) {
                     case MATCH_EXACT:
                         cli_write(args->cli, "%-5s", "==");
                         break;
@@ -1200,7 +1199,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
                         break;
                 }
 
-                cli_write(args->cli, "%-s\n", filter->conds[ccnt].val);
+                cli_write(args->cli, "%-s\n", cond->value);
             }
             cli_write(args->cli, "\n");
         }

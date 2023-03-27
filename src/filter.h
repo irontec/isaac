@@ -101,9 +101,9 @@ struct _Condition {
     //! Condition check type, one of @ref ConditionType values
     enum ConditionType type;
     //! Header to find while checking the condition
-    char hdr[MAX_CONDLEN];
+    gchar *header;
     //! Desired value or expression that header should match
-    char val[MAX_CONDLEN];
+    gchar *value;
     //! For condition types MATCH_REGEX, this is the compiled expresion
     regex_t regex;
 };
@@ -137,7 +137,7 @@ struct _AsyncFilter {
 
 struct _SyncFilter {
     //! Stored ami message triggering the filter
-    AmiMessage msg;
+    AmiMessage *msg;
     //! This filter has triggered and has a valid message
     int triggered;
     //! Filter sync lock (avoid timeout while setting filter sync data)
@@ -155,10 +155,8 @@ struct _Filter {
     Session *sess;
     //! Useful for debugging purposes
     const gchar *name;
-    //! Filter's conditions that will determine which messages are sent back to the app
-    Condition conds[MAX_CONDS];
-    //! How many conditions must match
-    unsigned int condcount;
+    //! Filter's Condition List
+    GPtrArray *conditions;
     //! How the callback function is invoked
     enum FilterType type;
     //! Depending on the filter type
@@ -204,21 +202,6 @@ void
 filter_set_name(Filter *filter, const gchar *name);
 
 /**
- * @brief Add a cooked condition to the given filter
- *
- * Add a new condition to the filters condition list.
- * This function will not cook the condition for you, what means that
- * won't compile expresions in regex conditions, nor reserve any kind of
- * memory. It will only add it to the filters list (if not full)
- *
- * @param filter Filter to which add the condition
- * @param cond Condition to be added to filters condition list
- * @return 0 in case of success, 1 if the filter does not allow more filters
- */
-extern int
-filter_new_cooked_condition(Filter *filter, Condition cond);
-
-/**
  * @brief Create a new condition structure and add if to the given filter
  *
  * This is the basic function to add conditions to filters from applications.
@@ -228,21 +211,9 @@ filter_new_cooked_condition(Filter *filter, Condition cond);
  * @param hdr Header to find while checking the condition
  * @param fmt Format for the condition value
  * @param ... Variables to fill the condition format
- * @return 0 in case of success, 1 if the filter does not allow more filters
  */
-extern int
+void
 filter_new_condition(Filter *filter, enum ConditionType type, const char *hdr, const char *fmt, ...);
-
-/**
- * @brief Remove all conditions from the given filter
- *
- * This can be handy if we want to reuse a filter with different conditions.
- * @warning Do not use this in FILTER_ASYNC_CALLBACK Filters
- *
- * @param filter Filter to remove all conditions
- */
-extern void
-filter_remove_conditions(Filter *filter);
 
 /**
  * @brief Add filter to the filters list. This will allow the filter to trigger
