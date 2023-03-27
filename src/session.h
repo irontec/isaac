@@ -92,8 +92,6 @@ struct _Session
     GSource *commands;
     //! Source of AMI messages from manager thread
     GSource *messages;
-    //! Session main loop
-    GMainLoop *loop;
 };
 
 /**
@@ -125,12 +123,10 @@ sessions_release_lock();
  * Allocated memory must be free using session_destroy (what is usually
  * done by session_manage thread).
  *
- * \param fd 	Incoming connection socket descriptor
- * \param addr 	Address information of incoming connection
  * \return 		The new created session or NULL in case of alloc error
  */
 Session *
-session_create(const int fd, GSocketAddress *addr);
+session_create(GSocket *socket);
 
 /**
  * \brief Free session memory

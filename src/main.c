@@ -150,6 +150,9 @@ main(int argc, char *argv[])
     (void) signal(SIGTERM, quit);
     (void) signal(SIGPIPE, SIG_IGN);
 
+    // Create main loop for default context
+    GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
+
     // Read configuration files
     if (cfg_read(CFILE) != 0) {
         fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
@@ -186,8 +189,7 @@ main(int argc, char *argv[])
     isaac_log(LOG_NONE, "\e[1;37m%s is Ready.\e[0m\n", PACKAGE_NAME);
 
     // Wait here until any signal is sent
-    pause();
+    g_main_loop_run(main_loop);
 
-    // Unreachable code :D
     return 0;
 }

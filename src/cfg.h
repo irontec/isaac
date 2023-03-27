@@ -53,6 +53,7 @@ struct _Config {
     gchar *manager_pass;
     gchar *server_address;
     gint server_port;
+    gint server_threads;
     gboolean hide_local;
     gboolean keepalive;
     gint idle_timeout;
@@ -84,6 +85,9 @@ cfg_get_server_address();
 
 gint
 cfg_get_server_port();
+
+gint
+cfg_get_server_threads();
 
 gboolean
 cfg_get_hide_local();

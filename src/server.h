@@ -35,7 +35,36 @@
 #ifndef __ISAAC_SERVER_H
 #define __ISAAC_SERVER_H
 
+#include <glib.h>
+#include <gio/gio.h>
+
+typedef struct _ServerThread ServerThread;
+typedef struct _Server Server;
+
+struct _Server
+{
+    //! GIO TCP Socket server
+    GSocketService *service;
+    //! Server threads queue (ServerThreads*)
+    GQueue *threads;
+};
+
+struct _ServerThread
+{
+    //! Thread running main loop
+    GThread *thread;
+    //! Incoming connection queue
+    GAsyncQueue *queue;
+    //! Incoming connection source
+    GSource *source;
+    //! Thread context
+    GMainContext *context;
+    //! Thread main loop
+    GMainLoop *loop;
+};
+
 /**
+ *
  * \brief Starts a TCP server on given address and port
  *
  * Create a server socket, bind on address and listen on given port,

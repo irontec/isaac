@@ -87,6 +87,8 @@ cfg_read(const gchar *cfile)
                     config->server_address = g_strdup(config_setting_get_string(sett));
                 } else if (!strcasecmp(setting_name, "port")) {
                     config->server_port = config_setting_get_int(sett);
+                } else if (!strcasecmp(setting_name, "threads")) {
+                    config->server_threads = config_setting_get_int(sett);
                 } else if (!strcasecmp(setting_name, "hidelocal")) {
                     config->hide_local = config_setting_get_int(sett);
                 } else if (!strcasecmp(setting_name, "keepalive")) {
@@ -167,6 +169,12 @@ gint
 cfg_get_server_port()
 {
     return config->server_port;
+}
+
+gint
+cfg_get_server_threads()
+{
+    return config->server_threads;
 }
 
 gboolean

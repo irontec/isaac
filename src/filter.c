@@ -160,6 +160,8 @@ filter_register(Filter *filter)
     return 0;
 }
 
+
+
 void
 filter_destroy(Filter *filter)
 {

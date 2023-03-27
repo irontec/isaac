@@ -150,86 +150,6 @@ session_check_idle(Session *session)
 }
 
 /*****************************************************************************/
-Session *
-session_create(const int fd, GSocketAddress *addr)
-{
-    Session *sess;
-
-    // Get some memory for this session
-    if (!(sess = (Session *) malloc(sizeof(Session)))) {
-        return NULL;
-    }
-
-    sess->fd = fd;
-    sess->flags = 0x00;
-    GInetAddress *inet = g_inet_socket_address_get_address(G_INET_SOCKET_ADDRESS(addr));
-    sess->addrstr = g_strdup_printf(
-        "%s:%d",
-        g_inet_address_to_string(inet),
-        g_inet_socket_address_get_port(G_INET_SOCKET_ADDRESS(addr))
-    );
-    sess->queue = g_async_queue_new();
-    sess->last_cmd_time = g_get_monotonic_time();
-    sess->vars = NULL;
-    sess->filters = NULL;
-
-    // Initialize session fields
-    if (g_inet_address_get_is_loopback(inet)) {
-        // Special ID for this sessions
-        sprintf(sess->id, "%s", "local");
-        // Local session, this does not count as a session
-//        session_set_flag(sess, SESS_FLAG_LOCAL);
-    } else {
-        // Create a new session id
-        sprintf(sess->id, "%d", session_last_id++);
-    }
-
-    // Create a main loop for this session thread
-    sess->loop = g_main_loop_new(g_main_context_new(), FALSE);
-
-    // Create a source from session client file descriptor
-    sess->commands = g_unix_fd_source_new(sess->fd, G_IO_IN | G_IO_ERR | G_IO_HUP);
-    g_source_set_callback(
-        sess->commands,
-        (GSourceFunc) G_SOURCE_FUNC(session_handle_command),
-        sess,
-        NULL
-    );
-    g_source_attach(sess->commands, g_main_loop_get_context(sess->loop));
-
-    // Create a source from AMI message async queue
-    sess->messages = g_async_queue_source_new(sess->queue, NULL);
-    g_source_set_callback(
-        sess->messages,
-        (GSourceFunc) G_SOURCE_FUNC(session_check_message),
-        sess,
-        NULL
-    );
-    g_source_attach(sess->messages, g_main_loop_get_context(sess->loop));
-
-    // If there is idle timeout configured
-    gint idle_timeout = cfg_get_idle_timeout();
-    if (idle_timeout) {
-        sess->timeout = g_timeout_source_new_seconds(5);
-        g_source_set_callback(
-            sess->timeout,
-            (GSourceFunc) G_SOURCE_FUNC(session_check_idle),
-            sess,
-            NULL
-        );
-        g_source_attach(sess->timeout, g_main_loop_get_context(sess->loop));
-    }
-
-    // Add it to the beginning of session list
-    g_rec_mutex_lock(&session_mutex);
-    sessions = g_slist_append(sessions, sess);
-    g_rec_mutex_unlock(&session_mutex);
-
-    // Return created session;
-    return sess;
-}
-
-/*****************************************************************************/
 void
 session_destroy(Session *session)
 {
@@ -267,12 +187,91 @@ session_destroy(Session *session)
     g_slist_foreach(session->filters, (GFunc) filter_destroy, NULL);
     g_slist_free(session->filters);
 
-    // Break thread loop
-    g_main_loop_quit(session->loop);
-
     // Free session memory
     g_free(session->addrstr);
     g_free(session);
+}
+
+/*****************************************************************************/
+Session *
+session_create(GSocket *socket)
+{
+    GError *error = NULL;
+
+    // Get some memory for this session
+    Session *sess = g_malloc0(sizeof(Session));
+    g_return_val_if_fail(sess != NULL, NULL);
+
+    // Get Local address
+    GSocketAddress *address = g_socket_get_remote_address(socket, &error);
+    g_return_val_if_fail(address != NULL, NULL);
+
+    GInetAddress *inet = g_inet_socket_address_get_address(G_INET_SOCKET_ADDRESS(address));
+    sess->addrstr = g_strdup_printf(
+        "%s:%d",
+        g_inet_address_to_string(inet),
+        g_inet_socket_address_get_port(G_INET_SOCKET_ADDRESS(address))
+    );
+
+    sess->fd = g_socket_get_fd(socket);
+    sess->flags = 0x00;
+
+    sess->queue = g_async_queue_new();
+    sess->last_cmd_time = g_get_monotonic_time();
+    sess->vars = NULL;
+    sess->filters = NULL;
+
+    // Initialize session fields
+    if (g_inet_address_get_is_loopback(inet)) {
+        // Special ID for this sessions
+        sprintf(sess->id, "%s", "local");
+        // Local session, this does not count as a session
+//        session_set_flag(sess, SESS_FLAG_LOCAL);
+    } else {
+        // Create a new session id
+        sprintf(sess->id, "%d", session_last_id++);
+    }
+
+    // Create a source from session client file descriptor
+    sess->commands = g_unix_fd_source_new(sess->fd, G_IO_IN | G_IO_ERR | G_IO_HUP);
+    g_source_set_callback(
+        sess->commands,
+        (GSourceFunc) G_SOURCE_FUNC(session_handle_command),
+        sess,
+        NULL
+    );
+    g_source_attach(sess->commands, g_main_context_get_thread_default());
+
+    // Create a source from AMI message async queue
+    sess->messages = g_async_queue_source_new(sess->queue, NULL);
+    g_source_set_callback(
+        sess->messages,
+        (GSourceFunc) G_SOURCE_FUNC(session_check_message),
+        sess,
+        NULL
+    );
+    g_source_attach(sess->messages, g_main_context_get_thread_default());
+
+    // If there is idle timeout configured
+    gint idle_timeout = cfg_get_idle_timeout();
+    if (idle_timeout) {
+        sess->timeout = g_timeout_source_new_seconds(5);
+        g_source_set_callback(
+            sess->timeout,
+            (GSourceFunc) G_SOURCE_FUNC(session_check_idle),
+            sess,
+            NULL
+        );
+        g_source_attach(sess->timeout, g_main_context_get_thread_default());
+    }
+
+    // Add it to the beginning of session list
+    g_rec_mutex_lock(&session_mutex);
+    sessions = g_slist_append(sessions, sess);
+    g_rec_mutex_unlock(&session_mutex);
+
+    // Return created session;
+    return sess;
 }
 
 /*****************************************************************************/
