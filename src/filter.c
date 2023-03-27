@@ -31,6 +31,17 @@
 #include "log.h"
 #include "util.h"
 
+static void
+filter_condition_destroy(Condition *cond)
+{
+    if (cond->type == MATCH_REGEX) {
+        regfree(&cond->regex);
+    }
+    g_free(cond->header);
+    g_free(cond->value);
+    g_free(cond);
+}
+
 Filter *
 filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *msg))
 {
@@ -41,7 +52,7 @@ filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *m
     g_return_val_if_fail(filter != NULL, NULL);
 
     filter->sess = sess;
-    filter->conditions = g_ptr_array_new();
+    filter->conditions = g_ptr_array_new_with_free_func((GDestroyNotify) filter_condition_destroy);
     filter->type = FILTER_ASYNC;
     filter->data.async.callback = callback;
     filter->data.async.oneshot = 0;
@@ -62,7 +73,7 @@ filter_create_sync(Session *sess)
     // Initialize basic fields
     memset(filter, 0, sizeof(Filter));
     filter->sess = sess;
-    filter->conditions = g_ptr_array_new();
+    filter->conditions = g_ptr_array_new_with_free_func((GDestroyNotify) filter_condition_destroy);
     filter->type = FILTER_SYNC;
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -179,16 +190,6 @@ filter_destroy(Filter *filter)
         if (!shared) {
             g_free(user_data);
         }
-    }
-
-    // Deallocate filter conditions
-    for (gint i = 0; i < filter->conditions->len; i++) {
-        Condition *cond = g_ptr_array_index(filter->conditions, i);
-        if (cond->type == MATCH_REGEX) {
-            regfree(&cond->regex);
-        }
-        g_free(cond->header);
-        g_free(cond->value);
     }
 
     // Deallocate filter memory

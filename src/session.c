@@ -258,6 +258,10 @@ session_destroy(Session *session)
     }
     g_slist_free(session->vars);
 
+    // Remove all session filters
+    g_slist_foreach(session->filters, (GFunc) filter_destroy, NULL);
+    g_slist_free(session->filters);
+
     // Break thread loop
     g_main_loop_quit(session->loop);
 
