@@ -28,10 +28,7 @@
 #include "config.h"
 #include <glib.h>
 #include <gio/gio.h>
-#include <sys/types.h>
 #include <string.h>
-#include <pthread.h>
-#include <errno.h>
 #include "gasyncqueuesource.h"
 #include "log.h"
 #include "server.h"
@@ -42,6 +39,9 @@
 //! GIO TCP Socket server
 Server *server;
 
+#define SERVER_THREADS
+
+#ifdef SERVER_THREADS
 static gboolean
 server_thread_manage_connection(GSocketConnection *connection, G_GNUC_UNUSED gpointer user_data)
 {
@@ -72,6 +72,58 @@ server_thread_manage_connection(GSocketConnection *connection, G_GNUC_UNUSED gpo
     return TRUE;
 }
 
+static gpointer
+server_thread_run(ServerThread *thread)
+{
+    g_assert_nonnull(thread);
+    // Set default thread context
+    g_main_context_push_thread_default(thread->context);
+    // Run thread loop
+    g_main_loop_run(thread->loop);
+}
+
+# else
+
+static gpointer
+server_session_manage_run(GSocketConnection *connection)
+{
+    GSocket *socket = g_socket_connection_get_socket(connection);
+    g_return_val_if_fail(socket != NULL, NULL);
+
+    // Create context to attach sources to main loop
+    GMainContext  *context = g_main_context_new();
+    g_return_val_if_fail(context != NULL, FALSE);
+    GMainLoop *loop = g_main_loop_new(context, FALSE);
+    g_return_val_if_fail(loop != NULL, FALSE);
+
+    // Set default thread context
+    g_main_context_push_thread_default(context);
+
+    // Configure socket keep-alive
+    g_socket_set_keepalive(socket, cfg_get_keepalive());
+
+    // Create a new session for this connection
+    Session *sess = session_create(socket);
+    g_return_val_if_fail(sess != NULL, NULL);
+
+    if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {
+        isaac_log(LOG_DEBUG,
+                  "[Session %s] Received connection from %s [socket: %d][ID %ld].\n",
+                  sess->id,
+                  sess->addrstr,
+                  sess->fd,
+                  TID);
+    }
+
+    // Write the welcome banner
+    if (session_write(sess, "%s/%s\r\n", CLI_BANNER, PACKAGE_VERSION) == -1) {
+        isaac_log(LOG_ERROR, "Error sending welcome banner.");
+    }
+
+    g_main_loop_run(loop);
+}
+#endif
+
 static gboolean
 server_incoming_connection(G_GNUC_UNUSED GSocketService *service,
                            GSocketConnection *connection,
@@ -85,12 +137,19 @@ server_incoming_connection(G_GNUC_UNUSED GSocketService *service,
     ServerThread *thread = g_queue_pop_head(server->threads);
     g_queue_push_tail(server->threads, thread);
 
+#ifdef SERVER_THREADS
     // Add the connection to the thread queue
     g_async_queue_push(thread->queue, connection);
+#else
+    g_thread_new(
+        "Session Thread",
+        (GThreadFunc) server_session_manage_run,
+        connection
+    );
+#endif
 
     return TRUE;
 }
-
 
 gboolean
 server_start()
@@ -129,6 +188,7 @@ server_start()
     g_object_unref(socket_address);
     g_object_unref(address);
 
+#ifdef SERVER_THREADS
     // Allocate memory for threads queue
     server->threads = g_queue_new();
 
@@ -157,13 +217,14 @@ server_start()
         // Launch thread loop
         thread->thread = g_thread_new(
             g_strdup_printf("Server Thread %d", i),
-            (GThreadFunc) g_main_loop_run,
-            thread->loop
+            (GThreadFunc) server_thread_run,
+            thread
         );
         g_return_val_if_fail(thread->thread != NULL, FALSE);
         // Add Server to the queue
         g_queue_push_tail(server->threads, thread);
     }
+#endif
 
     // Successfully initialized server
     isaac_log(LOG_VERBOSE, "Server listening for connections on %s:%d\n",
@@ -186,15 +247,8 @@ server_stop()
     // Deallocate its memory
     g_object_unref(server->service);
 
+#ifdef SERVER_THREADS
     g_queue_free(server->threads);
+#endif
     g_free(server);
-}
-
-void *
-manage_session(void *session)
-{
-    Session *sess = (Session *) session;
-
-
-    return NULL;
 }
