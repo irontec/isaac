@@ -42,32 +42,26 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <string.h>
-#include <pthread.h>
-#include <errno.h>
 
 #define LOGINCONF CONFDIR "/login.conf"
-
 
 // Share the connection between all threads. This seems to be thread-safe
 static SQLHENV env;
 static SQLHDBC dbc;
-pthread_t odbc_thread;
-pthread_mutex_t odbc_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-int running;
+static GRecMutex odbc_lock;
 
 /**
  * @brief Module configuration readed from LOGINCONF file
  *
  * @see read_login_config
  */
-struct app_login_config
+struct _AppLoginConfig
 {
     //! Registered flag. 1 = Check Device is registered on login, 0 = don't check
     int validate_registered;
     //! Unregistered flag. 1 = Logout on Unregister event, 0 = ignore Unregister event
     int check_unregistered;
 } login_config;
-
 
 /**
  * @brief Read module configure options
@@ -77,14 +71,13 @@ struct app_login_config
  * @see login_exec
  *
  * @param cfile Full path to configuration file
- * @return 0 in case of read success, -1 otherwise
+ * @return TRUE in case of read success, FALSE otherwise
  */
-int
-read_login_config(const char *cfile)
+static gboolean
+read_login_config(const gchar *cfile)
 {
     config_t cfg;
-    const char *value;
-    int intvalue;
+    gint intvalue;
 
     // Initialize configuration
     config_init(&cfg);
@@ -114,26 +107,25 @@ read_login_config(const char *cfile)
     return 0;
 }
 
-
 /**
  * @brief Test if odbc connection is Up
  *
  * Do a simple query to test the connection
- * @return 1 if connection is Up, 0 otherwise
+ * @return TRUE if connection is Up, FALSE otherwise
  *
  */
-int
+static gboolean
 odbc_test()
 {
-    int res = 0;
+    gboolean res = FALSE;
     SQLHSTMT stmt;
     // Execute simple statement to test if 'conn' is still OK
-    pthread_mutex_lock(&odbc_lock);
+    g_rec_mutex_lock(&odbc_lock);
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     SQLExecDirect(stmt, (SQLCHAR *) "SELECT 1;", SQL_NTS);
     res = SQL_SUCCEEDED(SQLFetch(stmt));
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-    pthread_mutex_unlock(&odbc_lock);
+    g_rec_mutex_unlock(&odbc_lock);
     return res;
 }
 
@@ -151,7 +143,7 @@ odbc_connect()
 
     // Dont connect if we're already connected
     if (odbc_test()) { return 1; }
-    pthread_mutex_lock(&odbc_lock);
+    g_rec_mutex_lock(&odbc_lock);
     // Allocate an environment handle
     SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
     // We want ODBC 3 support */
@@ -162,7 +154,7 @@ odbc_connect()
     // You will need to change mydsn to one you have created and tested */
     SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
                      SQL_DRIVER_COMPLETE);
-    pthread_mutex_unlock(&odbc_lock);
+    g_rec_mutex_unlock(&odbc_lock);
 
     // Check the connection is working
     if (odbc_test()) {
@@ -183,11 +175,11 @@ int
 odbc_disconnect()
 {
     // Disconnect ODBC driver and cleanup
-    pthread_mutex_lock(&odbc_lock);
+    g_rec_mutex_lock(&odbc_lock);
     SQLDisconnect(dbc);
     SQLFreeHandle(SQL_HANDLE_DBC, dbc);
     SQLFreeHandle(SQL_HANDLE_ENV, env);
-    pthread_mutex_unlock(&odbc_lock);
+    g_rec_mutex_unlock(&odbc_lock);
     return 1;
 }
 
@@ -197,25 +189,18 @@ odbc_disconnect()
  * Reconnect to database if requested.
  *
  */
-void *
-odbc_watchdog(void *args)
+static gboolean
+odbc_watchdog(G_GNUC_UNUSED gpointer user_data)
 {
-    int i;
-    odbc_connect();
-    while (running) {
-        if (!odbc_test()) {
-            isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
-            odbc_disconnect();
-            odbc_connect();
-        }
-        for (i = 0; i < 6; i++) {
-            if (running)
-                usleep(500 * 1000);
-        }
-
+    // Check if we're still connected to ODBC
+    if (odbc_test()) {
+        return TRUE;
     }
+
+    isaac_log(LOG_ERROR, "ODBC connection failed!!\n");
     odbc_disconnect();
-    return NULL;
+    odbc_connect();
+    return TRUE;
 }
 
 /**
@@ -297,7 +282,7 @@ login_exec(Session *sess, app_t *app, const char *args)
         return INVALID_ARGUMENTS;
     }
     // Allocate a statement handle
-    pthread_mutex_lock(&odbc_lock);
+    g_rec_mutex_lock(&odbc_lock);
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     if (!strcasecmp(pass, "MASTER")) {
         // Prepare login query
@@ -348,7 +333,7 @@ login_exec(Session *sess, app_t *app, const char *args)
         // Check if device is registerd
         if (login_config.check_unregistered) {
             Filter *peerstatusfilter = filter_create_async(sess, peer_status_check);
-            filter_set_name(peerstatusfilter, "Peer unregistered");
+            filter_set_name(peerstatusfilter, "[login] Peer unregistered");
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "Event", "PeerStatus");
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "Peer", interface);
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "PeerStatus", "Unregistered");
@@ -356,17 +341,18 @@ login_exec(Session *sess, app_t *app, const char *args)
         }
 
         Filter *agentstatus = filter_create_async(sess, peer_status_check);
+        filter_set_name(agentstatus, "[login] Agent Logged out");
         filter_new_condition(agentstatus, MATCH_EXACT, "Event", "ExtensionStatus");
-        filter_set_name(agentstatus, "Agent Logged out");
         filter_new_condition(agentstatus, MATCH_EXACT, "Exten", "access_%s", interface + 4);
         filter_new_condition(agentstatus, MATCH_EXACT, "Status", "1");
         filter_register(agentstatus);
 
         if (login_config.validate_registered) {
+            g_autofree gchar *actionid = g_uuid_string_random();
             // Check if device is registered
             Filter *peerfilter = filter_create_async(sess, peer_status_check);
-            filter_set_name(peerfilter, "Check initial peer status");
-            filter_new_condition(peerfilter, MATCH_EXACT, "ActionID", interface + 4);
+            filter_set_name(peerfilter, "[login] Check initial peer status");
+            filter_new_condition(peerfilter, MATCH_EXACT, "ActionID", actionid);
             filter_register_oneshot(peerfilter);
 
             // Request Peer status right now
@@ -374,7 +360,7 @@ login_exec(Session *sess, app_t *app, const char *args)
             memset(&peermsg, 0, sizeof(AmiMessage));
             message_add_header(&peermsg, "Action: SIPshowpeer");
             message_add_header(&peermsg, "Peer: %s", interface + 4);
-            message_add_header(&peermsg, "ActionID: %s", interface + 4);
+            message_add_header(&peermsg, "ActionID: %s", actionid);
             manager_write_message(manager, &peermsg);
         } else {
             session_write(sess, "LOGINOK Welcome back %s SIP/%s\r\n", agent, interface + 4);
@@ -391,7 +377,7 @@ login_exec(Session *sess, app_t *app, const char *args)
     }
 
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-    pthread_mutex_unlock(&odbc_lock);
+    g_rec_mutex_unlock(&odbc_lock);
     return ret;
 }
 
@@ -493,7 +479,6 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
-    char exten[256];
     const char *agent = session_get_variable(sess, "AGENT");
     const char *interface = session_get_variable(sess, "INTERFACE");
 
@@ -502,11 +487,18 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
         return session_write(sess, "DEVICESTATUSOK Already displaying status for device %s\r\n", agent);
     }
 
+    const char *rol = session_get_variable(sess, "ROL");
+    g_return_val_if_fail(rol != NULL, 0);
+
+    // Looks like there is a hard work on complicating everything and now any extension is
+    // a mix of pbx and call-center. In that scenario, extension hints can be pbx or cc but
+    // pause and access hints will be cc (although these may not exist at all).
+
     // Add a filter for handling device state changes
     Filter *devicefilter = filter_create_async(sess, devicestatus_changed);
-    filter_new_condition(devicefilter, MATCH_EXACT, "Context", "cc-hints");
-    sprintf(exten, "%s$|pause_%s", agent, interface + 4);
-    filter_set_name(devicefilter, "Pause and Exten hint filter");
+    filter_new_condition(devicefilter, MATCH_REGEX, "Context", "pbx-hints|cc-hints");
+    g_autofree gchar *exten = g_strdup_printf("^%s(_1)?$|pause_%s", agent, interface + 4);
+    filter_set_name(devicefilter, "[login] Pause and Exten hint filter");
     filter_new_condition(devicefilter, MATCH_REGEX, "Exten", exten);
     filter_register(devicefilter);
 
@@ -525,6 +517,13 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
     message_add_header(&devicemsg, "ActionID: %s", sess->id);
     manager_write_message(manager, &devicemsg);
 
+    memset(&devicemsg, 0, sizeof(AmiMessage));
+    message_add_header(&devicemsg, "Action: ExtensionState");
+    message_add_header(&devicemsg, "Exten: %s", agent);
+    message_add_header(&devicemsg, "Context: pbx-hints");
+    message_add_header(&devicemsg, "ActionID: %s", sess->id);
+    manager_write_message(manager, &devicemsg);
+
     // Initial status (pause)
     memset(&devicemsg, 0, sizeof(AmiMessage));
     message_add_header(&devicemsg, "Action: ExtensionState");
@@ -532,7 +531,6 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
     message_add_header(&devicemsg, "Context: cc-hints");
     message_add_header(&devicemsg, "ActionID: %s", sess->id);
     manager_write_message(manager, &devicemsg);
-
 
     return 0;
 }
@@ -555,7 +553,6 @@ logout_exec(Session *sess, app_t *app, const char *args)
     return 0;
 }
 
-
 /**
  * @brief Module load entry point
  *
@@ -573,18 +570,17 @@ load_module()
         return -1;
     }
 
-    // Mark ourself as running
-    running = 1;
-
     res |= application_register("Login", login_exec);
     res |= application_register("Logout", logout_exec);
     res |= application_register("Exit", logout_exec);
     res |= application_register("DeviceStatus", devicestatus_exec);
-    // Create a new thread for odbc connection
-    if (pthread_create(&odbc_thread, NULL, odbc_watchdog, NULL) != 0) {
-        isaac_log(LOG_WARNING, "Error creating odbc thread: %s\n", strerror(errno));
-        res = 0;
-    }
+
+    // Start connected to ODBC
+    odbc_connect();
+
+    // Add a timer to verify ODBC connection
+    g_timeout_add(5000, (GSourceFunc) odbc_watchdog, NULL);
+
     return res;
 }
 
@@ -600,15 +596,14 @@ unload_module()
 {
     int res = 0;
 
-    // Mark ourself as running
-    running = 0;
-
     res |= application_unregister("LOGIN");
     res |= application_unregister("LOGOUT");
     res |= application_unregister("DeviceStatus");
     res |= application_unregister("EXIT");
 
+    // Disconnect from ODBC
+    odbc_disconnect();
+
     // Wait threads to end
-    res |= pthread_join(odbc_thread, NULL);
     return res;
 }
