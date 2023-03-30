@@ -57,7 +57,7 @@ server_thread_manage_connection(GSocketConnection *connection, G_GNUC_UNUSED gpo
 
     if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {
         isaac_log(LOG_DEBUG,
-                  "[Session %s] Received connection from %s [socket: %d][ID %ld].\n",
+                  "[Session#%s] Received connection from %s [socket: %d][ID %ld].\n",
                   sess->id,
                   sess->addrstr,
                   sess->fd,
@@ -108,7 +108,7 @@ server_session_manage_run(GSocketConnection *connection)
 
     if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {
         isaac_log(LOG_DEBUG,
-                  "[Session %s] Received connection from %s [socket: %d][ID %ld].\n",
+                  "[Session#%s] Received connection from %s [socket: %d][ID %ld].\n",
                   sess->id,
                   sess->addrstr,
                   sess->fd,

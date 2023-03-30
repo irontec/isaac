@@ -108,7 +108,7 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
     } else {
         // Connection closed, Thanks all for the fish
         if (!session_test_flag(sess, SESS_FLAG_LOCAL))
-            isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
+            isaac_log(LOG_DEBUG, "[Session#%s] Closed connection from %s\n", sess->id, sess->addrstr);
 
         // Deallocate session memory
         session_finish(sess);
@@ -305,12 +305,12 @@ session_write(Session *sess, const char *fmt, ...)
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_VERBOSE_3, "\033[1;31mSession %s >> \033[0m%s", sess->id, msgva);
+        isaac_log(LOG_VERBOSE_3, "\033[1;31mSession#%s >> \033[0m%s", sess->id, msgva);
     }
 
     // LOG Debug info
     if (!session_test_flag(sess, SESS_FLAG_LOCAL))
-        isaac_log(LOG_DEBUG, "[Session %s] --> %s", sess->id, msgva);
+        isaac_log(LOG_DEBUG, "[Session#%s] --> %s", sess->id, msgva);
 
     // Write the built message into the socket
     if ((wbytes = send(sess->fd, msgva, strlen(msgva), 0) == -1)) {
@@ -391,7 +391,7 @@ session_read(Session *sess, char *msg)
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_VERBOSE_3, "\033[1;32mSession %s << \033[0m%s", sess->id, buffer);
+        isaac_log(LOG_VERBOSE_3, "\033[1;32mSession#%s << \033[0m%s", sess->id, buffer);
     }
 
     return rbytes;

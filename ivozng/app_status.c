@@ -491,7 +491,7 @@ status_print(Filter *filter, AmiMessage *msg)
             // Blonde transfer, destiny was ringing
             info->xfer_state = 6;
             // We have enough information to inject messages in receiver bus
-            isaac_log(LOG_NOTICE, "[Session %s] Detected Attended Transfer to %s\n", filter->sess->id,
+            isaac_log(LOG_NOTICE, "[Session#%s] Detected Attended Transfer to %s\n", filter->sess->id,
                       info->xfer_agent);
             status_inject_queue_call(filter);
         }
@@ -503,7 +503,7 @@ status_print(Filter *filter, AmiMessage *msg)
             // Blonde transfer, destiny was ringing
             info->xfer_state = 5;
             // We have enough information to inject messages in receiver bus
-            isaac_log(LOG_NOTICE, "[Session %s] Detected Blonde Transfer to %s\n", filter->sess->id, info->xfer_agent);
+            isaac_log(LOG_NOTICE, "[Session#%s] Detected Blonde Transfer to %s\n", filter->sess->id, info->xfer_agent);
             status_inject_queue_call(filter);
         }
 
@@ -553,14 +553,15 @@ status_print(Filter *filter, AmiMessage *msg)
                 if (xfer_sess) {
                     // We have enough information to inject messages in receiver bus
                     isaac_strcpy(info->xfer_agent, session_get_variable(xfer_sess, "AGENT"));
-                    isaac_log(LOG_NOTICE, "[Session %s] Detected Builtin Transfer to %s\n", filter->sess->id,
+                    isaac_log(LOG_NOTICE, "[Session#%s] Detected Builtin Transfer to %s\n", filter->sess->id,
                               info->xfer_agent);
                     status_inject_queue_call(filter);
                 } else {
                     // Oh, transfering to someone not logged in
                     isaac_log(LOG_WARNING,
-                              "[Session %s] Ignoring transfer injection to %s. It does not have any Isaac sessions Up.\n",
-                              filter->sess->id, interface);
+                              "[Session#%s] Ignoring transfer injection to %s. It does not have any Isaac sessions Up.\n",
+                              filter->sess->id,
+                              interface);
                 }
             }
         }

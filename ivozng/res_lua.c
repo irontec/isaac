@@ -198,7 +198,7 @@ lua_session_write(lua_State *L)
     if (sess) {
         return session_write(sess, msg);
     } else {
-        isaac_log(LOG_WARNING, "[Session %s] Write request on not found session.\n", sessid);
+        isaac_log(LOG_WARNING, "[Session#%s] Write request on not found session.\n", sessid);
         return 1;
     }
 }

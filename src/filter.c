@@ -141,7 +141,7 @@ int
 filter_register(Filter *filter)
 {
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter \033[1;32m[%s] %s\033[0m [%p] with %d conditions\n",
+        isaac_log(LOG_DEBUG, "[Session#%s] Registering %s filter \033[1;32m[%s] %s\033[0m [%p] with %d conditions\n",
                   filter->sess->id,
                   (filter->type == FILTER_ASYNC) ? "asnyc" : "sync",
                   filter->app->name,
@@ -162,7 +162,7 @@ filter_destroy(Filter *filter)
 
     // Some debug info
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter \033[1;31m[%s] %s\033[0m [%p]\n",
+        isaac_log(LOG_DEBUG, "[Session#%s] Destroying filter \033[1;31m[%s] %s\033[0m [%p]\n",
                   filter->sess->id,
                   filter->app->name,
                   filter->name,
@@ -207,7 +207,7 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
         if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
             gboolean oneshot = filter_is_oneshot(filter);
             isaac_log(LOG_DEBUG,
-                      "[Session %s] Executing filter \033[1;32m[%s] %s\033[0m [%p] %s triggered by message [%p]\n%s\n",
+                      "[Session#%s] Executing filter \033[1;32m[%s] %s\033[0m [%p] %s triggered by message [%p]\n%s\n",
                       filter->sess->id,
                       filter->app->name,
                       filter->name,
@@ -262,7 +262,7 @@ filter_run(Filter *filter, int timeout, AmiMessage *ret)
         return 1;
     }
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Storing sync filter data [%p]\n",
+        isaac_log(LOG_DEBUG, "[Session#%s] Storing sync filter data [%p]\n",
                   filter->sess->id, filter);
     }
 
@@ -339,9 +339,9 @@ filter_inject_message(Filter *filter, AmiMessage *msg)
     sessions_release_lock();
 
     // Show some log
-    isaac_log(LOG_NOTICE, "[Session %s] Injecting fake %s message\n", filter->sess->id,
+    isaac_log(LOG_NOTICE, "[Session#%s] Injecting fake %s message\n", filter->sess->id,
               message_get_header(msg, "Event"));
-    isaac_log(LOG_DEBUG, "[Session %s] Injecting fake %s message: %s\n", filter->sess->id,
+    isaac_log(LOG_DEBUG, "[Session#%s] Injecting fake %s message: %s\n", filter->sess->id,
               message_get_header(msg, "Event"), message_to_text(msg));
 
     // Add this message to all session queues
