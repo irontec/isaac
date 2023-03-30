@@ -220,7 +220,7 @@ get_call_info_from_id(Session *sess, const char *id)
  * This function sends the CALLEVENTS to a session when some filter
  * events triggers. It is used for Agent and Remote channel events.\n
  *
- * This function will be callbacked when one of this happens:\n
+ * This function will be called when one of this happens:\n
  *  - A channel sets ACTIONID variable: This gave us leg1 channel\n
  *  - This channel begins a Dial Action: This gave us the second leg\n
  *  - Events on any of these two channels\n
@@ -513,23 +513,27 @@ call_state(Filter *filter, AmiMessage *msg)
  *
  * @param sess Session rnuning this application
  * @param app The application structure
- * @param args Call action args "ActionID DestNum"
+ * @param argstr Call action argstr "ActionID DestNum"
  * @return 0 in call cases
  */
 int
-call_exec(Session *sess, app_t *app, const char *args)
+call_exec(Session *sess, Application *app, const char *argstr)
 {
-    char actionid[ACTIONID_LEN];
-    char exten[128], options[80];
-
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
 
-    // Get Call parameteres
-    if (sscanf(args, "%s %s %[^\n]", actionid, exten, options) < 2) {
+    // Check if uniqueid info is requested
+    GSList *args = application_parse_args(argstr);
+    if (g_slist_length(args) < 2) {
+        application_free_args(args);
         return INVALID_ARGUMENTS;
     }
+
+    // First argument is the ID of the call
+    const gchar *actionid = application_get_nth_arg(args, 0);
+    // Second argument is the number to be dialed
+    const gchar *exten = application_get_nth_arg(args, 1);
 
     // Initialize application info
     struct app_call_info *info = malloc(sizeof(struct app_call_info));
@@ -537,15 +541,13 @@ call_exec(Session *sess, app_t *app, const char *args)
     isaac_strcpy(info->actionid, actionid);
     isaac_strcpy(info->destiny, exten);
 
-    // Check if uniqueid info is requested
-    app_args_t parsed;
-    application_parse_args(options, &parsed);
-
-    if (!isaac_strcmp(application_get_arg(&parsed, "WUID"), "1"))
+    if (application_arg_exists(args, "WUID")) {
         info->print_uniqueid = 1;
+    }
 
-    if (!isaac_strcmp(application_get_arg(&parsed, "BRD"), "1"))
+    if (application_arg_exists(args, "BRD")) {
         info->broadcast = 1;
+    }
 
     // Register a Filter to get Generated Channel
     info->callfilter = filter_create_async(sess, call_state);
@@ -577,29 +579,31 @@ call_exec(Session *sess, app_t *app, const char *args)
     message_add_header(&msg, "Variable: AUTOANSWER=%d", call_config.autoanswer);
 
     // Forced CLID from application arguments
-    if (application_get_arg(&parsed, "CLID"))
-        message_add_header(&msg, "Variable: ISAAC_FORCED_CLID=%s",
-                           application_get_arg(&parsed, "CLID"));
+    const gchar *value = NULL;
+    if ((value = application_get_arg(args, "CLID")) != NULL) {
+        message_add_header(&msg, "Variable: ISAAC_FORCED_CLID=%s", value);
+    }
 
     // Forced SRC CLID from application arguments
-    if (application_get_arg(&parsed, "SRC_CLID"))
-        message_add_header(&msg, "Variable: ISAAC_SRC_FORCED_CLID=%s",
-                           application_get_arg(&parsed, "SRC_CLID"));
-
+    if ((value = application_get_arg(args, "SRC_CLID")) != NULL) {
+        message_add_header(&msg, "Variable: ISAAC_SRC_FORCED_CLID=%s", value);
+    }
 
     // Forced Timeout from application arguments
-    if (application_get_arg(&parsed, "TIMEOUT"))
-        message_add_header(&msg, "Variable: ISAAC_CALL_TIMEOUT=%s",
-                           application_get_arg(&parsed, "TIMEOUT"));
+    if ((value = application_get_arg(args, "TIMEOUT")) != NULL) {
+        message_add_header(&msg, "Variable: ISAAC_CALL_TIMEOUT=%s", value);
+    }
 
     // Originate absolute TIMEOUT (default 30s)
-    if (application_get_arg(&parsed, "ABSOLUTE_TIMEOUT"))
-        message_add_header(&msg, "Timeout: %s",
-                           application_get_arg(&parsed, "ABSOLUTE_TIMEOUT"));
-
+    if ((value = application_get_arg(args, "ABSOLUTE_TIMEOUT")) != NULL) {
+        message_add_header(&msg, "Timeout: %s", value);
+    }
 
     // Send this message to ami
     manager_write_message(manager, &msg);
+
+    // Free args app arguments
+    application_free_args(args);
 
     return 0;
 }
@@ -616,7 +620,7 @@ call_exec(Session *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-dtmf_exec(Session *sess, app_t *app, const char *args)
+dtmf_exec(Session *sess, Application *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -664,7 +668,7 @@ dtmf_exec(Session *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-hangup_exec(Session *sess, app_t *app, const char *args)
+hangup_exec(Session *sess, Application *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -711,7 +715,7 @@ hangup_exec(Session *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-hold_unhold_exec(Session *sess, app_t *app, const char *args)
+hold_unhold_exec(Session *sess, Application *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -791,7 +795,7 @@ record_state(Filter *filter, AmiMessage *msg)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-record_exec(Session *sess, app_t *app, const char *args)
+record_exec(Session *sess, Application *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];
@@ -915,7 +919,6 @@ record_exec(Session *sess, app_t *app, const char *args)
     return 0;
 }
 
-
 /**
  * @brief Record action entry point
  *
@@ -928,7 +931,7 @@ record_exec(Session *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-recordstop_exec(Session *sess, app_t *app, const char *args)
+recordstop_exec(Session *sess, Application *app, const char *args)
 {
     struct app_call_info *info;
     char actionid[ACTIONID_LEN];

@@ -60,7 +60,6 @@ struct app_queue_config
     int queueagents_validate;
 } queue_config;
 
-
 /**
  * @brief Read module configure options
  *
@@ -113,7 +112,6 @@ read_queue_config(const char *cfile)
     isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
     return 0;
 }
-
 
 /**
  * @brief Show all queues for current session
@@ -189,7 +187,6 @@ queueagents_print(Filter *filter, AmiMessage *msg)
     return 0;
 }
 
-
 /**
  * @brief Validate queue name and print queued calls
  *
@@ -243,17 +240,12 @@ queueinfo_validate_queue(Filter *filter, AmiMessage *msg)
  *
  * @param sess Session structure that requested the application
  * @param app The application structure
- * @param args Aditional command line arguments (not used)
+ * @param argstr Aditional command line arguments (not used)
  * @return 0 in all cases
  */
 int
-queueinfo_exec(Session *sess, app_t *app, const char *args)
+queueinfo_exec(Session *sess, Application *app, const char *argstr)
 {
-    // Store variable name to flag a queue being watched
-    char queuevar[512];
-    char queuename[256];
-    char options[246];
-
     // Validate queue name
     int validate;
 
@@ -262,8 +254,11 @@ queueinfo_exec(Session *sess, app_t *app, const char *args)
         return NOT_AUTHENTICATED;
     }
 
-    // Get queuename to monitor
-    if (sscanf(args, "%s  %[^\n]", queuename, options) < 1) {
+    // Check command options
+    GSList *args = application_parse_args(argstr);
+
+    // No arguments passed to the command
+    if (g_slist_length(args) == 0) {
         // Send the initial banner
         session_set_variable(sess, "QUEUEINFO_RESPONSE", "QUEUEINFOOK");
 
@@ -279,27 +274,31 @@ queueinfo_exec(Session *sess, app_t *app, const char *args)
         message_add_header(&msg, "Action: QueueStatus");
         message_add_header(&msg, "ActionID: QueueStatus%s", sess->id);
         manager_write_message(manager, &msg);
+
+        // Free args app arguments
+        application_free_args(args);
+
         return 0;
     }
 
-    // Check we havent run this application before
-    sprintf(queuevar, "QUEUEINFO_%s", queuename);
-    if (session_get_variable(sess, queuevar)) {
-        session_write(sess, "QUEUEINFOOK Already showing info for queue %s\r\n", queuename);
+    // Get queue name from argument
+    const gchar *queue_name = application_get_nth_arg(args, 0);
+
+    // Check we haven't run this application before
+    g_autoptr(GString) queue_var = g_string_new(NULL);
+    g_string_append_printf(queue_var, "QUEUEINFO_%s", queue_name);
+    if (session_get_variable(sess, queue_var->str)) {
+        session_write(sess, "QUEUEINFOOK Already showing info for queue %s\r\n", queue_var->str);
         return 0;
     } else {
         // Store we're monitoring this queue
-        session_set_variable(sess, queuevar, queuename);
+        session_set_variable(sess, queue_var->str, queue_name);
     }
 
-    // Check command options
-    app_args_t parsed;
-    application_parse_args(options, &parsed);
-
     // Command requested validation
-    if (!isaac_strcmp(application_get_arg(&parsed, "VALIDATE"), "1")) {
+    if (application_arg_has_value(args, "VALIDATE", "1")) {
         validate = 1;
-    } else if (!isaac_strcmp(application_get_arg(&parsed, "VALIDATE"), "0")) {
+    } else if (application_arg_has_value(args, "VALIDATE", "0")) {
         validate = 0;
     } else {
         validate = queue_config.queueinfo_validate;
@@ -310,31 +309,33 @@ queueinfo_exec(Session *sess, app_t *app, const char *args)
         // Check we have a valid quene name
         Filter *queuevalidatefilter = filter_create_async(sess, queueinfo_validate_queue);
         filter_new_condition(queuevalidatefilter, MATCH_REGEX, "Event", "QueueParams|QueueStatusComplete");
-        filter_new_condition(queuevalidatefilter, MATCH_EXACT, "ActionID", "QueueValidate%s%s", queuename, sess->id);
-        filter_set_userdata(queuevalidatefilter, strdup(queuename));
+        filter_new_condition(queuevalidatefilter, MATCH_EXACT, "ActionID", "QueueValidate%s%s", queue_name, sess->id);
+        filter_set_userdata(queuevalidatefilter, g_strdup(queue_name));
         filter_register(queuevalidatefilter);
 
         // Construct a Request message
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueStatus");
-        message_add_header(&msg, "Queue: %s", queuename);
-        message_add_header(&msg, "ActionID: QueueValidate%s%s", queuename, sess->id);
+        message_add_header(&msg, "Queue: %s", queue_name);
+        message_add_header(&msg, "ActionID: QueueValidate%s%s", queue_name, sess->id);
         manager_write_message(manager, &msg);
     } else {
         // Not validated queue, just print OK response
-        session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queuename);
+        session_write(sess, "QUEUEINFOOK Queueinfo for %s will be printed\r\n", queue_name);
 
         // Register a Filter to get All generated channels for
         Filter *queuefilter = filter_create_async(sess, queueinfo_print);
         filter_new_condition(queuefilter, MATCH_REGEX, "Event", "Join|Leave");
-        filter_new_condition(queuefilter, MATCH_EXACT, "Queue", queuename);
+        filter_new_condition(queuefilter, MATCH_EXACT, "Queue", queue_name);
         filter_register(queuefilter);
     }
 
+    // Free args app arguments
+    application_free_args(args);
+
     return 0;
 }
-
 
 /**
  * @brief Request Queue agents information
@@ -344,19 +345,14 @@ queueinfo_exec(Session *sess, app_t *app, const char *args)
  *
  * @param sess Session structure that requested the application
  * @param app The application structure
- * @param args Aditional command line arguments (not used)
+ * @param argstr Aditional command line arguments (not used)
  * @return 0 in all cases
  */
 int
-queueagents_exec(Session *sess, app_t *app, const char *args)
+queueagents_exec(Session *sess, Application *app, const char *argstr)
 {
     // Return message
     AmiMessage retmsg;
-
-    // Store variable name to flag a queue being watched
-    char queuevar[256];
-    char queuename[256];
-    char options[246];
 
     // Validate queue name
     int validate;
@@ -366,19 +362,22 @@ queueagents_exec(Session *sess, app_t *app, const char *args)
         return NOT_AUTHENTICATED;
     }
 
-    // Get Queue parameters parameteres
-    if (sscanf(args, "%s %[^\n]", queuename, options) < 1) {
+    // Check command options
+    GSList *args = application_parse_args(argstr);
+
+    // Get Queue parameters parameters
+    if (g_slist_length(args) < 1) {
+        application_free_args(args);
         return INVALID_ARGUMENTS;
     }
 
-    // Check command options
-    app_args_t parsed;
-    application_parse_args(options, &parsed);
+    // Get queue name from first argument
+    const gchar *queue_name = application_get_nth_arg(args, 0);
 
     // Command requested validation
-    if (!isaac_strcmp(application_get_arg(&parsed, "VALIDATE"), "1")) {
+    if (application_arg_has_value(args, "VALIDATE", "1")) {
         validate = 1;
-    } else if (!isaac_strcmp(application_get_arg(&parsed, "VALIDATE"), "0")) {
+    } else if (application_arg_has_value(args, "VALIDATE", "0")) {
         validate = 0;
     } else {
         validate = queue_config.queueagents_validate;
@@ -389,7 +388,7 @@ queueagents_exec(Session *sess, app_t *app, const char *args)
         // Check we have a valid quene name
         Filter *namefilter = filter_create_sync(sess);
         filter_new_condition(namefilter, MATCH_EXACT, "Event", "QueueSummary");
-        filter_new_condition(namefilter, MATCH_EXACT, "Queue", queuename);
+        filter_new_condition(namefilter, MATCH_EXACT, "Queue", queue_name);
         filter_new_condition(namefilter, MATCH_EXACT, "ActionID", sess->id);
         filter_register(namefilter);
 
@@ -397,45 +396,50 @@ queueagents_exec(Session *sess, app_t *app, const char *args)
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueSummary");
-        message_add_header(&msg, "Queue: %s", queuename);
+        message_add_header(&msg, "Queue: %s", queue_name);
         message_add_header(&msg, "ActionID: %s", sess->id);
         manager_write_message(manager, &msg);
 
         if (filter_run(namefilter, queue_config.queueagents_timeout, &retmsg) != 0) {
             // No response Boo!
-            session_write(sess, "QUEUEAGENTSFAIL Unable to get queuedata of %s\r\n", queuename);
+            session_write(sess, "QUEUEAGENTSFAIL Unable to get queuedata of %s\r\n", queue_name);
+            application_free_args(args);
             return 0;
         }
     }
 
-    // Check we havent run this application before
-    sprintf(queuevar, "QUEUEAGENTS_%s", queuename);
-    if (session_get_variable(sess, queuevar)) {
-        session_write(sess, "QUEUEAGENTSOK Already showing agents for queue %s\r\n", queuename);
+    // Check we haven't run this application before
+    g_autoptr(GString) queue_var = g_string_new(NULL);
+    g_string_printf(queue_var, "QUEUEAGENTS_%s", queue_name);
+    if (session_get_variable(sess, queue_var->str)) {
+        session_write(sess, "QUEUEAGENTSOK Already showing agents for queue %s\r\n", queue_name);
+        application_free_args(args);
         return 0;
     } else {
         // Store we're monitoring this queue
-        session_set_variable(sess, queuevar, queuename);
+        session_set_variable(sess, queue_var->str, queue_name);
     }
 
     // Register a Filter to get All generated channels for
     Filter *queuefilter = filter_create_async(sess, queueagents_print);
     filter_new_condition(queuefilter, MATCH_EXACT_CASE, "UserEvent", "QUEUEAGENTS");
-    filter_new_condition(queuefilter, MATCH_EXACT_CASE, "Queue", queuename);
+    filter_new_condition(queuefilter, MATCH_EXACT_CASE, "Queue", queue_name);
     filter_register(queuefilter);
 
     // Check with uniqueid mode
-    session_write(sess, "QUEUEAGENTSOK Queueinfo for %s will be printed\r\n", queuename);
+    session_write(sess, "QUEUEAGENTSOK Queueinfo for %s will be printed\r\n", queue_name);
 
     // If queue has been validated
     if (validate) {
         // Printi intial queue status
-        session_write(sess, "QUEUEAGENTS %s FREE %s\r\n", queuename, message_get_header(&retmsg, "Available"));
+        session_write(sess, "QUEUEAGENTS %s FREE %s\r\n", queue_name, message_get_header(&retmsg, "Available"));
     }
+
+    // Free args app arguments
+    application_free_args(args);
 
     return 0;
 }
-
 
 /**
  * @brief Print queue calls count
@@ -501,7 +505,7 @@ queueshow_print(Filter *filter, AmiMessage *msg)
  * @return 0 in all cases
  */
 int
-queueshow_exec(Session *sess, app_t *app, const char *args)
+queueshow_exec(Session *sess, Application *app, const char *args)
 {
     // Check we are logged in.
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -524,7 +528,6 @@ queueshow_exec(Session *sess, app_t *app, const char *args)
 
     return 0;
 }
-
 
 /**
  * @brief Module load entry point

@@ -388,18 +388,18 @@ conference_host_state(Filter *filter, AmiMessage *msg)
  *
  * @param sess Session running this application
  * @param app The application structure
- * @param args Call action args "ActionID DestNum"
+ * @param argstr Call action argstr "ActionID DestNum"
  * @return 0 in call cases
  */
 int
-conference_exec(Session *sess, app_t *app, const char *args)
+conference_exec(Session *sess, Application *app, const char *argstr)
 {
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
 
     // Command length
-    size_t clen = strlen(args);
+    size_t clen = strlen(argstr);
 
     // Allocate memory for read input
     char *actionid = malloc(clen);
@@ -407,7 +407,7 @@ conference_exec(Session *sess, app_t *app, const char *args)
     char *options = malloc(clen);
 
     // Get Call parameters
-    if (sscanf(args, "%s %s %[^\n]", actionid, extensions, options) < 2) {
+    if (sscanf(argstr, "%s %s %[^\n]", actionid, extensions, options) < 2) {
         free(actionid);
         free(extensions);
         free(options);
@@ -449,11 +449,11 @@ conference_exec(Session *sess, app_t *app, const char *args)
     }
 
     // Check if uniqueid info is requested
-    app_args_t parsed;
-    application_parse_args(options, &parsed);
+    GSList *parsed = application_parse_args(options);
 
-    if (!isaac_strcmp(application_get_arg(&parsed, "MUTE"), "1"))
+    if (application_arg_exists(parsed, "MUTE")) {
         info->mute = 1;
+    }
 
     // Register a Filter to get Generated Channel
     Filter *channel_filter = filter_create_async(sess, conference_host_state);
@@ -484,6 +484,9 @@ conference_exec(Session *sess, app_t *app, const char *args)
 
     // Send this message to ami
     manager_write_message(manager, &msg);
+
+    // Free parsed app arguments
+    application_free_args(parsed);
 
     return 0;
 }

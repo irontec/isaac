@@ -61,7 +61,6 @@ char *recordvars[] =
         NULL
     };
 
-
 /**
  * @brief Module configuration readed from STATUSCONF file
  *
@@ -72,7 +71,6 @@ struct app_status_config
     //! File recorded path
     char record_path[512];
 } status_config;
-
 
 /**
  * @brief Status application custom structure
@@ -159,7 +157,6 @@ read_status_config(const char *cfile)
     return 0;
 }
 
-
 /**
  * @brief Returns agent channel name for a given UniqueID
  *
@@ -207,7 +204,6 @@ find_channel_by_uniqueid(Session *sess, const char *uniqueid)
     // No channel found with that uniqueid
     return NULL;
 }
-
 
 /**
  * @brief Returns channel name for a given UniqueID
@@ -398,7 +394,7 @@ status_print(Filter *filter, AmiMessage *msg)
 
     // CallStatus response
     if (!isaac_strcmp(event, "Newstate") || !isaac_strcmp(event, "Hangup")
-        || !isaac_strcmp(event, "IsaacTransfer")  || !isaac_strncmp(event, "MusicOnHold", 11)) {
+        || !isaac_strcmp(event, "IsaacTransfer") || !isaac_strncmp(event, "MusicOnHold", 11)) {
         if (info->agent) {
             sprintf(statusevent, "EXTERNALCALLAGENTSTATUS ");
         } else {
@@ -736,7 +732,7 @@ status_incoming_uniqueid(Filter *filter, AmiMessage *msg)
  * @return 0 in all cases
  */
 int
-status_exec(Session *sess, app_t *app, const char *args)
+status_exec(Session *sess, Application *app, const char *args)
 {
     const char *agent = session_get_variable(sess, "AGENT");
     const char *interface = session_get_variable(sess, "INTERFACE");
@@ -760,23 +756,25 @@ status_exec(Session *sess, app_t *app, const char *args)
     filter_register(channelfilter);
 
     // Parse rest of status arguments
-    app_args_t parsed;
-    application_parse_args(args, &parsed);
+    GSList *parsed = application_parse_args(args);
 
     // Check if debug is enabled
-    if (!isaac_strcmp(application_get_arg(&parsed, "DEBUG"), "1"))
+    if (application_arg_exists(parsed, "DEBUG")) {
         session_set_variable(sess, "STATUSDEBUG", "1");
+    }
 
     // Check with uniqueid mode
-    if (!isaac_strcmp(application_get_arg(&parsed, "WUID"), "1"))
+    if (application_arg_exists(parsed, "WUID")) {
         session_set_variable(sess, "STATUSWUID", "1");
+    }
 
     // Check with queuename mode
-    if (!isaac_strcmp(application_get_arg(&parsed, "WQUEUE"), "1"))
+    if (application_arg_exists(parsed, "WQUEUE")) {
         session_set_variable(sess, "STATUSWQUEUE", "1");
+    }
 
     // Check with agent mode
-    if (!isaac_strcmp(application_get_arg(&parsed, "WAGENT"), "1")) {
+    if (application_arg_exists(parsed, "WAGENT")) {
         session_set_variable(sess, "STATUSWAGENT", "1");
 
         // Listen to ISAAC_MONITOR in Agent channels
@@ -799,6 +797,9 @@ status_exec(Session *sess, app_t *app, const char *args)
 
     session_set_variable(sess, "APPSTATUS", "1");
 
+    // Free parsed app arguments
+    application_free_args(parsed);
+
     return 0;
 }
 
@@ -813,7 +814,7 @@ status_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-answer_exec(Session *sess, app_t *app, const char *args)
+answer_exec(Session *sess, Application *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -847,7 +848,6 @@ answer_exec(Session *sess, app_t *app, const char *args)
     return 0;
 }
 
-
 /**
  * @brief Holduid application callback
  *
@@ -859,7 +859,7 @@ answer_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-holduid_exec(Session *sess, app_t *app, const char *args)
+holduid_exec(Session *sess, Application *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -893,7 +893,6 @@ holduid_exec(Session *sess, app_t *app, const char *args)
     return 0;
 }
 
-
 /**
  * @brief Unholduid application callback
  *
@@ -905,7 +904,7 @@ holduid_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-unholduid_exec(Session *sess, app_t *app, const char *args)
+unholduid_exec(Session *sess, Application *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -950,7 +949,7 @@ unholduid_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-hangupuid_exec(Session *sess, app_t *app, const char *args)
+hangupuid_exec(Session *sess, Application *app, const char *args)
 {
     char uniqueid[50];
     char *channame = NULL;
@@ -994,7 +993,7 @@ hangupuid_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-playbackuid_exec(Session *sess, app_t *app, const char *args)
+playbackuid_exec(Session *sess, Application *app, const char *args)
 {
     char uniqueid[50], filename[512], actionid[10];
     char *channame = NULL;
@@ -1054,33 +1053,30 @@ playbackuid_exec(Session *sess, app_t *app, const char *args)
  *
  */
 int
-setvaruid_exec(Session *sess, app_t *app, const char *args)
+setvaruid_exec(Session *sess, Application *app, const char *argstr)
 {
     char uniqueid[50], options[512];
     const char *channame = NULL;
     const char *varname = NULL;
     const char *varvalue = NULL;
 
-
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED))
         return NOT_AUTHENTICATED;
 
-    // Get Call parameteres
-    if (sscanf(args, "%s %[^\n]", uniqueid, options) < 2)
-        return INVALID_ARGUMENTS;
-
     // Check if uniqueid info is requested
-    app_args_t parsed;
-    application_parse_args(options, &parsed);
-
+    GSList *args = application_parse_args(argstr);
 
     // Get Variable name
-    if (!(varname = application_get_arg(&parsed, "VARIABLE")) && strlen(varname))
+    if ((varname = application_get_arg(args, "VARIABLE")) == NULL || strlen(varname) == 0) {
+        application_free_args(args);
         return INVALID_ARGUMENTS;
+    }
 
     // Get Variable value
-    if (!(varvalue = application_get_arg(&parsed, "VALUE")))
+    if ((varvalue = application_get_arg(args, "VALUE")) == NULL) {
+        application_free_args(args);
         return INVALID_ARGUMENTS;
+    }
 
     // Get target channel
     if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
@@ -1097,6 +1093,10 @@ setvaruid_exec(Session *sess, app_t *app, const char *args)
         // Ups.
         session_write(sess, "SETVARUIDFAILED Channel not found\r\n");
     }
+
+    // Free args app arguments
+    application_free_args(args);
+
     return 0;
 }
 
@@ -1104,7 +1104,7 @@ setvaruid_exec(Session *sess, app_t *app, const char *args)
  * @brief RedirectUID application callback
  */
 int
-redirectuid_exec(Session *sess, app_t *app, const char *args)
+redirectuid_exec(Session *sess, Application *app, const char *args)
 {
     char uniqueid[50], context[256], exten[80];
     const char *channame = NULL;
@@ -1177,7 +1177,7 @@ recorduid_state(Filter *filter, AmiMessage *msg)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-recorduid_exec(Session *sess, app_t *app, const char *args)
+recorduid_exec(Session *sess, Application *app, const char *args)
 {
     struct app_status_info *info;
     char uniqueid[ACTIONID_LEN];
@@ -1297,7 +1297,7 @@ recorduid_exec(Session *sess, app_t *app, const char *args)
  * @return 0 if the call is found, -1 otherwise
  */
 int
-recordstopuid_exec(Session *sess, app_t *app, const char *args)
+recordstopuid_exec(Session *sess, Application *app, const char *args)
 {
     struct app_status_info *info;
     char uniqueid[ACTIONID_LEN];

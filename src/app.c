@@ -27,174 +27,178 @@
 #include "config.h"
 #include <stdio.h>
 #include <ctype.h>
-#include <pthread.h>
 #include "app.h"
 #include "log.h"
-#include "util.h"
 
 //! Registered application List
-app_t *apps = NULL;
+GSList *apps = NULL;
 //! Registered application List Mutex
-pthread_mutex_t apps_lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static GRecMutex apps_lock;
 
-int
-application_register(const char *name, int
-(*execute)(Session *sess, app_t *app, const char *args))
+gint
+application_register(const gchar *name, ApplicationFunc execute)
 {
     // Check if another application is registered with the same name
-    if (application_find(name)) {
+    if (application_find_by_name(name)) {
         isaac_log(LOG_ERROR, "Another application exists with name %s\n", name);
         return -1;
     }
 
     // Allocate memory for application structure
-    app_t *app = malloc(sizeof(app_t));
-    app->name = strdup(name);
+    Application *app = g_malloc0(sizeof(Application));
+    g_assert_nonnull(app);
+    app->name = name;
     app->execute = execute;
 
     // Add the new application to the applications list
-    pthread_mutex_lock(&apps_lock);
-    app->next = apps;
-    apps = app;
-    pthread_mutex_unlock(&apps_lock);
+    g_rec_mutex_lock(&apps_lock);
+    apps = g_slist_append(apps, app);
+    g_rec_mutex_unlock(&apps_lock);
 
     // Some debug logging
     isaac_log(LOG_VERBOSE_3, "Registered application '\e[1;36m%s\e[0m'\n", name);
     return 0;
 }
 
-int
-application_unregister(const char *name)
+gint
+application_unregister(const gchar *name)
 {
-    app_t *cur, *prev = NULL;
-    pthread_mutex_lock(&apps_lock);
-    // Loop through applications list till we find given application name
-    for (cur = apps; cur; prev = cur, cur = cur->next) {
-        if (!strcasecmp(name, cur->name)) {
-            isaac_log(LOG_VERBOSE_3, "Unegistered application '\e[1;36m%s\e[0m'\n", cur->name);
-            // Remove from applications list
-            if (prev) {
-                prev->next = cur->next;
-            } else {
-                apps = cur->next;
-            }
-            // Free allocated memory
-            isaac_free(cur->name);
-            isaac_free(cur);
-            break;
-        }
+    g_rec_mutex_lock(&apps_lock);
+    Application *app = application_find_by_name(name);
+    if (app) {
+        isaac_log(LOG_VERBOSE_3, "Unregistered application '\e[1;36m%s\e[0m'\n", app->name);
+        apps = g_slist_remove(apps, app);
+        g_free(app);
     }
-    pthread_mutex_unlock(&apps_lock);
+    g_rec_mutex_unlock(&apps_lock);
     return 0;
 }
 
-app_t *
-application_find(const char *name)
+Application *
+application_find_by_name(const gchar *name)
 {
-    app_t *cur = NULL;
-    pthread_mutex_lock(&apps_lock);
+    Application *found = NULL;
+
+    g_rec_mutex_lock(&apps_lock);
     // Loop through applications list till we find given application name
-    for (cur = apps; cur; cur = cur->next) {
-        if (!strcasecmp(cur->name, name)) {
+    for (GSList *l = apps; l; l = l->next) {
+        Application *app = l->data;
+        if (g_ascii_strcasecmp(app->name, name) == 0) {
+            found = app;
             break;
         }
     }
-    pthread_mutex_unlock(&apps_lock);
-    return cur;
+    g_rec_mutex_unlock(&apps_lock);
+    return found;
 }
 
-int
+guint
 application_count()
 {
-    app_t *cur;
-    int appcnt = 0;
-    pthread_mutex_lock(&apps_lock);
-    // Loop through applications list counting
-    for (cur = apps; cur; cur = cur->next) {
-        appcnt++;
+    g_rec_mutex_lock(&apps_lock);
+    guint count = g_slist_length(apps);
+    g_rec_mutex_unlock(&apps_lock);
+    return count;
+}
+
+gchar *
+application_get_names()
+{
+    GString *names = g_string_new(NULL);
+    g_rec_mutex_lock(&apps_lock);
+    // Loop through applications list till we find given application name
+    for (GSList *l = apps; l; l = l->next) {
+        Application *app = l->data;
+        g_string_append_printf(names, "%s ", app->name);
     }
-    pthread_mutex_unlock(&apps_lock);
-    return appcnt;
+    g_rec_mutex_unlock(&apps_lock);
+    return g_string_free(names, FALSE);
 }
 
 int
-application_run(app_t *app, Session *sess, const char *args)
+application_run(Application *app, Session *sess, const gchar *args)
 {
     // Sanity checks
     if (!app || !app->execute) {
         return -1;
     }
 
+    // Fix the arguments string, remove any \r or \n characters
+    g_autoptr(GString) arguments = g_string_new(args);
+    g_string_replace(arguments, "\r", "", 0);
+    g_string_replace(arguments, "\n", "", 0);
+
     // Some debug logging
     if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {
-        isaac_log(LOG_DEBUG, "[Session %s] <-- %s %s\n", sess->id, app->name, args);
+        isaac_log(LOG_DEBUG, "[Session %s] <-- %s %s\n", sess->id, app->name, arguments->str);
     }
 
     // Run the application entry point
-    return app->execute(sess, app, args);
+    return app->execute(sess, app, arguments->str);
+}
+
+GSList *
+application_parse_args(const gchar *argstr)
+{
+    g_return_val_if_fail(argstr != NULL, NULL);
+
+    GSList *ret = NULL;
+
+    // Support arguments with and without value
+    g_auto(GStrv) args = g_strsplit(argstr, " ", -1);
+    for (guint i = 0; i < g_strv_length(args); i++) {
+        ApplicationArg *arg = g_malloc0(sizeof(ApplicationArg));
+        g_return_val_if_fail(arg != NULL, NULL);
+
+        // Check if argument is in VAR=VALUE format
+        GStrv var = g_strsplit(args[i], "=", 2);
+
+        // Argument without value
+        if (g_strv_length(var) == 1) {
+            arg->name = g_strdup(var[0]);
+        }
+
+        // Argument with value
+        if (g_strv_length(var) == 2) {
+            arg->name = g_strdup(var[0]);
+            arg->value = g_strdup(var[1]);
+        }
+
+        // Free argument parsing
+        g_strfreev(var);
+
+        // Add to the arguments list
+        ret = g_slist_append(ret, arg);
+    }
+
+    return ret;
+}
+
+static void
+application_free_arg(ApplicationArg *arg)
+{
+    g_free(arg->name);
+    g_free(arg->value);
+    g_free(arg);
 }
 
 void
-application_parse_args(const char *argstr, app_args_t *args)
+application_free_args(GSList *args)
 {
-    char arguments[256];
-    char *arg, *rest = NULL, c, *end;
-    int i;
-
-    // No arguments, we're done :)
-    if (!argstr) return;
-    // No storage for arguments!
-    if (!args) return;
-
-    // Initialize argument structure
-    memset(args, 0, sizeof(app_args_t));
-
-    // Store argument string, to be tokenized
-    isaac_strcpy(arguments, argstr);
-
-    // Fix the arguments string, remove any \r or \n characters
-    for (end = arguments; *end; end++) {
-        if (*end == '\n' || *end == '\r')
-            *end = '\0';
-    }
-
-    // Split the arguments by space
-    for (arg = arguments; (arg = strtok_r(arg, " ", &rest)); arg = rest) {
-        // Store this argument
-        isaac_strncpy(args->args[args->count], arg, strlen(arg));
-
-        // Uppercase all variables until value signal is found
-        for (i = 0; (c = args->args[args->count][i]); i++) {
-            if (c == '=') break;
-            args->args[args->count][i] = toupper(c);
-        }
-
-        // Incremente argument counter
-        args->count++;
-    }
+    g_slist_free_full(args, (GDestroyNotify) application_free_arg);
 }
 
-const char *
-application_get_arg(app_args_t *args, const char *argname)
+const gchar *
+application_get_arg(GSList *args, const gchar *name)
 {
-    int i;
-    char *ret;
-
-    if (!args) return NULL;
-    if (!argname) return NULL;
-
+    g_return_val_if_fail(args != NULL, NULL);
+    g_return_val_if_fail(name != NULL, NULL);
 
     // Search for the argument
-    for (i = 0; i < args->count; i++) {
-        if (!strncasecmp(args->args[i], argname, strlen(argname))) {
-            // Argument found, check if it has a value
-            if ((ret = strchr(args->args[i], '='))) {
-                // Found with value, return value
-                return ret + 1;
-            } else {
-                // Found without value, return default value "1"
-                return "1";
-            }
+    for (GSList *l = args; l; l = l->next) {
+        ApplicationArg *arg = l->data;
+        if (g_ascii_strcasecmp(arg->name, name) == 0) {
+            return arg->value;
         }
     }
 
@@ -202,8 +206,54 @@ application_get_arg(app_args_t *args, const char *argname)
     return NULL;
 }
 
-const char *
-apperr2str(int apperr)
+const gchar *
+application_get_nth_arg(GSList *args, gint index)
+{
+    g_return_val_if_fail(args != NULL, NULL);
+    ApplicationArg *arg = g_slist_nth_data(args, index);
+    return (arg) ? arg->name : NULL;
+}
+
+gboolean
+application_arg_exists(GSList *args, const gchar *name)
+{
+    g_return_val_if_fail(args != NULL, FALSE);
+    g_return_val_if_fail(name != NULL, FALSE);
+
+    // Search for the argument
+    for (GSList *l = args; l; l = l->next) {
+        ApplicationArg *arg = l->data;
+        if (g_ascii_strcasecmp(arg->name, name) == 0) {
+            return TRUE;
+        }
+    }
+
+    // Argument not found
+    return FALSE;
+}
+
+gboolean
+application_arg_has_value(GSList *args, const gchar *name, const gchar *value)
+{
+    g_return_val_if_fail(args != NULL, FALSE);
+    g_return_val_if_fail(name != NULL, FALSE);
+    g_return_val_if_fail(value != NULL, FALSE);
+
+    // Search for the argument
+    for (GSList *l = args; l; l = l->next) {
+        ApplicationArg *arg = l->data;
+        if (g_ascii_strcasecmp(arg->name, name) == 0 &&
+            g_ascii_strcasecmp(arg->value, value) == 0) {
+            return TRUE;
+        }
+    }
+
+    // Argument not found
+    return FALSE;
+}
+
+const gchar *
+apperr2str(enum ApplicationErrors apperr)
 {
     switch (apperr) {
         case NOT_AUTHENTICATED:

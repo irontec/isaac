@@ -33,10 +33,6 @@
 #include "util.h"
 #include "session.h"
 
-//! Application List
-extern app_t *apps;
-//! Application List Mutex
-extern pthread_mutex_t apps_lock;
 
 /**
  * @brief Help command callback
@@ -51,18 +47,10 @@ extern pthread_mutex_t apps_lock;
  * @param args Aditional command line arguments (not used)
  * @return 0 in all cases
  */
-int help_exec(Session *sess, app_t *app, const char *args)
+int help_exec(Session *sess, Application *app, const char *args)
 {
-    session_write(sess, "Available applications: ");
-    pthread_mutex_lock(&apps_lock);
-    // Loop through the apps list printing their names
-    app_t *cur = apps;
-    while (cur) {
-        session_write(sess, "%s ", cur->name);
-        cur = cur->next;
-    }
-    session_write(sess, "\r\n");
-    pthread_mutex_unlock(&apps_lock);
+    g_autofree gchar *names = application_get_names();
+    session_write(sess, "Available applications: %s\r\n", names);
     return 0;
 }
 
@@ -78,7 +66,7 @@ int help_exec(Session *sess, app_t *app, const char *args)
  * @param args  Aditional command line arguments (Variable, Value)
  * @return 0 in all cases
  */
-int set_exec(Session *sess, app_t *app, const char *args)
+int set_exec(Session *sess, Application *app, const char *args)
 {
     char variable[80], value[250];
 
@@ -103,7 +91,7 @@ int set_exec(Session *sess, app_t *app, const char *args)
  * @param args  Aditional command line arguments (Variable, Value)
  * @return 0 in all cases
  */
-int get_exec(Session *sess, app_t *app, const char *args)
+int get_exec(Session *sess, Application *app, const char *args)
 {
     char variable[80];
     const char *value;
@@ -129,7 +117,7 @@ int get_exec(Session *sess, app_t *app, const char *args)
  * @param args  Aditional command line arguments (Variable, Value)
  * @return 0 in all cases
  */
-int broadcast_exec(Session *sess, app_t *app, const char *args)
+int broadcast_exec(Session *sess, Application *app, const char *args)
 {
     char variable[80], value[80], message[1024];
 

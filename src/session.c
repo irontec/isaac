@@ -90,7 +90,7 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
         sess->last_cmd_time = g_get_monotonic_time();
 
         // Split the input in command + args
-        gchar **command = g_strsplit(msg, " ", 2);
+        gchar **command = g_strsplit(g_strstrip(msg), " ", 2);
         if (g_strv_length(command) < 1) {
             // A message must have at least... one word
             session_write(sess, "%s\r\n", apperr2str(INVALID_FORMAT));
@@ -98,7 +98,7 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
             return TRUE;
         }
 
-        app_t *app = application_find(command[0]);
+        Application *app = application_find_by_name(command[0]);
         if (!app) {
             // What? Me no understand
             session_write(sess, "%s\r\n", apperr2str(UNKNOWN_ACTION));

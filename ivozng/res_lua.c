@@ -85,7 +85,7 @@ lua_app_t *lua_apps;
 lua_filter_t *lua_filters;
 
 int
-lua_application_callback(Session *sess, app_t *app, const char *args)
+lua_application_callback(Session *sess, Application *app, const char *args)
 {
     lua_app_t *lua_app = lua_apps;
     // Find the lua application

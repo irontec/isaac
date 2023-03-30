@@ -259,17 +259,16 @@ peer_status_check(Filter *filter, AmiMessage *msg)
  *
  * @param sess  Session structure running the application
  * @param app The application structure
- * @param args  Application arguments
+ * @param argstr  Application arguments
  * @return 0 in case of login success, 1 otherwise
  */
 int
-login_exec(Session *sess, app_t *app, const char *args)
+login_exec(Session *sess, Application *app, const char *argstr)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
     int ret = 0;
-    int login_num;
-    char agent[100], pass[100], interface[100], module[24];
+    char agent[100], interface[100], module[24];
 
     // If session is already authenticated, show an error
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -277,10 +276,19 @@ login_exec(Session *sess, app_t *app, const char *args)
         return -1;
     }
 
+    // Parse application argument
+    GSList *args = application_parse_args(argstr);
+
     // Get login data from application arguments
-    if (sscanf(args, "%d %s", &login_num, pass) != 2) {
+    if (g_slist_length(args) != 2) {
+        application_free_args(args);
         return INVALID_ARGUMENTS;
     }
+
+    // Get login and password
+    gint login_num = atoi(application_get_nth_arg(args, 0));
+    gchar *pass = application_get_nth_arg(args, 1);
+
     // Allocate a statement handle
     g_rec_mutex_lock(&odbc_lock);
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
@@ -378,6 +386,10 @@ login_exec(Session *sess, app_t *app, const char *args)
 
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
     g_rec_mutex_unlock(&odbc_lock);
+
+    // Free parsed app arguments
+    application_free_args(args);
+
     return ret;
 }
 
@@ -473,7 +485,7 @@ devicestatus_changed(Filter *filter, AmiMessage *msg)
  * @return 0 in case of login success, 1 otherwise
  */
 int
-devicestatus_exec(Session *sess, app_t *app, const char *args)
+devicestatus_exec(Session *sess, Application *app, const char *args)
 {
     // If session is not authenticated, show an error
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -546,7 +558,7 @@ devicestatus_exec(Session *sess, app_t *app, const char *args)
  * @return 0 in all cases
  */
 int
-logout_exec(Session *sess, app_t *app, const char *args)
+logout_exec(Session *sess, Application *app, const char *args)
 {
     session_write(sess, "BYE %s\r\n", "Thanks for all the fish");
     session_finish(sess);
@@ -570,10 +582,10 @@ load_module()
         return -1;
     }
 
-    res |= application_register("Login", login_exec);
-    res |= application_register("Logout", logout_exec);
-    res |= application_register("Exit", logout_exec);
-    res |= application_register("DeviceStatus", devicestatus_exec);
+    res |= application_register("LOGIN", login_exec);
+    res |= application_register("LOGOUT", logout_exec);
+    res |= application_register("EXIT", logout_exec);
+    res |= application_register("DEVICESTATUS", devicestatus_exec);
 
     // Start connected to ODBC
     odbc_connect();
