@@ -267,13 +267,13 @@ load_module()
         isaac_log(LOG_ERROR, "Failed to read app_acd config file %s\n", ACDCONF);
         return -1;
     }
-    res |= application_register("ACDStatus", acd_exec);
-    res |= application_register("ACDLogin", acd_exec);
-    res |= application_register("ACDLogout", acd_exec);
-    res |= application_register("ACDPause", acd_exec);
-    res |= application_register("ACDUnpause", acd_exec);
-    res |= application_register("QueueJoin", acd_exec);
-    res |= application_register("QueueLeave", acd_exec);
+    res |= application_register("ACDSTATUS", acd_exec);
+    res |= application_register("ACDLOGIN", acd_exec);
+    res |= application_register("ACDLOGOUT", acd_exec);
+    res |= application_register("ACDPAUSE", acd_exec);
+    res |= application_register("ACDUNPAUSE", acd_exec);
+    res |= application_register("QUEUEJOIN", acd_exec);
+    res |= application_register("QUEUELEAVE", acd_exec);
     return res;
 }
 
@@ -288,12 +288,12 @@ int
 unload_module()
 {
     int res = 0;
-    res |= application_unregister("ACDStatus");
-    res |= application_unregister("ACDLogin");
-    res |= application_unregister("ACDLogout");
-    res |= application_unregister("ACDPause");
-    res |= application_unregister("ACDUnpause");
-    res |= application_unregister("QueueJoin");
-    res |= application_unregister("QueueLeave");
+    res |= application_unregister("ACDSTATUS");
+    res |= application_unregister("ACDLOGIN");
+    res |= application_unregister("ACDLOGOUT");
+    res |= application_unregister("ACDPAUSE");
+    res |= application_unregister("ACDUNPAUSE");
+    res |= application_unregister("QUEUEJOIN");
+    res |= application_unregister("QUEUELEAVE");
     return res;
 }

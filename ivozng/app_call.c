@@ -227,7 +227,7 @@ get_call_info_from_id(Session *sess, const char *id)
  * @param msg Matching message from Manager
  * @return 0 in all cases
  */
-int
+gint
 call_state(Filter *filter, AmiMessage *msg)
 {
     // Get Call information
@@ -339,8 +339,13 @@ call_state(Filter *filter, AmiMessage *msg)
             // This messages are always from agent
             isaac_strcpy(from, "AGENT");
 
-            // Register a Filter for the agent statusthe custom manager application PlayDTMF.
-            info->ofilter = filter_create_async(filter->sess, call_state);
+            // Register a Filter for the agent status
+            info->ofilter = filter_create_async(
+                filter->sess,
+                filter->app,
+                "Call Status events on Leg1 channel",
+                call_state
+            );
             filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
             filter_set_userdata(info->ofilter, (void *) info);
@@ -362,7 +367,7 @@ call_state(Filter *filter, AmiMessage *msg)
             const char *linkedid = message_get_header(msg, "Linkedid");
 
             // These event now happen on a local channel, so try to find the final channel
-            Filter *dial_filter = filter_create_async(filter->sess, call_state);
+            Filter *dial_filter = filter_create_async(filter->sess, filter->app, "Find first channel from Local", call_state);
             filter_new_condition(dial_filter, MATCH_REGEX, "Event", "DialBegin");
             filter_new_condition(dial_filter, MATCH_EXACT, "Uniqueid", uniqueid);
             filter_set_userdata(dial_filter, (void *) info);
@@ -376,7 +381,7 @@ call_state(Filter *filter, AmiMessage *msg)
                 isaac_strcpy(info->odchannel, message_get_header(msg, "Channel"));
 
                 // Try to find second Local channel
-                Filter *callfilter = filter_create_async(filter->sess, call_state);
+                Filter *callfilter = filter_create_async(filter->sess, filter->app, "Find second channel from Local", call_state);
                 filter_new_condition(callfilter, MATCH_EXACT, "Event", "VarSet");
                 filter_new_condition(callfilter, MATCH_EXACT, "Variable", "ACTIONID");
                 filter_new_condition(callfilter, MATCH_EXACT, "Value", message_get_header(msg, "Value"));
@@ -398,7 +403,7 @@ call_state(Filter *filter, AmiMessage *msg)
         isaac_strcpy(info->dduid, message_get_header(msg, "DestUniqueID"));
 
         // Register a Filter for the agent status
-        info->dfilter = filter_create_async(filter->sess, call_state);
+        info->dfilter = filter_create_async(filter->sess, filter->app, "Destination channel events", call_state);
         filter_set_userdata(info->dfilter, info);
         filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
         filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
@@ -427,14 +432,14 @@ call_state(Filter *filter, AmiMessage *msg)
             // This messages are always from agent
             isaac_strcpy(from, "AGENT");
 
-            // Register a Filter for the agent statusthe custom manager application PlayDTMF.
-            info->ofilter = filter_create_async(filter->sess, call_state);
+            // Register a Filter for the agent status
+            info->ofilter = filter_create_async(filter->sess, filter->app, "Agent channel events", call_state);
             filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
             filter_set_userdata(info->ofilter, (void *) info);
             filter_register(info->ofilter);
 
-            info->odfilter = filter_create_async(filter->sess, call_state);
+            info->odfilter = filter_create_async(filter->sess, filter->app, "Agent channel events", call_state);
             filter_new_condition(info->odfilter , MATCH_REGEX, "Event", "VarSet|Hangup");
             filter_new_condition(info->odfilter , MATCH_EXACT, "UniqueID", info->oduid);
             filter_set_userdata(info->odfilter , (void *) info);
@@ -452,7 +457,7 @@ call_state(Filter *filter, AmiMessage *msg)
             isaac_strcpy(from, "REMOTE");
 
             // Register a Filter for the agent status
-            info->dfilter = filter_create_async(filter->sess, call_state);
+            info->dfilter = filter_create_async(filter->sess, filter->app, "Destination channel events", call_state);
             filter_set_userdata(info->dfilter, info);
             filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
             filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
@@ -548,7 +553,7 @@ call_exec(Session *sess, Application *app, const char *argstr)
     }
 
     // Register a Filter to get Generated Channel
-    info->callfilter = filter_create_async(sess, call_state);
+    info->callfilter = filter_create_async(sess, app, "Originated call status", call_state);
     filter_new_condition(info->callfilter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(info->callfilter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(info->callfilter, MATCH_EXACT, "Value", actionid);
@@ -612,7 +617,7 @@ call_exec(Session *sess, Application *app, const char *argstr)
  * DTMF action will send a DTMF code to a second channel generated using
  * CALL action using the custom manager application PlayDTMF.
  *
- * @param sess Session rnuning this applicationthe custom manager application PlayDTMF.
+ * @param sess Session rnuning this application
  * @param app The application structure
  * @param args Dtmf action args "ActionID DTMFDigit"
  * @return 0 if the call is found, -1 otherwise
@@ -821,7 +826,7 @@ record_exec(Session *sess, Application *app, const char *args)
             return -1;
         }
 
-        Filter *record_status = filter_create_async(sess, record_state);
+        Filter *record_status = filter_create_async(sess, app, "Recording status", record_state);
         filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s", actionid);
         filter_set_userdata(record_status, (void *) info);
         filter_register_oneshot(record_status);
@@ -989,13 +994,13 @@ load_module()
         isaac_log(LOG_ERROR, "Failed to read app_call config file %s\n", CALLCONF);
         return -1;
     }
-    res |= application_register("Call", call_exec);
-    res |= application_register("Hangup", hangup_exec);
-    res |= application_register("Dtmf", dtmf_exec);
-    res |= application_register("Hold", hold_unhold_exec);
-    res |= application_register("Unhold", hold_unhold_exec);
-    res |= application_register("Record", record_exec);
-    res |= application_register("RecordStop", recordstop_exec);
+    res |= application_register("CALL", call_exec);
+    res |= application_register("HANGUP", hangup_exec);
+    res |= application_register("DTMF", dtmf_exec);
+    res |= application_register("HOLD", hold_unhold_exec);
+    res |= application_register("UNHOLD", hold_unhold_exec);
+    res |= application_register("RECORD", record_exec);
+    res |= application_register("RECORDSTOP", recordstop_exec);
     return res;
 }
 
@@ -1010,12 +1015,12 @@ int
 unload_module()
 {
     int res = 0;
-    res |= application_unregister("Call");
-    res |= application_unregister("Hangup");
-    res |= application_unregister("Dtmf");
-    res |= application_unregister("Hold");
-    res |= application_unregister("Unhold");
-    res |= application_unregister("Record");
-    res |= application_unregister("RecordStop");
+    res |= application_unregister("CALL");
+    res |= application_unregister("HANGUP");
+    res |= application_unregister("DTMF");
+    res |= application_unregister("HOLD");
+    res |= application_unregister("UNHOLD");
+    res |= application_unregister("RECORD");
+    res |= application_unregister("RECORDSTOP");
     return res;
 }

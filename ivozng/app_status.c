@@ -354,7 +354,12 @@ status_builtinxfer(Filter *filter, AmiMessage *msg)
         local_channel[strlen(local_channel) - 1] = '2';
 
         // Try to find the final xfer channel
-        Filter *builtinxferfilter = filter_create_async(filter->sess, status_builtinxfer);
+        Filter *builtinxferfilter = filter_create_async(
+            filter->sess,
+            filter->app,
+            "Find final xfer channel",
+            status_builtinxfer
+        );
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "VarSet");
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Channel", local_channel);
         filter_new_condition(builtinxferfilter, MATCH_EXACT, "Variable", "BRIDGEPEER");
@@ -420,7 +425,7 @@ status_print(Filter *filter, AmiMessage *msg)
             sprintf(statusevent + strlen(statusevent), "ANSWERED\r\n");
             info->answered = true;
 
-            Filter *callfilter = filter_create_async(filter->sess, status_print);
+            Filter *callfilter = filter_create_async(filter->sess, filter->app, "MoH changes on channel", status_print);
             filter_new_condition(callfilter, MATCH_REGEX, "Event", "MusicOnHold|MusicOnHoldStart|MusicOnHoldStop");
             filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->channel);
             filter_set_userdata(callfilter, (void *) info);
@@ -513,7 +518,7 @@ status_print(Filter *filter, AmiMessage *msg)
 
             if (xfer_sess) {
                 // We get the Attender transfer type from masquearde Event
-                Filter *blindxferfilter = filter_create_async(sess, status_blindxfer);
+                Filter *blindxferfilter = filter_create_async(sess, filter->app, "Get Xfer destination", status_blindxfer);
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "Event", "Dial");
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "SubEvent", "Begin");
                 filter_new_condition(blindxferfilter, MATCH_EXACT, "Channel", info->channel);
@@ -528,7 +533,7 @@ status_print(Filter *filter, AmiMessage *msg)
                 info->xfer_state = 6;
 
                 // We get the Attender transfer type from masquearde Event
-                Filter *builtinxferfilter = filter_create_async(sess, status_builtinxfer);
+                Filter *builtinxferfilter = filter_create_async(sess, filter->app, "Get Xfer destination", status_builtinxfer);
                 filter_new_condition(builtinxferfilter, MATCH_EXACT, "Event", "VarSet");
                 filter_new_condition(builtinxferfilter, MATCH_EXACT, "Variable", "TRANSFERERNAME");
                 filter_new_condition(builtinxferfilter, MATCH_EXACT, "Value", info->agent_channel);
@@ -594,7 +599,7 @@ status_call(Filter *filter, AmiMessage *msg)
     }
 
     // Register a Filter for notifying this call
-    Filter *callfilter = filter_create_async(filter->sess, status_print);
+    Filter *callfilter = filter_create_async(filter->sess, filter->app, "Initial events from Agent channel", status_print);
     filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer");
     filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agent_channel);
     filter_set_userdata(callfilter, (void *) info);
@@ -683,14 +688,14 @@ status_incoming_uniqueid(Filter *filter, AmiMessage *msg)
             isaac_strcpy(info->agent_channel, message_get_header(msg, "Channel"));
 
             // Register a Filter for notifying this call
-            Filter *callfilter = filter_create_async(filter->sess, status_print);
+            Filter *callfilter = filter_create_async(filter->sess, filter->app, "Agent channel status changes", status_print);
             filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer|VarSet");
             filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agent_channel);
             filter_set_userdata(callfilter, (void *) info);
             filter_register(callfilter);
 
         } else {
-            Filter *channelfilter = filter_create_async(filter->sess, status_call);
+            Filter *channelfilter = filter_create_async(filter->sess, filter->app, "Agent channel name fetch", status_call);
             filter_new_condition(channelfilter, MATCH_REGEX, "Event", "Dial|DialBegin");
             filter_new_condition(channelfilter, MATCH_REGEX, "SubEvent", "Begin|");
             filter_new_condition(channelfilter, MATCH_EXACT, "Channel", message_get_header(msg, "Channel"));
@@ -698,7 +703,7 @@ status_incoming_uniqueid(Filter *filter, AmiMessage *msg)
             filter_register_oneshot(channelfilter);
 
             // Register a Filter for notifying this call
-            Filter *recordfilter = filter_create_async(filter->sess, record_variables);
+            Filter *recordfilter = filter_create_async(filter->sess, filter->app, "Find Recording variables", record_variables);
             filter_new_condition(recordfilter, MATCH_REGEX, "Variable", "GRABACIONES_%s_.*", info->uniqueid);
             filter_set_userdata(recordfilter, (void *) info);
             filter_register(recordfilter);
@@ -749,7 +754,7 @@ status_exec(Session *sess, Application *app, const char *args)
     }
 
     // Register a Filter to get All generated channels for
-    Filter *channelfilter = filter_create_async(sess, status_incoming_uniqueid);
+    Filter *channelfilter = filter_create_async(sess, app, "Incoming call from queue", status_incoming_uniqueid);
     filter_new_condition(channelfilter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(channelfilter, MATCH_EXACT, "Variable", "__ISAAC_MONITOR");
     filter_new_condition(channelfilter, MATCH_REGEX, "Channel", "Local/%s(_1)?@agentes", agent);
@@ -778,7 +783,7 @@ status_exec(Session *sess, Application *app, const char *args)
         session_set_variable(sess, "STATUSWAGENT", "1");
 
         // Listen to ISAAC_MONITOR in Agent channels
-        Filter *agentfilter = filter_create_async(sess, status_incoming_uniqueid);
+        Filter *agentfilter = filter_create_async(sess, app, "Get agent from queue incoming call", status_incoming_uniqueid);
         filter_new_condition(agentfilter, MATCH_EXACT, "Event", "VarSet");
         filter_new_condition(agentfilter, MATCH_EXACT, "Variable", "ISAAC_AGENT_MONITOR");
         filter_new_condition(agentfilter, MATCH_REGEX, "Channel", "%s", interface);
@@ -1205,7 +1210,7 @@ recorduid_exec(Session *sess, Application *app, const char *args)
             return -1;
         }
 
-        Filter *record_status = filter_create_async(sess, recorduid_state);
+        Filter *record_status = filter_create_async(sess, app, "Get Recording status", recorduid_state);
         filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s", uniqueid);
         filter_set_userdata(record_status, (void *) info);
         filter_register_oneshot(record_status);
@@ -1356,17 +1361,17 @@ load_module()
         isaac_log(LOG_ERROR, "Failed to read app_status config file %s\n", STATUSCONF);
         return -1;
     }
-    ret |= application_register("Status", status_exec);
-    ret |= application_register("Answer", answer_exec);
-    ret |= application_register("AnswerUID", answer_exec);
-    ret |= application_register("HoldUID", holduid_exec);
-    ret |= application_register("UnholdUID", unholduid_exec);
-    ret |= application_register("HangupUID", hangupuid_exec);
-    ret |= application_register("PlaybackUID", playbackuid_exec);
-    ret |= application_register("SetVarUID", setvaruid_exec);
-    ret |= application_register("RedirectUID", redirectuid_exec);
-    ret |= application_register("RecordUID", recorduid_exec);
-    ret |= application_register("RecordStopUID", recordstopuid_exec);
+    ret |= application_register("STATUS", status_exec);
+    ret |= application_register("ANSWER", answer_exec);
+    ret |= application_register("ANSWERUID", answer_exec);
+    ret |= application_register("HOLDUID", holduid_exec);
+    ret |= application_register("UNHOLDUID", unholduid_exec);
+    ret |= application_register("HANGUPUID", hangupuid_exec);
+    ret |= application_register("PLAYBACKUID", playbackuid_exec);
+    ret |= application_register("SETVARUID", setvaruid_exec);
+    ret |= application_register("REDIRECTUID", redirectuid_exec);
+    ret |= application_register("RECORDUID", recorduid_exec);
+    ret |= application_register("RECORDSTOPUID", recordstopuid_exec);
     return ret;
 }
 
@@ -1381,16 +1386,16 @@ int
 unload_module()
 {
     int ret = 0;
-    ret |= application_unregister("Status");
-    ret |= application_unregister("Answer");
-    ret |= application_unregister("AnswerUID");
-    ret |= application_unregister("HoldUID");
-    ret |= application_unregister("UnholdUID");
-    ret |= application_unregister("HangupUID");
-    ret |= application_unregister("PlaybackUID");
-    ret |= application_unregister("SetVarUID");
-    ret |= application_unregister("RedirectUID");
-    ret |= application_unregister("RecordUID");
-    ret |= application_unregister("RecordStopUID");
+    ret |= application_unregister("STATUS");
+    ret |= application_unregister("ANSWER");
+    ret |= application_unregister("ANSWERUID");
+    ret |= application_unregister("HOLDUID");
+    ret |= application_unregister("UNHOLDUID");
+    ret |= application_unregister("HANGUPUID");
+    ret |= application_unregister("PLAYBACKUID");
+    ret |= application_unregister("SETVARUID");
+    ret |= application_unregister("REDIRECTUID");
+    ret |= application_unregister("RECORDUID");
+    ret |= application_unregister("RECORDSTOPUID");
     return ret;
 }

@@ -77,7 +77,7 @@ int
 load_module()
 {
     int ret = 0;
-    ret |= application_register("RedirectChannel", redirectto_exec);
+    ret |= application_register("REDIRECTCHANNEL", redirectto_exec);
     return ret;
 }
 
@@ -92,6 +92,6 @@ int
 unload_module()
 {
     int ret = 0;
-    ret |= application_unregister("RedirectChannel");
+    ret |= application_unregister("REDIRECTCHANNEL");
     return ret;
 }

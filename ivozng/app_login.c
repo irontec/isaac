@@ -340,16 +340,14 @@ login_exec(Session *sess, Application *app, const char *argstr)
         // Also check for status changes
         // Check if device is registerd
         if (login_config.check_unregistered) {
-            Filter *peerstatusfilter = filter_create_async(sess, peer_status_check);
-            filter_set_name(peerstatusfilter, "[login] Peer unregistered");
+            Filter *peerstatusfilter = filter_create_async(sess, app, "Peer unregistered", peer_status_check);
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "Event", "PeerStatus");
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "Peer", interface);
             filter_new_condition(peerstatusfilter, MATCH_EXACT, "PeerStatus", "Unregistered");
             filter_register(peerstatusfilter);
         }
 
-        Filter *agentstatus = filter_create_async(sess, peer_status_check);
-        filter_set_name(agentstatus, "[login] Agent Logged out");
+        Filter *agentstatus = filter_create_async(sess, app, "Agent Logged out", peer_status_check);
         filter_new_condition(agentstatus, MATCH_EXACT, "Event", "ExtensionStatus");
         filter_new_condition(agentstatus, MATCH_EXACT, "Exten", "access_%s", interface + 4);
         filter_new_condition(agentstatus, MATCH_EXACT, "Status", "1");
@@ -358,8 +356,7 @@ login_exec(Session *sess, Application *app, const char *argstr)
         if (login_config.validate_registered) {
             g_autofree gchar *actionid = g_uuid_string_random();
             // Check if device is registered
-            Filter *peerfilter = filter_create_async(sess, peer_status_check);
-            filter_set_name(peerfilter, "[login] Check initial peer status");
+            Filter *peerfilter = filter_create_async(sess, app, "Check Initial peer status", peer_status_check);
             filter_new_condition(peerfilter, MATCH_EXACT, "ActionID", actionid);
             filter_register_oneshot(peerfilter);
 
@@ -506,10 +503,9 @@ devicestatus_exec(Session *sess, Application *app, const char *args)
     // pause and access hints will be cc (although these may not exist at all).
 
     // Add a filter for handling device state changes
-    Filter *devicefilter = filter_create_async(sess, devicestatus_changed);
+    Filter *devicefilter = filter_create_async(sess, app, "Pause and Exten events", devicestatus_changed);
     filter_new_condition(devicefilter, MATCH_REGEX, "Context", "pbx-hints|cc-hints");
     g_autofree gchar *exten = g_strdup_printf("^%s(_1)?$|pause_%s", agent, interface + 4);
-    filter_set_name(devicefilter, "[login] Pause and Exten hint filter");
     filter_new_condition(devicefilter, MATCH_REGEX, "Exten", exten);
     filter_register(devicefilter);
 

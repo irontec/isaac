@@ -48,6 +48,9 @@
 #ifndef __ISAAC_FILTER_H_
 #define __ISAAC_FILTER_H_
 
+#include "manager.h"
+#include "app.h"
+
 #define DEBUG_MESSAGE session_write(filter->sess, "%s\n", message_to_text(msg));
 #define DUMP_MESSAGES filter_register(filter_create(filter->sess, FILTER_SYNC_CALLBACK, filter_print_message));
 
@@ -60,6 +63,8 @@
 typedef struct _Filter Filter;
 //! Sorter declaration of isaac_condition struct
 typedef struct _Condition Condition;
+//! Filter callback function typedef
+typedef gint (*FilterFunc)(Filter *filter, AmiMessage *msg);
 
 #include <regex.h>
 #include "manager.h"
@@ -127,12 +132,11 @@ enum FilterType {
 
 struct _AsyncFilter {
     //! Pointer to the callback function
-    int (*callback)(Filter *filter, AmiMessage *msg);
-
+    FilterFunc callback;
     //! If this flag is on, the filter will be unregisted after triggering once
-    int oneshot;
+    gboolean oneshot;
     //! User pointer for storing application information if required
-    void *app_info;
+    gpointer app_info;
 };
 
 struct _SyncFilter {
@@ -155,6 +159,8 @@ struct _Filter {
     Session *sess;
     //! Useful for debugging purposes
     const gchar *name;
+    //! Application that registered this filter
+    Application *app;
     //! Filter's Condition List
     GPtrArray *conditions;
     //! How the callback function is invoked
@@ -174,13 +180,10 @@ struct _Filter {
  * Filters list (so it still won't trigger) so a filter_register should be called
  * when the filter structure is ready to rock.
  *
- * @param sess Session that requested the application that registered the filter
- * @param cbtype How the callback function is invoked
- * @param callback  Pointer to the callback function
  * @return The new allocated filter structure or NULL in case of failure
  */
-extern Filter *
-filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *msg));
+Filter *
+filter_create_async(Session *sess, Application *app, const gchar *name, FilterFunc callback);
 
 /**
  * @brief Create a new filter structure (This won't add it to the Filter's list)
@@ -197,9 +200,6 @@ filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *m
  */
 extern Filter *
 filter_create_sync(Session *sess);
-
-void
-filter_set_name(Filter *filter, const gchar *name);
 
 /**
  * @brief Create a new condition structure and add if to the given filter

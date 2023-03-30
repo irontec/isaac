@@ -61,7 +61,7 @@ ping_exec(Session *sess, Application *app, const char *args)
 int
 load_module()
 {
-    return application_register("Ping", ping_exec);
+    return application_register("PING", ping_exec);
 }
 
 /**
@@ -74,5 +74,5 @@ load_module()
 int
 unload_module()
 {
-    return application_unregister("Ping");
+    return application_unregister("PING");
 }

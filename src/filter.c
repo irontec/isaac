@@ -43,7 +43,7 @@ filter_condition_destroy(Condition *cond)
 }
 
 Filter *
-filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *msg))
+filter_create_async(Session *sess, Application *app, const gchar *name, FilterFunc callback)
 {
     g_return_val_if_fail(sess != NULL, NULL);
 
@@ -52,6 +52,8 @@ filter_create_async(Session *sess, int (*callback)(Filter *filter, AmiMessage *m
     g_return_val_if_fail(filter != NULL, NULL);
 
     filter->sess = sess;
+    filter->app = app;
+    filter->name = name;
     filter->conditions = g_ptr_array_new_with_free_func((GDestroyNotify) filter_condition_destroy);
     filter->type = FILTER_ASYNC;
     filter->data.async.callback = callback;
@@ -82,14 +84,6 @@ filter_create_sync(Session *sess)
 
     // Return the allocated filter (or NULL ;p)
     return filter;
-}
-
-void
-filter_set_name(Filter *filter, const gchar *name)
-{
-    g_return_if_fail(filter != NULL);
-    g_return_if_fail(name != NULL);
-    filter->name = name;
 }
 
 void
@@ -147,9 +141,10 @@ int
 filter_register(Filter *filter)
 {
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter \033[1;32m%s\033[0m [%p] with %d conditions\n",
+        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter \033[1;32m[%s] %s\033[0m [%p] with %d conditions\n",
                   filter->sess->id,
                   (filter->type == FILTER_ASYNC) ? "asnyc" : "sync",
+                  filter->app->name,
                   filter->name,
                   filter,
                   filter->conditions->len);
@@ -169,8 +164,9 @@ filter_destroy(Filter *filter)
 
     // Some debug info
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter \033[1;31m%s\033[0m [%p]\n",
+        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter \033[1;31m[%s] %s\033[0m [%p]\n",
                   filter->sess->id,
+                  filter->app->name,
                   filter->name,
                   filter
         );

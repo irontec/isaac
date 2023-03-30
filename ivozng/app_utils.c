@@ -156,10 +156,10 @@ int broadcast_exec(Session *sess, Application *app, const char *args)
 int load_module()
 {
     int ret = 0;
-    ret |= application_register("Help", help_exec);
-    ret |= application_register("Set", set_exec);
-    ret |= application_register("Get", get_exec);
-    ret |= application_register("Broadcast", broadcast_exec);
+    ret |= application_register("HELP", help_exec);
+    ret |= application_register("SET", set_exec);
+    ret |= application_register("GET", get_exec);
+    ret |= application_register("BROADCAST", broadcast_exec);
     return ret;
 }
 
@@ -173,9 +173,9 @@ int load_module()
 int unload_module()
 {
     int ret = 0;
-    ret |= application_unregister("Help");
-    ret |= application_unregister("Get");
-    ret |= application_unregister("Set");
-    ret |= application_unregister("Broadcast");
+    ret |= application_unregister("HELP");
+    ret |= application_unregister("GET");
+    ret |= application_unregister("SET");
+    ret |= application_unregister("BROADCAST");
     return ret;
 }

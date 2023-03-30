@@ -1140,7 +1140,6 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
 {
     Filter *filter = NULL;
     Session *sess;
-    int filter_cnt = 0;
 
     switch (cmd) {
         case CLI_INIT:
@@ -1171,10 +1170,9 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
             Filter *filter = l->data;
 
             // Print session filters
-            cli_write(args->cli, "------------ \033[1;32m%s\033[0m %s %d %s ------------\n",
-                      (filter->name) ? filter->name : "Filter",
-                      (filter->type == FILTER_ASYNC) ? "(Async)" : "(Sync)",
-                      filter_cnt++,
+            cli_write(args->cli, "------------ [\033[1;34m%s\033[0m] \033[1;32m%s\033[0m%s ------------\n",
+                      filter->app->name,
+                      filter->name,
                       (filter->type == FILTER_ASYNC && filter->data.async.oneshot) ? "(OneShot)" : "");
 
             for (gint ccnt = 0; ccnt < filter->conditions->len; ccnt++) {
@@ -1202,7 +1200,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
             }
             cli_write(args->cli, "\n");
         }
-        if (!filter_cnt) {
+        if (g_slist_length(sess->filters) == 0) {
             cli_write(args->cli, "---------- No active filters ---------\n");
         }
     }

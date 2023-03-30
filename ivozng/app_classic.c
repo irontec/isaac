@@ -103,7 +103,7 @@ classic_exec(Session *sess, Application *app, const char *args)
         session_write(sess, "Privilege: system,all\r\n");
         session_write(sess, "Status: Fully Booted\r\n");
         session_write(sess, "\r\n\r\n");
-        Filter *filter = filter_create_async(sess, classic_print);
+        Filter *filter = filter_create_async(sess, app, "Classic Print filter", classic_print);
         filter_register(filter);
     } else if (!strcasecmp(action, "Events")) {
         session_write(sess, "Response: Success\r\n");

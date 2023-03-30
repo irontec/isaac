@@ -227,8 +227,8 @@ conference_guest_state(Filter *filter, AmiMessage *msg)
             // Get the UniqueId from the agent channel
             isaac_strcpy(guest->uid, message_get_header(msg, "UniqueID"));
 
-            // Register a Filter for the agent status the custom manager application PlayDTMF.
-            Filter *guest_filter = filter_create_async(filter->sess, conference_guest_state);
+            // Register a Filter for the agent status
+            Filter *guest_filter = filter_create_async(filter->sess, filter->app, "Conference Guest status", conference_guest_state);
             filter_new_condition(guest_filter, MATCH_REGEX, "Event", "Hangup|MeetmeJoin|MeetmeLeave");
             filter_new_condition(guest_filter, MATCH_REGEX, "UniqueID", guest->uid);
             filter_set_userdata(guest_filter, (void *) info);
@@ -279,10 +279,10 @@ conference_guest_state(Filter *filter, AmiMessage *msg)
  * @return 0 in all cases
  */
 static int
-conference_guest_invite(Session *sess, struct app_conference_info *info, struct app_conference_guest *guest)
+conference_guest_invite(Session *sess, Application *app, struct app_conference_info *info, struct app_conference_guest *guest)
 {
     // Register a Filter to get Generated Channel
-    Filter *channel_filter = filter_create_async(sess, conference_guest_state);
+    Filter *channel_filter = filter_create_async(sess, app, "Generated channel status", conference_guest_state);
     filter_new_condition(channel_filter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(channel_filter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(channel_filter, MATCH_EXACT, "Value", "%s", guest->actionid);
@@ -333,14 +333,14 @@ conference_host_state(Filter *filter, AmiMessage *msg)
             // Get the UniqueId from the agent channel
             isaac_strcpy(info->host_uid, message_get_header(msg, "UniqueID"));
 
-            // Register a Filter for the agent status the custom manager application PlayDTMF.
-            Filter *host_filter = filter_create_async(filter->sess, conference_host_state);
+            // Register a Filter for the agent status
+            Filter *host_filter = filter_create_async(filter->sess, filter->app, "Members status", conference_host_state);
             filter_new_condition(host_filter, MATCH_REGEX, "Event", "Hangup|MeetmeJoin");
             filter_new_condition(host_filter, MATCH_REGEX, "UniqueID", info->host_uid);
             filter_set_userdata(host_filter, (void *) info);
             filter_register_oneshot(host_filter);
 
-            Filter *conference_end_filter = filter_create_async(filter->sess, conference_host_state);
+            Filter *conference_end_filter = filter_create_async(filter->sess, filter->app, "Conference ended", conference_host_state);
             filter_new_condition(conference_end_filter, MATCH_EXACT, "Event", "MeetmeEnd");
             filter_new_condition(conference_end_filter, MATCH_EXACT, "Meetme", info->conference_id);
             filter_set_userdata(conference_end_filter, (void *) info);
@@ -359,7 +359,7 @@ conference_host_state(Filter *filter, AmiMessage *msg)
         );
 
         for (i = 0; i < info->guestcnt; i++) {
-            conference_guest_invite(filter->sess, info, &info->guests[i]);
+            conference_guest_invite(filter->sess, filter->app, info, &info->guests[i]);
         }
     } else if (!strcasecmp(event, "MeetmeEnd")) {
         session_write(filter->sess,
@@ -456,7 +456,7 @@ conference_exec(Session *sess, Application *app, const char *argstr)
     }
 
     // Register a Filter to get Generated Channel
-    Filter *channel_filter = filter_create_async(sess, conference_host_state);
+    Filter *channel_filter = filter_create_async(sess, app, "Originated channel fetch", conference_host_state);
     filter_new_condition(channel_filter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(channel_filter, MATCH_EXACT, "Variable", "ACTIONID");
     filter_new_condition(channel_filter, MATCH_EXACT, "Value", actionid);
@@ -507,7 +507,7 @@ load_module()
         isaac_log(LOG_ERROR, "Failed to read app_call config file %s\n", CONFERENCECONF);
         return -1;
     }
-    res |= application_register("Conference", conference_exec);
+    res |= application_register("CONFERENCE", conference_exec);
     return res;
 }
 
@@ -522,6 +522,6 @@ int
 unload_module()
 {
     int res = 0;
-    res |= application_unregister("Conference");
+    res |= application_unregister("RECORDSTOP");
     return res;
 }
