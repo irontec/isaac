@@ -34,34 +34,30 @@
  */
 #include "config.h"
 #include <libconfig.h>
-#include <stdlib.h>
 #include "app.h"
 #include "filter.h"
 #include "log.h"
-#include <stdio.h>
 #include <sql.h>
 #include <sqlext.h>
-#include <string.h>
 
 #define LOGINCONF CONFDIR "/login.conf"
 
-// Share the connection between all threads. This seems to be thread-safe
-static SQLHENV env;
-static SQLHDBC dbc;
-static GRecMutex odbc_lock;
-
-/**
- * @brief Module configuration readed from LOGINCONF file
- *
- * @see read_login_config
- */
-struct _AppLoginConfig
+//! Login application configuration structure
+typedef struct _AppLoginConfig
 {
     //! Registered flag. 1 = Check Device is registered on login, 0 = don't check
-    int validate_registered;
+    gboolean validate_registered;
     //! Unregistered flag. 1 = Logout on Unregister event, 0 = ignore Unregister event
-    int check_unregistered;
-} login_config;
+    gboolean check_unregistered;
+} AppLoginConfig;
+
+//! SQL connection handle
+static SQLHENV env;
+static SQLHDBC dbc;
+//! Exclusive access to connection handle
+static GRecMutex odbc_lock;
+//! Login application configuration
+static AppLoginConfig login_config;
 
 /**
  * @brief Read module configure options
@@ -84,8 +80,11 @@ read_login_config(const gchar *cfile)
 
     // Read configuration file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
-        isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
-                  config_error_line(&cfg), config_error_text(&cfg));
+        isaac_log(LOG_ERROR,
+                  "Error parsing configuration file %s on line %d: %s\n",
+                  cfile,
+                  config_error_line(&cfg),
+                  config_error_text(&cfg));
         config_destroy(&cfg);
         return -1;
     }
@@ -134,15 +133,12 @@ odbc_test()
  *
  * Initialize static connection to ivozng database
  *
- * @return 1 if the connection was successfully initializated,
- *         0 otherwise
+ * @return TRUE if the connection was successfully initialized,
+ *         FALSE otherwise
  */
-int
+static gboolean
 odbc_connect()
 {
-
-    // Dont connect if we're already connected
-    if (odbc_test()) { return 1; }
     g_rec_mutex_lock(&odbc_lock);
     // Allocate an environment handle
     SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
@@ -150,28 +146,24 @@ odbc_connect()
     SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
     // Allocate a connection handle
     SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
-    // Connect to the DSN mydsn
-    // You will need to change mydsn to one you have created and tested */
-    SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL,
-                     SQL_DRIVER_COMPLETE);
+    // Connect to the DSN asterisk
+    SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
     g_rec_mutex_unlock(&odbc_lock);
 
     // Check the connection is working
     if (odbc_test()) {
         isaac_log(LOG_NOTICE, "Successfully connected to 'asterisk' database through ODBC\n");
-        return 1;
+        return TRUE;
     }
-    return 0;
+    return FALSE;
 }
 
 /**
  * @brief Disconnects from odbc and free resources
  *
- * Free the global obdc connection structures
- *
- * @return 1 in all cases
+ * Free the global ODBC connection structures
  */
-int
+static void
 odbc_disconnect()
 {
     // Disconnect ODBC driver and cleanup
@@ -180,7 +172,6 @@ odbc_disconnect()
     SQLFreeHandle(SQL_HANDLE_DBC, dbc);
     SQLFreeHandle(SQL_HANDLE_ENV, env);
     g_rec_mutex_unlock(&odbc_lock);
-    return 1;
 }
 
 /**
@@ -188,6 +179,7 @@ odbc_disconnect()
  *
  * Reconnect to database if requested.
  *
+ * @return TRUE in all cases
  */
 static gboolean
 odbc_watchdog(G_GNUC_UNUSED gpointer user_data)
@@ -213,31 +205,34 @@ odbc_watchdog(G_GNUC_UNUSED gpointer user_data)
  * @param msg Matching message from Manager
  * @return 0 in all cases
  */
-int
+static gint
 peer_status_check(Filter *filter, AmiMessage *msg)
 {
     Session *sess = filter->sess;
-    const char *interface = session_get_variable(sess, "INTERFACE");
-    const char *event = message_get_header(msg, "Event");
+    const gchar *interface = session_get_variable(sess, "INTERFACE");
+    const gchar *event = message_get_header(msg, "Event");
 
     if (event) {
-        if (!strncasecmp(event, "PeerStatus", 10)) {
+        // Agent terminal is no longer registered
+        if (g_ascii_strcasecmp(event, "PeerStatus") == 0) {
             session_write(sess, "BYE Peer %s is no longer registered\r\n", interface);
             session_finish(sess);
             return 0;
         }
-        if (!strncasecmp(event, "ExtensionStatus", 15)) {
+        // Access is no longer ACD Logged in
+        if (g_ascii_strcasecmp(event, "ExtensionStatus") == 0) {
             session_write(sess, "BYE Agent is no longer logged in\r\n", interface);
             session_finish(sess);
             return 0;
         }
     }
 
-    const char *response = message_get_header(msg, "Response");
+    // This is a response to a LOGIN request
+    const gchar *response = message_get_header(msg, "Response");
     if (response) {
-        const char *agent = session_get_variable(sess, "AGENT");
+        const gchar *agent = session_get_variable(sess, "AGENT");
 
-        if (!strncasecmp(response, "Success", 7)) {
+        if (!g_ascii_strcasecmp(response, "Success")) {
             // Send a success message
             session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
         } else {
@@ -246,7 +241,6 @@ peer_status_check(Filter *filter, AmiMessage *msg)
             session_finish(sess);
         }
     }
-
 
     return 0;
 }
@@ -262,13 +256,13 @@ peer_status_check(Filter *filter, AmiMessage *msg)
  * @param argstr  Application arguments
  * @return 0 in case of login success, 1 otherwise
  */
-gint
-login_exec(Session *sess, Application *app, const char *argstr)
+static gint
+login_exec(Session *sess, Application *app, const gchar *argstr)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
     gint ret;
-    char agent[100], interface[100], module[24];
+    gchar agent[100], interface[100], module[24];
 
     // If session is already authenticated, show an error
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
@@ -299,8 +293,7 @@ login_exec(Session *sess, Application *app, const char *argstr)
                                      " ON k.login_num = s.agent"
                                      " WHERE login_num = ?;", SQL_NTS);
         // Bind username and password
-        SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
-                         sizeof(login_num), NULL);
+        SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num, sizeof(login_num), NULL);
     } else {
         // Prepare login query
         SQLPrepare(stmt, (SQLCHAR *) "SELECT interface, modulo from karma_usuarios as k"
@@ -309,10 +302,17 @@ login_exec(Session *sess, Application *app, const char *argstr)
                                      " WHERE login_num = ?"
                                      " AND pass = encrypt( ? , SUBSTRING_INDEX(pass, '$', 3));", SQL_NTS);
         // Bind username and password
-        SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
-                         sizeof(login_num), NULL);
-        SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, (gchar *) pass,
-                         sizeof(pass), NULL);
+        SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num, sizeof(login_num), NULL);
+        SQLBindParameter(stmt,
+                         2,
+                         SQL_PARAM_INPUT,
+                         SQL_C_CHAR,
+                         SQL_LONGVARCHAR,
+                         50,
+                         0,
+                         (gchar *) pass,
+                         sizeof(pass),
+                         NULL);
     }
 
     // Execute the query
@@ -331,7 +331,7 @@ login_exec(Session *sess, Application *app, const char *argstr)
         sprintf(agent, "%d", login_num);
         session_set_variable(sess, "AGENT", agent);
 
-        if (!strcasecmp(module, "c")) {
+        if (g_ascii_strcasecmp(module, "c") == 0) {
             session_set_variable(sess, "ROL", "AGENTE");
         } else {
             session_set_variable(sess, "ROL", "USUARIO");
@@ -340,33 +340,33 @@ login_exec(Session *sess, Application *app, const char *argstr)
         // Also check for status changes
         // Check if device is registerd
         if (login_config.check_unregistered) {
-            Filter *peerstatusfilter = filter_create_async(sess, app, "Peer unregistered", peer_status_check);
-            filter_new_condition(peerstatusfilter, MATCH_EXACT, "Event", "PeerStatus");
-            filter_new_condition(peerstatusfilter, MATCH_EXACT, "Peer", interface);
-            filter_new_condition(peerstatusfilter, MATCH_EXACT, "PeerStatus", "Unregistered");
-            filter_register(peerstatusfilter);
+            Filter *peer_status_filter = filter_create_async(sess, app, "Peer unregistered", peer_status_check);
+            filter_new_condition(peer_status_filter, MATCH_EXACT, "Event", "PeerStatus");
+            filter_new_condition(peer_status_filter, MATCH_EXACT, "Peer", interface);
+            filter_new_condition(peer_status_filter, MATCH_EXACT, "PeerStatus", "Unregistered");
+            filter_register(peer_status_filter);
         }
 
-        Filter *agentstatus = filter_create_async(sess, app, "Agent Logged out", peer_status_check);
-        filter_new_condition(agentstatus, MATCH_EXACT, "Event", "ExtensionStatus");
-        filter_new_condition(agentstatus, MATCH_EXACT, "Exten", "access_%s", interface + 4);
-        filter_new_condition(agentstatus, MATCH_EXACT, "Status", "1");
-        filter_register(agentstatus);
+        Filter *acd_status_filter = filter_create_async(sess, app, "Agent Logged out", peer_status_check);
+        filter_new_condition(acd_status_filter, MATCH_EXACT, "Event", "ExtensionStatus");
+        filter_new_condition(acd_status_filter, MATCH_EXACT, "Exten", "access_%s", interface + 4);
+        filter_new_condition(acd_status_filter, MATCH_EXACT, "Status", "1");
+        filter_register(acd_status_filter);
 
         if (login_config.validate_registered) {
-            g_autofree gchar *actionid = g_uuid_string_random();
             // Check if device is registered
-            Filter *peerfilter = filter_create_async(sess, app, "Check Initial peer status", peer_status_check);
-            filter_new_condition(peerfilter, MATCH_EXACT, "ActionID", actionid);
-            filter_register_oneshot(peerfilter);
+            Filter *peer_filter = filter_create_async(sess, app, "Check Initial peer status", peer_status_check);
+            g_autofree gchar *actionid = g_uuid_string_random();
+            filter_new_condition(peer_filter, MATCH_EXACT, "ActionID", actionid);
+            filter_register_oneshot(peer_filter);
 
             // Request Peer status right now
-            AmiMessage peermsg;
-            memset(&peermsg, 0, sizeof(AmiMessage));
-            message_add_header(&peermsg, "Action: SIPshowpeer");
-            message_add_header(&peermsg, "Peer: %s", interface + 4);
-            message_add_header(&peermsg, "ActionID: %s", actionid);
-            manager_write_message(manager, &peermsg);
+            AmiMessage peer_msg;
+            memset(&peer_msg, 0, sizeof(AmiMessage));
+            message_add_header(&peer_msg, "Action: SIPshowpeer");
+            message_add_header(&peer_msg, "Peer: %s", interface + 4);
+            message_add_header(&peer_msg, "ActionID: %s", actionid);
+            manager_write_message(manager, &peer_msg);
         } else {
             session_write(sess, "LOGINOK Welcome back %s SIP/%s\r\n", agent, interface + 4);
         }
@@ -398,27 +398,27 @@ login_exec(Session *sess, Application *app, const char *argstr)
  * @param msg Matching message from Manager
  * @return 0 in all cases
  */
-int
+static gint
 devicestatus_changed(Filter *filter, AmiMessage *msg)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
     Session *sess = filter->sess;
-    int status = atoi(message_get_header(msg, "Status"));
-    const char *exten = message_get_header(msg, "Exten");
-    int agent = atoi(session_get_variable(sess, "AGENT"));
-    int id_pausa = -1;
-    const char *actionid;
+    gint status = atoi(message_get_header(msg, "Status"));
+    const gchar *exten = message_get_header(msg, "Exten");
+    gint agent = atoi(session_get_variable(sess, "AGENT"));
+    gint id_pausa = -1;
+    const gchar *actionid;
 
     // If there is an ActionID header
-    if ((actionid = message_get_header(msg, "ActionID"))) {
+    if ((actionid = message_get_header(msg, "ActionID")) != NULL) {
         // And Its not our session ID, this message is not for ours
-        if (strlen(actionid) && strcmp(actionid, sess->id))
+        if (g_ascii_strcasecmp(actionid, sess->id))
             return 0;
     }
 
     // Otherwise, check status changes
-    if (!strncasecmp(exten, "pause_", 6)) {
+    if (g_ascii_strncasecmp(exten, "pause_", 6) == 0) {
         // Send new device status
         switch (status) {
             case 0:
@@ -432,8 +432,7 @@ devicestatus_changed(Filter *filter, AmiMessage *msg)
                                              " WHERE agent = ?"
                                              " LIMIT 1;", SQL_NTS);
                 // Bind username and password
-                SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &agent,
-                                 sizeof(agent), NULL);
+                SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &agent, sizeof(agent), NULL);
 
                 // Execute the query
                 SQLExecute(stmt);
@@ -478,22 +477,24 @@ devicestatus_changed(Filter *filter, AmiMessage *msg)
  *
  * @param sess  Session structure running the application
  * @param app The application structure
- * @param args  Application arguments
+ * @param argstr  Application arguments
  * @return 0 in case of login success, 1 otherwise
  */
-int
-devicestatus_exec(Session *sess, Application *app, const char *args)
+static gint
+devicestatus_exec(Session *sess, Application *app, G_GNUC_UNUSED const gchar *argstr)
 {
     // If session is not authenticated, show an error
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
-    const char *agent = session_get_variable(sess, "AGENT");
-    const char *interface = session_get_variable(sess, "INTERFACE");
+
+    const gchar *agent = session_get_variable(sess, "AGENT");
+    const gchar *interface = session_get_variable(sess, "INTERFACE");
 
     // If session is already showing devicestatus, leave
     if (session_get_variable(sess, "DEVICESTATUS")) {
-        return session_write(sess, "DEVICESTATUSOK Already displaying status for device %s\r\n", agent);
+        session_write(sess, "DEVICESTATUSOK Already displaying status for device %s\r\n", agent);
+        return APP_RET_SUCCESS;
     }
 
     const char *rol = session_get_variable(sess, "ROL");
@@ -504,11 +505,11 @@ devicestatus_exec(Session *sess, Application *app, const char *args)
     // pause and access hints will be cc (although these may not exist at all).
 
     // Add a filter for handling device state changes
-    Filter *devicefilter = filter_create_async(sess, app, "Pause and Exten events", devicestatus_changed);
-    filter_new_condition(devicefilter, MATCH_REGEX, "Context", "pbx-hints|cc-hints");
+    Filter *device_filter = filter_create_async(sess, app, "Pause and Exten events", devicestatus_changed);
+    filter_new_condition(device_filter, MATCH_REGEX, "Context", "pbx-hints|cc-hints");
     g_autofree gchar *exten = g_strdup_printf("^%s(_1)?$|pause_%s", agent, interface + 4);
-    filter_new_condition(devicefilter, MATCH_REGEX, "Exten", exten);
-    filter_register(devicefilter);
+    filter_new_condition(device_filter, MATCH_REGEX, "Exten", exten);
+    filter_register(device_filter);
 
     // Mark this session to avoid multiple device status
     session_set_variable(sess, "DEVICESTATUS", "1");
@@ -517,28 +518,28 @@ devicestatus_exec(Session *sess, Application *app, const char *args)
     session_write(sess, "DEVICESTATUSOK for %s will be printed\r\n", agent);
 
     // Initial status (device)
-    AmiMessage devicemsg;
-    memset(&devicemsg, 0, sizeof(AmiMessage));
-    message_add_header(&devicemsg, "Action: ExtensionState");
-    message_add_header(&devicemsg, "Exten: %s", agent);
-    message_add_header(&devicemsg, "Context: cc-hints");
-    message_add_header(&devicemsg, "ActionID: %s", sess->id);
-    manager_write_message(manager, &devicemsg);
+    AmiMessage device_msg;
+    memset(&device_msg, 0, sizeof(AmiMessage));
+    message_add_header(&device_msg, "Action: ExtensionState");
+    message_add_header(&device_msg, "Exten: %s", agent);
+    message_add_header(&device_msg, "Context: cc-hints");
+    message_add_header(&device_msg, "ActionID: %s", sess->id);
+    manager_write_message(manager, &device_msg);
 
-    memset(&devicemsg, 0, sizeof(AmiMessage));
-    message_add_header(&devicemsg, "Action: ExtensionState");
-    message_add_header(&devicemsg, "Exten: %s", agent);
-    message_add_header(&devicemsg, "Context: pbx-hints");
-    message_add_header(&devicemsg, "ActionID: %s", sess->id);
-    manager_write_message(manager, &devicemsg);
+    memset(&device_msg, 0, sizeof(AmiMessage));
+    message_add_header(&device_msg, "Action: ExtensionState");
+    message_add_header(&device_msg, "Exten: %s", agent);
+    message_add_header(&device_msg, "Context: pbx-hints");
+    message_add_header(&device_msg, "ActionID: %s", sess->id);
+    manager_write_message(manager, &device_msg);
 
     // Initial status (pause)
-    memset(&devicemsg, 0, sizeof(AmiMessage));
-    message_add_header(&devicemsg, "Action: ExtensionState");
-    message_add_header(&devicemsg, "Exten: pause_%s", interface + 4);
-    message_add_header(&devicemsg, "Context: cc-hints");
-    message_add_header(&devicemsg, "ActionID: %s", sess->id);
-    manager_write_message(manager, &devicemsg);
+    memset(&device_msg, 0, sizeof(AmiMessage));
+    message_add_header(&device_msg, "Action: ExtensionState");
+    message_add_header(&device_msg, "Exten: pause_%s", interface + 4);
+    message_add_header(&device_msg, "Context: cc-hints");
+    message_add_header(&device_msg, "ActionID: %s", sess->id);
+    manager_write_message(manager, &device_msg);
 
     return APP_RET_SUCCESS;
 }
@@ -553,8 +554,8 @@ devicestatus_exec(Session *sess, Application *app, const char *args)
  * @param args  Application arguments
  * @return 0 in all cases
  */
-int
-logout_exec(Session *sess, Application *app, const char *args)
+static gint
+logout_exec(Session *sess, Application *app, const gchar *args)
 {
     session_write(sess, "BYE %s\r\n", "Thanks for all the fish");
     session_finish(sess);
@@ -569,7 +570,7 @@ logout_exec(Session *sess, Application *app, const char *args)
  * @retval 0 if all applications and configuration has been loaded
  * @retval 1 if any application fails to register or configuration can not be readed
  */
-int
+gint
 load_module()
 {
     int res = 0;
@@ -599,7 +600,7 @@ load_module()
  *
  * @return 0 if all applications are unloaded, -1 otherwise
  */
-int
+gint
 unload_module()
 {
     int res = 0;
