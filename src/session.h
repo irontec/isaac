@@ -121,7 +121,7 @@ sessions_release_lock();
  * Create a new session structure from the incoming connection
  * and add it to the session list.
  * Allocated memory must be free using session_destroy (what is usually
- * done by session_manage thread).
+ * done by server_session_manage_run thread).
  *
  * \return 		The new created session or NULL in case of alloc error
  */

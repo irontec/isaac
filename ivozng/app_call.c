@@ -201,11 +201,9 @@ read_call_config(const char *cfile)
 struct app_call_info *
 get_call_info_from_id(Session *sess, const char *id)
 {
-    Filter *filter = NULL;
     struct app_call_info *info = NULL;
-    // Get session filter and search the one with that id
-    while ((filter = filter_from_session(sess, filter))) {
-        info = (struct app_call_info *) filter_get_userdata(filter);
+    for (GSList *l = sess->filters; l; l = l->next) {
+        info = (struct app_call_info *) filter_get_userdata(l->data);
         // We found the requested action!
         if (info && !strcasecmp(id, info->actionid)) {
             return info;
