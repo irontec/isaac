@@ -147,7 +147,7 @@ int
 filter_register(Filter *filter)
 {
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter \e[1;32m%s\e[0m [%p] with %d conditions\n",
+        isaac_log(LOG_DEBUG, "[Session %s] Registering %s filter \033[1;32m%s\033[0m [%p] with %d conditions\n",
                   filter->sess->id,
                   (filter->type == FILTER_ASYNC) ? "asnyc" : "sync",
                   filter->name,
@@ -169,7 +169,7 @@ filter_destroy(Filter *filter)
 
     // Some debug info
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter \e[1;31m%s\e[0m [%p]\n",
+        isaac_log(LOG_DEBUG, "[Session %s] Destroying filter \033[1;31m%s\033[0m [%p]\n",
                   filter->sess->id,
                   filter->name,
                   filter

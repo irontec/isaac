@@ -406,10 +406,10 @@ remote_el_initialize(void)
     // Bind ^D to redisplay
     el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
     // Bind Delete to delete char left
-    el_set(el, EL_BIND, "\\e[3~", "ed-delete-next-char", NULL);
+    el_set(el, EL_BIND, "\\033[3~", "ed-delete-next-char", NULL);
     // Bind Home and End to move to line start and end
-    el_set(el, EL_BIND, "\\e[1~", "ed-move-to-beg", NULL);
-    el_set(el, EL_BIND, "\\e[4~", "ed-move-to-end", NULL);
+    el_set(el, EL_BIND, "\\033[1~", "ed-move-to-beg", NULL);
+    el_set(el, EL_BIND, "\\033[4~", "ed-move-to-end", NULL);
     // Bind C-left and C-right to move by word (not all terminals)
     el_set(el, EL_BIND, "\\eOC", "vi-next-word", NULL);
     el_set(el, EL_BIND, "\\eOD", "vi-prev-word", NULL);

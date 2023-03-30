@@ -186,7 +186,7 @@ main(int argc, char *argv[])
     }
 
     // All subsystems Up!
-    isaac_log(LOG_NONE, "\e[1;37m%s is Ready.\e[0m\n", PACKAGE_NAME);
+    isaac_log(LOG_NONE, "\033[1;37m%s is Ready.\033[0m\n", PACKAGE_NAME);
 
     // Wait here until any signal is sent
     g_main_loop_run(main_loop);

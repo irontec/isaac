@@ -227,8 +227,9 @@ session_create(GSocket *socket)
     if (g_inet_address_get_is_loopback(inet)) {
         // Special ID for this sessions
         sprintf(sess->id, "%s", "local");
-        // Local session, this does not count as a session
+        // Local session, this does not msg_read_count as a session
 //        session_set_flag(sess, SESS_FLAG_LOCAL);
+        sprintf(sess->id, "%d", session_last_id++);
     } else {
         // Create a new session id
         sprintf(sess->id, "%d", session_last_id++);
@@ -315,7 +316,7 @@ session_write(Session *sess, const char *fmt, ...)
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_VERBOSE_3, "\e[1;31mSession %s >> \e[0m%s", sess->id, msgva);
+        isaac_log(LOG_VERBOSE_3, "\033[1;31mSession %s >> \033[0m%s", sess->id, msgva);
     }
 
     // LOG Debug info
@@ -401,7 +402,7 @@ session_read(Session *sess, char *msg)
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_VERBOSE_3, "\e[1;32mSession %s << \e[0m%s", sess->id, buffer);
+        isaac_log(LOG_VERBOSE_3, "\033[1;32mSession %s << \033[0m%s", sess->id, buffer);
     }
 
     return rbytes;
@@ -435,7 +436,7 @@ session_clear_flag(Session *sess, int flag)
 
 /*****************************************************************************/
 void
-session_set_variable(Session *sess, char *varname, char *varvalue)
+session_set_variable(Session *sess, const gchar *varname, const gchar *varvalue)
 {
     g_return_if_fail(sess != NULL);
 
@@ -465,7 +466,7 @@ session_set_variable(Session *sess, char *varname, char *varvalue)
 
 /*****************************************************************************/
 const char *
-session_get_variable(Session *sess, const char *varname)
+session_get_variable(Session *sess, const gchar *varname)
 {
     g_return_val_if_fail(sess != NULL, NULL);
 

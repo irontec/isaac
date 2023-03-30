@@ -56,7 +56,7 @@ application_register(const gchar *name, ApplicationFunc execute)
     g_rec_mutex_unlock(&apps_lock);
 
     // Some debug logging
-    isaac_log(LOG_VERBOSE_3, "Registered application '\e[1;36m%s\e[0m'\n", name);
+    isaac_log(LOG_VERBOSE_3, "Registered application '\033[1;36m%s\033[0m'\n", name);
     return 0;
 }
 
@@ -66,7 +66,7 @@ application_unregister(const gchar *name)
     g_rec_mutex_lock(&apps_lock);
     Application *app = application_find_by_name(name);
     if (app) {
-        isaac_log(LOG_VERBOSE_3, "Unregistered application '\e[1;36m%s\e[0m'\n", app->name);
+        isaac_log(LOG_VERBOSE_3, "Unregistered application '\033[1;36m%s\033[0m'\n", app->name);
         apps = g_slist_remove(apps, app);
         g_free(app);
     }

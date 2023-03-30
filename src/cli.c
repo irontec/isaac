@@ -833,8 +833,7 @@ char *
 cli_complete_session(const char *line, const char *word, int pos, int state, int rpos)
 {
     int which = 0;
-    char notfound = '\0';
-    char *ret = &notfound; /* so NULL can break the loop */
+    char *ret = NULL;
 
     if (pos != rpos) {
         return NULL;
@@ -843,7 +842,7 @@ cli_complete_session(const char *line, const char *word, int pos, int state, int
     GSList *sessions = sessions_adquire_lock();
     for (GSList *l = sessions; l; l = l->next) {
         Session *sess = l->data;
-        if (ret != &notfound)
+        if (ret != NULL)
             break;
         if (++which > state) {
             ret = sess->id;
@@ -851,7 +850,7 @@ cli_complete_session(const char *line, const char *word, int pos, int state, int
     }
     sessions_release_lock();
 
-    return ret == &notfound ? NULL : ret;
+    return ret;
 }
 
 /******************************************************************************
@@ -1172,7 +1171,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
             Filter *filter = l->data;
 
             // Print session filters
-            cli_write(args->cli, "------------ \e[1;32m%s\e[0m %s %d %s ------------\n",
+            cli_write(args->cli, "------------ \033[1;32m%s\033[0m %s %d %s ------------\n",
                       (filter->name) ? filter->name : "Filter",
                       (filter->type == FILTER_ASYNC) ? "(Async)" : "(Sync)",
                       filter_cnt++,
@@ -1320,7 +1319,7 @@ handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
     } else {
         if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
             session_clear_flag(sess, SESS_FLAG_DEBUG);
-            isaac_log(LOG_NOTICE, "Debug on session %s \e[1;31mdisabled\e[0m.\n", args->argv[2]);
+            isaac_log(LOG_NOTICE, "Debug on session %s \033[1;31mdisabled\033[0m.\n", args->argv[2]);
         } else {
             session_set_flag(sess, SESS_FLAG_DEBUG);
             isaac_log(LOG_NOTICE, "Debug on session %s \e[1;32menabled\e[0m.\n", args->argv[2]);

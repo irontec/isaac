@@ -49,13 +49,13 @@ log_type_to_text(int log_type)
     // Get log prefix depending on log_type
     switch (log_type) {
         case LOG_DEBUG:
-            return "\e[1;34mDEBUG\e[0m";
+            return "\033[1;34mDEBUG\033[0m";
         case LOG_WARNING:
-            return "\e[0;31mWARNING\e[0m";
+            return "\033[0;31mWARNING\033[0m";
         case LOG_NOTICE:
-            return "\e[1;33mNOTICE\e[0m";
+            return "\033[1;33mNOTICE\033[0m";
         case LOG_ERROR:
-            return "\e[1;31mERROR\e[0m";
+            return "\033[1;31mERROR\033[0m";
         case LOG_NONE:
             return "";
         case LOG_VERBOSE_1:
@@ -101,7 +101,7 @@ isaac_log_location(int log_level, const char *file, int line, const char *functi
 
     // Build the final message depending on its level
     if (log_level < LOG_VERBOSE_1) {
-        sprintf(logmsg, "\33[2K\r[%s] %s: [%ld]\e[1;37m: %s:%d %s:\e[0m %s", date,
+        sprintf(logmsg, "\33[2K\r[%s] %s: [%ld]\033[1;37m: %s:%d %s:\033[0m %s", date,
                 log_type_to_text(log_level), TID, file, line, function, msgva);
     } else {
         sprintf(logmsg, "\33[2K\r%s%s", log_type_to_text(log_level), msgva);
@@ -179,7 +179,7 @@ clean_text(char *text)
 
     // Loop through the text searching for some special characters
     // that give color to the CLIs. Remove them.
-    for (i = 0; i <= strlen(text); i++) {
+    for (i = 0; i <= (gint) strlen(text); i++) {
         if (text[i] == 27) {
             switch (text[i + 2]) {
                 case 48:

@@ -112,7 +112,7 @@ enum log_type
  * get the origin filename, no the launcher filename to be printed in each message
  *
  */
-#define isaac_log(log_type, ...)  isaac_log_location(log_type, __FILENAME__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)
+#define isaac_log(log_type, ...)  isaac_log_location(log_type, __FILENAME__, __LINE__, __func__, __VA_ARGS__)
 
 /**
  * @brief Returns the log prefix for given type

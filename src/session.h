@@ -226,13 +226,13 @@ session_clear_flag(Session *sess, int flag);
  * \brief Set a value in the given variable
  */
 void
-session_set_variable(Session *sess, char *varname, char *varvalue);
+session_set_variable(Session *sess, const gchar *varname, const gchar *varvalue);
 
 /**
  * \brief Get a value of the given variable
  */
 const char *
-session_get_variable(Session *sess, const char *varname);
+session_get_variable(Session *sess, const gchar *varname);
 
 /**
  * \brief Get index value of a given variable

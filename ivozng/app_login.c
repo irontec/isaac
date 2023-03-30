@@ -287,7 +287,7 @@ login_exec(Session *sess, Application *app, const char *argstr)
 
     // Get login and password
     gint login_num = atoi(application_get_nth_arg(args, 0));
-    gchar *pass = application_get_nth_arg(args, 1);
+    const gchar *pass = application_get_nth_arg(args, 1);
 
     // Allocate a statement handle
     g_rec_mutex_lock(&odbc_lock);
@@ -311,7 +311,7 @@ login_exec(Session *sess, Application *app, const char *argstr)
         // Bind username and password
         SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_LONG, SQL_INTEGER, 50, 0, &login_num,
                          sizeof(login_num), NULL);
-        SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, pass,
+        SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR, 50, 0, (gchar *) pass,
                          sizeof(pass), NULL);
     }
 
