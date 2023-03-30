@@ -136,7 +136,7 @@ session_check_message(AmiMessage *msg, gpointer user_data)
     // Check message against all session filters
     g_slist_foreach(session->filters, (GFunc) filter_check_and_exec, msg);
     // We are done with this message
-    g_atomic_rc_box_release(msg);
+    g_atomic_rc_box_release_full(msg, (GDestroyNotify) mamanger_unref_message);
     return TRUE;
 }
 

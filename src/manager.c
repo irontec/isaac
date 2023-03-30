@@ -155,7 +155,7 @@ manager_write_message(manager_t *man, AmiMessage *msg)
     int i, wbytes = 0;
     // Lock the manager before writting to avoid multiple threads
     // write at the same time
-    pthread_mutex_lock(&man->lock);
+    g_rec_mutex_lock(&man->lock);
 
     // Write headers one by one followed by the end header AMI code
     for (i = 0; i < msg->hdrcount; i++) {
@@ -165,7 +165,7 @@ manager_write_message(manager_t *man, AmiMessage *msg)
 
     // After two CR Asterisk will treat this as a full message
     wbytes += manager_write_header(man, "\r\n", 2);
-    pthread_mutex_unlock(&man->lock);
+    g_rec_mutex_unlock(&man->lock);
 
     // Return the written bytes
     return wbytes;
@@ -255,6 +255,25 @@ manager_connect(manager_t *man)
     }
 }
 
+gpointer
+manager_create_message()
+{
+    g_rec_mutex_lock(&manager->lock);
+    gpointer msg = g_atomic_rc_box_new0(AmiMessage);
+    manager->msg_read_count++;
+    manager->msg_active_count++;
+    g_rec_mutex_unlock(&manager->lock);
+    return msg;
+}
+
+void
+mamanger_unref_message(AmiMessage *msg)
+{
+    g_rec_mutex_lock(&manager->lock);
+    manager->msg_active_count--;
+    g_rec_mutex_unlock(&manager->lock);
+}
+
 void *
 manager_read_thread(void *man)
 {
@@ -283,14 +302,14 @@ manager_read_thread(void *man)
         }
 
         // Allocate memory to contain the new AMI message
-        AmiMessage *msg = g_atomic_rc_box_new0(AmiMessage);
+        AmiMessage *msg = manager_create_message();
 
         // Read the next message from AMI
         if ((res = manager_read_message(manager, msg)) > 0) {
             // Add received message to all queues
             sessions_enqueue_message(msg);
             // Remove initial reference
-            g_atomic_rc_box_release(msg);
+            g_atomic_rc_box_release_full(msg, (GDestroyNotify) mamanger_unref_message);
         } else if (res < 0) {
             // If no error, maybe we are shutting down?
             if (!running) break;
@@ -308,6 +327,15 @@ manager_read_thread(void *man)
     // Exit manager thread gracefully
     pthread_exit(NULL);
     return NULL;
+}
+
+static gboolean
+manager_print_message_count(manager_t *manager)
+{
+    isaac_log(LOG_DEBUG, "%d messages processed in 5000 ms. Messages still in memory: %d\n",
+              manager->msg_read_count, manager->msg_active_count);
+    manager->msg_read_count = 0;
+    return TRUE;
 }
 
 gboolean
@@ -340,7 +368,7 @@ start_manager()
     manager->addr.sin_port = htons(cfg_get_manager_port());
     manager->username = cfg_get_manager_user();
     manager->secret = cfg_get_manager_pass();
-    pthread_mutex_init(&manager->lock, NULL);
+    g_rec_mutex_init(&manager->lock);
 
     // Create the manager thread to do the rest of the process (Connection, Authentication,
     // and message reading)
@@ -348,6 +376,9 @@ start_manager()
         isaac_log(LOG_WARNING, "Error creating manager thread: %s\n", strerror(errno));
         return FALSE;
     }
+
+    // Manager statistics thread
+    g_timeout_add(5000, (GSourceFunc) manager_print_message_count, manager);
 
     return TRUE;
 }

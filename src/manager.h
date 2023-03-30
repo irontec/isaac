@@ -71,8 +71,13 @@ struct isaac_manager
     struct timeval connectedtime;
     //! Connected flag
     int connected;
+    //! How many messages has been processed
+    int msg_read_count;
+    //! How many messages are still in session queues
+    int msg_active_count;
     //! Mutex to avoid simultaneous writting to manager
-    pthread_mutex_t lock;
+    GRecMutex lock;
+
 };
 
 /**
@@ -221,6 +226,9 @@ manager_connect(manager_t *man);
  */
 extern void *
 manager_read_thread(void *man);
+
+void
+mamanger_unref_message(AmiMessage *msg);
 
 /**
  * @brief Create Isaac Manager instance  and launch an AMI Connection thread
