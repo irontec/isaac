@@ -324,21 +324,6 @@ extern void *
 filter_from_userdata(Session *sess, void *userdata);
 
 /**
- * @brief Get the next filter for the given session
- *
- * This is a simple iterator for session filters. It can be used
- * to start iterating (passing from parameter as NULL) or continue
- * from a given filter onwards.
- *
- * @param sess Session to find filters from
- * @param from NULL to start searching from the beginning of the filters list
- *             or a filter to start searching from that filter onwards.
- * @return The next filter of the session, or NULL if there are no more filters
- */
-extern Filter *
-filter_from_session(Session *sess, Filter *from);
-
-/**
  * @brief Inject a fake message as being received by manager
  *
  * This can generate fake messages in order to trigger filters in other

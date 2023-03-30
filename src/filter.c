@@ -207,7 +207,7 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
         if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
             gboolean oneshot = filter_is_oneshot(filter);
             isaac_log(LOG_DEBUG,
-                      "[Session#%s] Executing filter \033[1;32m[%s] %s\033[0m [%p] %s triggered by message [%p]\n%s\n",
+                      "[Session#%s] Executing filter \033[1;33m[%s] %s\033[0m [%p] %s triggered by message [%p]\n%s\n",
                       filter->sess->id,
                       filter->app->name,
                       filter->name,
@@ -293,31 +293,17 @@ filter_get_userdata(Filter *filter)
 void *
 filter_from_userdata(Session *sess, void *userdata)
 {
-    Filter *filter = NULL;
-    // Sanity check
-    if (!sess) return NULL;
-
-    // Unregister all this connection filters
-    while ((filter = filter_from_session(sess, filter))) {
-        if (filter_get_userdata(filter) == userdata)
-            break;
-    }
-
-    return filter;
-}
-
-Filter *
-filter_from_session(Session *sess, Filter *from)
-{
     g_return_val_if_fail(sess != NULL, NULL);
-    if (from == NULL) {
-        return g_slist_nth_data(sess->filters, 0);
-    } else {
-        return g_slist_nth_data(
-            sess->filters,
-            g_slist_index(sess->filters, from)
-        );
+    g_return_val_if_fail(userdata != NULL, NULL);
+
+    for (GSList *l = sess->filters; l; l = l->next) {
+        Filter *filter = l->data;
+        if (filter_get_userdata(filter) == userdata) {
+            return filter;
+        }
     }
+
+    return NULL;
 }
 
 void
