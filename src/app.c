@@ -253,7 +253,7 @@ application_arg_has_value(GSList *args, const gchar *name, const gchar *value)
 }
 
 const gchar *
-apperr2str(enum ApplicationErrors apperr)
+apperr2str(enum ApplicationRetCodes apperr)
 {
     switch (apperr) {
         case NOT_AUTHENTICATED:

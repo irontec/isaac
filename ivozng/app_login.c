@@ -262,18 +262,18 @@ peer_status_check(Filter *filter, AmiMessage *msg)
  * @param argstr  Application arguments
  * @return 0 in case of login success, 1 otherwise
  */
-int
+gint
 login_exec(Session *sess, Application *app, const char *argstr)
 {
     SQLHSTMT stmt;
     SQLLEN indicator;
-    int ret = 0;
+    gint ret;
     char agent[100], interface[100], module[24];
 
     // If session is already authenticated, show an error
     if (session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
-        session_write(sess, "ALREADY LOGGED IN\r\n");
-        return -1;
+        session_write(sess, "LOGINOK ALREADY LOGGED IN\r\n");
+        return APP_RET_SUCCESS;
     }
 
     // Parse application argument
@@ -373,15 +373,14 @@ login_exec(Session *sess, Application *app, const char *argstr)
         } else {
             session_write(sess, "LOGINOK Welcome back %s SIP/%s\r\n", agent, interface + 4);
         }
-
-        ret = 0;
+        ret = APP_RET_SUCCESS;
     } else {
         // Login failed. This mark should not be required because we're closing the connection
         session_clear_flag(sess, SESS_FLAG_AUTHENTICATED);
         // Send the Login failed message and close connection
         session_write(sess, "LOGINFAIL\r\n");
         session_finish(sess);
-        ret = 1;
+        ret = APP_RET_ERROR;
     }
 
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -544,7 +543,7 @@ devicestatus_exec(Session *sess, Application *app, const char *args)
     message_add_header(&devicemsg, "ActionID: %s", sess->id);
     manager_write_message(manager, &devicemsg);
 
-    return 0;
+    return APP_RET_SUCCESS;
 }
 
 /**
@@ -562,7 +561,7 @@ logout_exec(Session *sess, Application *app, const char *args)
 {
     session_write(sess, "BYE %s\r\n", "Thanks for all the fish");
     session_finish(sess);
-    return 0;
+    return APP_RET_SUCCESS;
 }
 
 /**
