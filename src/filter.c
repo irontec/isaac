@@ -197,24 +197,24 @@ int
 filter_exec_async(Filter *filter, AmiMessage *msg)
 {
     int ret = 1;
-    Session *sess = filter->sess;
 
     // Check we have a valid filter
     if (!filter || filter->type != FILTER_ASYNC)
         return 1;
 
-    // If the debug is enabled in this session, print a message to
-    // connected CLIs. LOG_NONE will not reach any file or syslog.
-    if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        filter_print_message(filter, msg);
-    }
-
     // Invoke callback right now!
     if (filter->data.async.callback) {
         if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
             gboolean oneshot = filter_is_oneshot(filter);
-            isaac_log(LOG_DEBUG, "[Session %s] Executing filter callback [%p] %s\n",
-                      filter->sess->id, filter, (oneshot) ? "(oneshot)" : "");
+            isaac_log(LOG_DEBUG,
+                      "[Session %s] Executing filter \033[1;32m[%s] %s\033[0m [%p] %s triggered by message [%p]\n%s\n",
+                      filter->sess->id,
+                      filter->app->name,
+                      filter->name,
+                      filter,
+                      (oneshot) ? "(oneshot)" : "",
+                      msg,
+                      message_to_text(msg));
         }
         ret = filter->data.async.callback(filter, msg);
     }
@@ -314,19 +314,10 @@ filter_from_session(Session *sess, Filter *from)
         return g_slist_nth_data(sess->filters, 0);
     } else {
         return g_slist_nth_data(
-                sess->filters,
-                g_slist_index(sess->filters, from)
+            sess->filters,
+            g_slist_index(sess->filters, from)
         );
     }
-}
-
-int
-filter_print_message(Filter *filter, AmiMessage *msg)
-{
-    return 1;
-    // Only for debuging purposes
-    // Write a dump version of AMI message back to the session
-    return session_write(filter->sess, "D> %s\r\n", message_to_text(msg));
 }
 
 void

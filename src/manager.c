@@ -401,14 +401,15 @@ stop_manager()
 char *
 message_to_text(AmiMessage *msg)
 {
-    char *msgtxt = (char *) malloc(1024);
-    int i;
-    for (i = 0; i < msg->hdrcount; i++) {
-        if (i == 0) sprintf(msgtxt, "%s", msg->headers[i]);
-        else
-            sprintf(msgtxt, "%s - %s", msgtxt, msg->headers[i]);
+    GString *text = g_string_new(NULL);
+    for (gint i = 0; i < msg->hdrcount; i++) {
+        g_string_append_printf(text, "\t\t%s\n", msg->headers[i]);
     }
-    return msgtxt;
+    if (text->len > 1024) {
+        g_string_truncate(text, 1024);
+        g_string_append(text, "...");
+    }
+    return g_string_free(text, FALSE);
 }
 
 char *

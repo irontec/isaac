@@ -339,22 +339,6 @@ extern Filter *
 filter_from_session(Session *sess, Filter *from);
 
 /**
- * @brief Dummy callback for debugging purposes
- *
- * This can be handy as a general callback that prints the matching messages
- * of the filter back to the session socket. Mostly used for debugging with
- * AMI Messages match the filters conditions.
- *
- * @note Only for condition debugging purposes
- *
- * @param filter Triggered filter
- * @param msg Triggering AMI message
- * @return 0 if the message was successfully written to the session, -1 otherwise
- */
-extern int
-filter_print_message(Filter *filter, AmiMessage *msg);
-
-/**
  * @brief Inject a fake message as being received by manager
  *
  * This can generate fake messages in order to trigger filters in other
