@@ -458,6 +458,7 @@ devicestatus_changed(Filter *filter, AmiMessage *msg)
                 session_write(sess, "DEVICESTATE IDLE\r\n");
                 break;
             case 1:
+            case 2:
                 session_write(sess, "DEVICESTATE INUSE\r\n");
                 break;
             case 8:
