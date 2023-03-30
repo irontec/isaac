@@ -68,13 +68,6 @@ sessions_release_lock()
     g_rec_mutex_unlock(&session_mutex);
 }
 
-static void
-session_destroy_filters(Session *session)
-{
-    g_return_if_fail(session != NULL);
-    g_slist_foreach(session->filters, (GFunc) filter_destroy, NULL);
-}
-
 static gboolean
 session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
 {
@@ -116,10 +109,6 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
         // Connection closed, Thanks all for the fish
         if (!session_test_flag(sess, SESS_FLAG_LOCAL))
             isaac_log(LOG_DEBUG, "[Session %s] Closed connection from %s\n", sess->id, sess->addrstr);
-
-
-        // Remove all filters for this session
-        session_destroy_filters(sess);
 
         // Deallocate session memory
         session_finish(sess);
