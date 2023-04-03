@@ -1173,7 +1173,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
             cli_write(args->cli, "------------ [\033[1;34m%s\033[0m] \033[1;32m%s\033[0m%s ------------\n",
                       filter->app->name,
                       filter->name,
-                      (filter->type == FILTER_ASYNC && filter->data.async.oneshot) ? "(OneShot)" : "");
+                      (filter->oneshot) ? "(OneShot)" : "");
 
             for (gint ccnt = 0; ccnt < filter->conditions->len; ccnt++) {
                 Condition *cond = g_ptr_array_index(filter->conditions, ccnt);

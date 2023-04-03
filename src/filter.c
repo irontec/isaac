@@ -55,32 +55,8 @@ filter_create_async(Session *sess, Application *app, const gchar *name, FilterFu
     filter->app = app;
     filter->name = name;
     filter->conditions = g_ptr_array_new_with_free_func((GDestroyNotify) filter_condition_destroy);
-    filter->type = FILTER_ASYNC;
-    filter->data.async.callback = callback;
-    filter->data.async.oneshot = 0;
-
-    // Return the allocated filter (or NULL ;p)
-    return filter;
-}
-
-Filter *
-filter_create_sync(Session *sess)
-{
-    g_return_val_if_fail(sess != NULL, NULL);
-
-    // Allocate memory for a new filter
-    Filter *filter = g_malloc0(sizeof(Filter));
-    g_return_val_if_fail(filter != NULL, NULL);
-
-    // Initialize basic fields
-    memset(filter, 0, sizeof(Filter));
-    filter->sess = sess;
-    filter->conditions = g_ptr_array_new_with_free_func((GDestroyNotify) filter_condition_destroy);
-    filter->type = FILTER_SYNC;
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
-    pthread_mutex_init(&filter->data.sync.lock, &attr);
+    filter->callback = callback;
+    filter->oneshot = 0;
 
     // Return the allocated filter (or NULL ;p)
     return filter;
@@ -120,10 +96,7 @@ filter_new_condition(Filter *filter, enum ConditionType type, const char *hdr, c
 int
 filter_register_oneshot(Filter *filter)
 {
-    if (!filter) return 1;
-    if (filter->type == FILTER_ASYNC)
-        filter->data.async.oneshot = 1;
-
+    filter->oneshot = 1;
     return filter_register(filter);
 }
 
@@ -131,19 +104,15 @@ static gboolean
 filter_is_oneshot(Filter *filter)
 {
     g_return_val_if_fail(filter != NULL, FALSE);
-    if (filter->type != FILTER_ASYNC)
-        return FALSE;
-
-    return filter->data.async.oneshot;
+    return filter->oneshot;
 }
 
 int
 filter_register(Filter *filter)
 {
     if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session#%s] Registering %s filter \033[1;32m[%s] %s\033[0m [%p] with %d conditions\n",
+        isaac_log(LOG_DEBUG, "[Session#%s] Registering filter \033[1;32m[%s] %s\033[0m [%p] with %d conditions\n",
                   filter->sess->id,
-                  (filter->type == FILTER_ASYNC) ? "asnyc" : "sync",
                   filter->app->name,
                   filter->name,
                   filter,
@@ -183,12 +152,8 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
 {
     int ret = 1;
 
-    // Check we have a valid filter
-    if (!filter || filter->type != FILTER_ASYNC)
-        return 1;
-
     // Invoke callback right now!
-    if (filter->data.async.callback) {
+    if (filter->callback) {
         if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
             gboolean oneshot = filter_is_oneshot(filter);
             g_autofree gchar *text = message_to_text(msg);
@@ -202,81 +167,26 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
                       msg,
                       text);
         }
-        ret = filter->data.async.callback(filter, msg);
+        ret = filter->callback(filter, msg);
     }
     return ret;
-}
-
-int
-filter_exec_sync(Filter *filter, AmiMessage *msg)
-{
-    // Check we have a valid filter
-    if (!filter || filter->type != FILTER_SYNC)
-        return 1;
-
-    // This filter already contains a message
-    if (filter->data.sync.triggered)
-        return 1;
-
-    // Lock the filter before updating
-    pthread_mutex_lock(&filter->data.sync.lock);
-    // Copy the message
-    filter->data.sync.msg = msg;
-    // Mark as triggered
-    filter->data.sync.triggered = 1;
-    // Unlock and exit
-    pthread_mutex_unlock(&filter->data.sync.lock);
-    return 0;
-}
-
-int
-filter_run(Filter *filter, int timeout, AmiMessage *ret)
-{
-    // Check we have a valid filter
-    if (!filter || filter->type != FILTER_SYNC)
-        return 1;
-
-    int remaining = timeout * 1000;
-    while (filter->data.sync.triggered == 0 && remaining) {
-        usleep(500);
-        remaining -= 500;
-    }
-
-    // Timeout!
-    if (!remaining) {
-        filter_destroy(filter);
-        return 1;
-    }
-    if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_DEBUG, "[Session#%s] Storing sync filter data [%p]\n",
-                  filter->sess->id, filter);
-    }
-
-    // Copy the message to be returned
-    ret = filter->data.sync.msg;
-
-    // Unregister the filter
-    filter_destroy(filter);
-    return 0;
 }
 
 void
 filter_set_userdata(Filter *filter, void *userdata)
 {
-    if (!filter || filter->type != FILTER_ASYNC)
-        return;
-    filter->data.async.app_info = userdata;
+    g_return_if_fail(filter != NULL);
+    filter->app_info = userdata;
 }
 
-void *
+gpointer
 filter_get_userdata(Filter *filter)
 {
-    if (!filter || filter->type != FILTER_ASYNC)
-        return NULL;
-    return filter->data.async.app_info;
+    g_return_val_if_fail(filter != NULL, NULL);
+    return filter->app_info;
 }
 
-void *
+gpointer
 filter_from_userdata(Session *sess, void *userdata)
 {
     g_return_val_if_fail(sess != NULL, NULL);
@@ -376,13 +286,8 @@ gboolean
 filter_check_and_exec(Filter *filter, AmiMessage *msg)
 {
     if (filter_check_message(filter, msg)) {
-        if (filter->type == FILTER_ASYNC) {
-            // Exec the filter callback with the current message
-            filter_exec_async(filter, msg);
-        } else {
-            // Store the message and leave
-            filter_exec_sync(filter, msg);
-        }
+        // Exec the filter callback with the current message
+        filter_exec_async(filter, msg);
 
         // If the filter is marked for only triggering once, unregister it
         if (filter_is_oneshot(filter)) {

@@ -987,6 +987,18 @@ hangupuid_exec(Session *sess, Application *app, const char *args)
     return 0;
 }
 
+static gint
+playbackuid_status(Filter *filter, AmiMessage *msg)
+{
+    const gchar *response = message_get_header(msg, "Result");
+    if (g_ascii_strcasecmp(response, "Success") == 0) {
+        session_write(filter->sess, "PLAYBACKOK File is being played\r\n");
+    } else {
+        session_write(filter->sess, "PLAYBACKFAILED Unable to play file\r\n");
+    }
+    return 0;
+}
+
 /**
  * @brief Playbackuid application callback
  *
@@ -1009,7 +1021,7 @@ playbackuid_exec(Session *sess, Application *app, const char *args)
         return NOT_AUTHENTICATED;
     }
 
-    // Parse aplication arguments
+    // Parse application arguments
     if (sscanf(args, "%s %s", uniqueid, filename) != 2) {
         return INVALID_ARGUMENTS;
     }
@@ -1017,10 +1029,10 @@ playbackuid_exec(Session *sess, Application *app, const char *args)
     if ((channame = find_channel_by_uniqueid(sess, uniqueid))) {
 
         // Create a filter to get playback response
-        Filter *respfilter = filter_create_sync(sess);
-        filter_new_condition(respfilter, MATCH_EXACT, "Event", "Playback");
-        filter_new_condition(respfilter, MATCH_EXACT, "ActionID", random_actionid(actionid, 10));
-        filter_register(respfilter);
+        Filter *playback_filter = filter_create_async(sess, app, "Get Playback status", playbackuid_status);
+        filter_new_condition(playback_filter, MATCH_EXACT, "Event", "Playback");
+        filter_new_condition(playback_filter, MATCH_EXACT, "ActionID", random_actionid(actionid, 10));
+        filter_register_oneshot(playback_filter);
 
         // Construct a Request message
         AmiMessage msg;
@@ -1030,20 +1042,6 @@ playbackuid_exec(Session *sess, Application *app, const char *args)
         message_add_header(&msg, "Filename: %s", filename);
         message_add_header(&msg, "ActionID: %s", actionid);
         manager_write_message(manager, &msg);
-
-        // Get the response!
-        AmiMessage retmsg;
-        if (filter_run(respfilter, 5000, &retmsg) == 0) {
-            response = message_get_header(&retmsg, "Result");
-            if (!strcasecmp(response, "Success")) {
-                session_write(sess, "PLAYBACKOK File is being played\r\n");
-            } else {
-                session_write(sess, "PLAYBACKFAILED Unable to play file\r\n");
-            }
-        } else {
-            // filter didn't triggered
-            session_write(sess, "PLAYBACKFAILED Request timeout\r\n");
-        }
     } else {
         // Ups.
         session_write(sess, "PLAYBACKFAILED Channel not found\r\n");

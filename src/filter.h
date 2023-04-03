@@ -114,41 +114,6 @@ struct _Condition {
 };
 
 /**
- * @brief Filter's Callback type
- *
- * This value determine if the received message from AMI is passed to the filter
- * async or sync. In Sync mode, the manager thread will stop passing the control to
- * the callback, allowing the aplication to register new filters for the following events.
- * In Async mode, the message is passed to the application from a scheduler thread,
- * which won't block manager thread, but only should be used for filters that don't
- * have to make further filters.
- */
-enum FilterType {
-    //! Invoke filters callback from the scheduler thread
-    FILTER_ASYNC = 0,
-    //! Invoke filters callback from the manager thread (will block manager reads from AMI)
-    FILTER_SYNC,
-};
-
-struct _AsyncFilter {
-    //! Pointer to the callback function
-    FilterFunc callback;
-    //! If this flag is on, the filter will be unregisted after triggering once
-    gboolean oneshot;
-    //! User pointer for storing application information if required
-    gpointer app_info;
-};
-
-struct _SyncFilter {
-    //! Stored ami message triggering the filter
-    AmiMessage *msg;
-    //! This filter has triggered and has a valid message
-    int triggered;
-    //! Filter sync lock (avoid timeout while setting filter sync data)
-    pthread_mutex_t lock;
-};
-
-/**
  * @brief Filter Structure. Core and Heart of Isaac functionality
  *
  * A filter acts as a callback for Isaac applications. It can contain 0-n conditions
@@ -163,13 +128,12 @@ struct _Filter {
     Application *app;
     //! Filter's Condition List
     GPtrArray *conditions;
-    //! How the callback function is invoked
-    enum FilterType type;
-    //! Depending on the filter type
-    union {
-        struct _AsyncFilter async;
-        struct _SyncFilter sync;
-    } data;
+    //! Pointer to the callback function
+    FilterFunc callback;
+    //! If this flag is on, the filter will be unregisted after triggering once
+    gboolean oneshot;
+    //! User pointer for storing application information if required
+    gpointer app_info;
 };
 
 /**
@@ -184,22 +148,6 @@ struct _Filter {
  */
 Filter *
 filter_create_async(Session *sess, Application *app, const gchar *name, FilterFunc callback);
-
-/**
- * @brief Create a new filter structure (This won't add it to the Filter's list)
- *
- * This will create a new filter's structure with the minimum required information
- * This function only allocates memory and set some values, but won't add it to the
- * Filters list (so it still won't trigger) so a filter_register should be called
- * when the filter structure is ready to rock.
- *
- * @param sess Session that requested the application that registered the filter
- * @param cbtype How the callback function is invoked
- * @param callback  Pointer to the callback function
- * @return The new allocated filter structure or NULL in case of failure
- */
-extern Filter *
-filter_create_sync(Session *sess);
 
 /**
  * @brief Create a new condition structure and add if to the given filter
@@ -261,35 +209,8 @@ filter_destroy(Filter *filter);
  * @param msg Message that matched filter conditions
  * @return The filter callback return
  */
-extern int
+int
 filter_exec_async(Filter *filter, AmiMessage *msg);
-
-/**
- * @brief Store the triggering message in the filter and mark it as triggered
- *
- * When an AMI Message match all conditions from a filter, this function will
- * strore the message in the filter and mark it as filtered
- *
- * @param filter Filter that has matched
- * @param msg Message that matched filter conditions
- * @return The filter callback return
- */
-extern int
-filter_exec_sync(Filter *filter, AmiMessage *msg);
-
-/**
- * @brief Wait for an ami event to trigger the filter
- *
- * This fuction will lock until timeout has elapsed or an ami event is filled
- * and the filter data.
- *
- * @param filter Filter thas has matched
- * @param timeout Block timeout in milliseconds
- * @param The matching ami message or NULL
- * @return 0 in case of triggered, 1 otherwise
- */
-extern int
-filter_run(Filter *filter, int timeout, AmiMessage *msg);
 
 /**
  * @brief Set userdata pointer to the filter
@@ -301,7 +222,7 @@ filter_run(Filter *filter, int timeout, AmiMessage *msg);
  * @param filter The filter that will contain the custom information
  * @param userdata Pointer to the custom information
  */
-extern void
+void
 filter_set_userdata(Filter *filter, void *userdata);
 
 /**
@@ -311,7 +232,7 @@ filter_set_userdata(Filter *filter, void *userdata);
  *
  * @param filter Filter that contains the custom information
  */
-extern void *
+gpointer
 filter_get_userdata(Filter *filter);
 
 /**
@@ -320,8 +241,8 @@ filter_get_userdata(Filter *filter);
  * @param sess Session owning the filters
  * @param userdata Pointer to the custom information
  */
-extern void *
-filter_from_userdata(Session *sess, void *userdata);
+gpointer
+filter_from_userdata(Session *sess, gpointer userdata);
 
 /**
  * @brief Inject a fake message as being received by manager
@@ -334,7 +255,7 @@ filter_from_userdata(Session *sess, void *userdata);
  * Be aware: If the function emitting the message is also triggered by the
  *           injected message, this can cause an infinite loop!
  */
-extern void
+void
 filter_inject_message(Filter *filter, AmiMessage *msg);
 
 

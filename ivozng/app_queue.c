@@ -54,8 +54,6 @@ struct app_queue_config
 {
     //! Validate queue names in QUEUEINFO command
     int queueinfo_validate;
-    //! Max timeout in milliseconds QUEUEAGENTS will wait
-    int queueagents_timeout;
     //! Validate queue names in QUEUEAGENTS command
     int queueagents_validate;
 } queue_config;
@@ -80,7 +78,6 @@ read_queue_config(const char *cfile)
 
     // Set default values
     queue_config.queueinfo_validate = 1;
-    queue_config.queueagents_timeout = 5000;
     queue_config.queueagents_validate = 1;
 
     // Read configuraiton file
@@ -94,11 +91,6 @@ read_queue_config(const char *cfile)
     // Validate queueinfo queue names
     if (config_lookup_int(&cfg, "queueinfo.validate", &intvalue) == CONFIG_TRUE) {
         queue_config.queueinfo_validate = intvalue;
-    }
-
-    // Max time queueinfo will wait
-    if (config_lookup_int(&cfg, "queueagents.timeoutms", &intvalue) == CONFIG_TRUE) {
-        queue_config.queueagents_timeout = intvalue;
     }
 
     // Validate queueagents queue names
@@ -163,27 +155,6 @@ queueinfo_print(Filter *filter, AmiMessage *msg)
     const char *count = message_get_header(msg, "Count");
 
     session_write(sess, "QUEUEINFO %s %s\r\n", queuename, count);
-    return 0;
-}
-
-/**
- * @brief Print queue agents information
- *
- * When a new agent count changes this function callback will be triggered
- * printing the changed events
- *
- * @param filter Triggering filter structure
- * @param msg Matching message from Manager
- * @return 0 in all cases
- */
-int
-queueagents_print(Filter *filter, AmiMessage *msg)
-{
-    Session *sess = filter->sess;
-    const char *queuename = message_get_header(msg, "Queue");
-    const char *count = message_get_header(msg, "Free");
-
-    session_write(sess, "QUEUEAGENTS %s FREE %s\r\n", queuename, count);
     return 0;
 }
 
@@ -263,16 +234,17 @@ queueinfo_exec(Session *sess, Application *app, const char *argstr)
         session_set_variable(sess, "QUEUEINFO_RESPONSE", "QUEUEINFOOK");
 
         // Filter QueueMember and QueueStatusComplete responses
+        g_autofree gchar *actionid = g_uuid_string_random();
         Filter *queuefilter = filter_create_async(sess, app, "Get queue members interfaces", queueinfo_print_queues);
         filter_new_condition(queuefilter, MATCH_REGEX, "Event", "QueueMember|QueueStatusComplete");
-        filter_new_condition(queuefilter, MATCH_EXACT, "ActionID", "QueueStatus%s", sess->id);
+        filter_new_condition(queuefilter, MATCH_EXACT, "ActionID", actionid);
         filter_register(queuefilter);
 
         // Construct a Request message
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueStatus");
-        message_add_header(&msg, "ActionID: QueueStatus%s", sess->id);
+        message_add_header(&msg, "ActionID: %s", actionid);
         manager_write_message(manager, &msg);
 
         // Free args app arguments
@@ -306,19 +278,20 @@ queueinfo_exec(Session *sess, Application *app, const char *argstr)
 
     // Check if queue name needs to be validated
     if (validate) {
-        // Check we have a valid quene name
-        Filter *queuevalidatefilter = filter_create_async(sess, app, "Validate queue exists", queueinfo_validate_queue);
-        filter_new_condition(queuevalidatefilter, MATCH_REGEX, "Event", "QueueParams|QueueStatusComplete");
-        filter_new_condition(queuevalidatefilter, MATCH_EXACT, "ActionID", "QueueValidate%s%s", queue_name, sess->id);
-        filter_set_userdata(queuevalidatefilter, g_strdup(queue_name));
-        filter_register(queuevalidatefilter);
+        // Check we have a valid queue name
+        g_autofree gchar *actionid = g_uuid_string_random();
+        Filter *validate_filter = filter_create_async(sess, app, "Validate queue exists", queueinfo_validate_queue);
+        filter_new_condition(validate_filter, MATCH_REGEX, "Event", "QueueParams|QueueStatusComplete");
+        filter_new_condition(validate_filter, MATCH_EXACT, "ActionID", actionid);
+        filter_set_userdata(validate_filter, g_strdup(queue_name));
+        filter_register(validate_filter);
 
         // Construct a Request message
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueStatus");
         message_add_header(&msg, "Queue: %s", queue_name);
-        message_add_header(&msg, "ActionID: QueueValidate%s%s", queue_name, sess->id);
+        message_add_header(&msg, "ActionID: %s", actionid);
         manager_write_message(manager, &msg);
     } else {
         // Not validated queue, just print OK response
@@ -338,6 +311,64 @@ queueinfo_exec(Session *sess, Application *app, const char *argstr)
 }
 
 /**
+ * @brief Print queue agents information
+ *
+ * When a new agent count changes this function callback will be triggered
+ * printing the changed events
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
+int
+queueagents_print(Filter *filter, AmiMessage *msg)
+{
+    Session *sess = filter->sess;
+    const char *queuename = message_get_header(msg, "Queue");
+    const char *count = message_get_header(msg, "Free");
+
+    session_write(sess, "QUEUEAGENTS %s FREE %s\r\n", queuename, count);
+    return 0;
+}
+
+static gint
+queueagents_validate_queue(Filter *filter, AmiMessage *msg)
+{
+    g_return_val_if_fail(filter != NULL, 1);
+    g_return_val_if_fail(msg != NULL, 1);
+
+    Session *sess = filter->sess;
+    gchar *queue_name = filter_get_userdata(filter);
+
+    g_autoptr(GString) validate_var = g_string_new(NULL);
+    g_string_append_printf(validate_var, "QUEUEAGENTS_%s_VALIDATED", queue_name);
+
+    const gchar *event = message_get_header(msg, "Event");
+    if (g_ascii_strcasecmp(event, "QueueSummary") == 0) {
+        // Check with uniqueid mode
+        session_write(sess, "QUEUEAGENTSOK Queueinfo for %s will be printed\r\n", queue_name);
+        // Print initial queue status
+        session_write(sess, "QUEUEAGENTS %s FREE %s\r\n", queue_name, message_get_header(msg, "Available"));
+        // Mark this queue as validated
+        session_set_variable(sess, validate_var->str, "1");
+
+        // Register a Filter to get All generated channels for
+        Filter *queue_filter = filter_create_async(sess, filter->app, "Queue Agents statistics", queueagents_print);
+        filter_new_condition(queue_filter, MATCH_EXACT_CASE, "UserEvent", "QUEUEAGENTS");
+        filter_new_condition(queue_filter, MATCH_EXACT_CASE, "Queue", queue_name);
+        filter_register(queue_filter);
+    } else if (g_ascii_strcasecmp(event, "QueueSummaryComplete") == 0) {
+        // Check if we have already validated this queue (we have received QueueParams before QueueStatusComplete)
+        if (session_get_variable(sess, validate_var->str) == NULL) {
+            session_write(sess, "QUEUEAGENTSFAIL Unable to get queue data of %s\r\n", queue_name);
+        }
+        g_free(queue_name);
+        filter_destroy(filter);
+    }
+    return 0;
+}
+
+/**
  * @brief Request Queue agents information
  *
  * Request queue information for a given queuename. Every time the
@@ -351,9 +382,6 @@ queueinfo_exec(Session *sess, Application *app, const char *argstr)
 int
 queueagents_exec(Session *sess, Application *app, const char *argstr)
 {
-    // Return message
-    AmiMessage retmsg;
-
     // Validate queue name
     int validate;
 
@@ -383,56 +411,45 @@ queueagents_exec(Session *sess, Application *app, const char *argstr)
         validate = queue_config.queueagents_validate;
     }
 
-    // Check if queue name needs to be validated
-    if (validate) {
-        // Check we have a valid quene name
-        Filter *namefilter = filter_create_sync(sess);
-        filter_new_condition(namefilter, MATCH_EXACT, "Event", "QueueSummary");
-        filter_new_condition(namefilter, MATCH_EXACT, "Queue", queue_name);
-        filter_new_condition(namefilter, MATCH_EXACT, "ActionID", sess->id);
-        filter_register(namefilter);
-
-        // Construct a Request message
-        AmiMessage msg;
-        memset(&msg, 0, sizeof(AmiMessage));
-        message_add_header(&msg, "Action: QueueSummary");
-        message_add_header(&msg, "Queue: %s", queue_name);
-        message_add_header(&msg, "ActionID: %s", sess->id);
-        manager_write_message(manager, &msg);
-
-        if (filter_run(namefilter, queue_config.queueagents_timeout, &retmsg) != 0) {
-            // No response Boo!
-            session_write(sess, "QUEUEAGENTSFAIL Unable to get queuedata of %s\r\n", queue_name);
-            application_free_args(args);
-            return 0;
-        }
-    }
-
     // Check we haven't run this application before
     g_autoptr(GString) queue_var = g_string_new(NULL);
     g_string_printf(queue_var, "QUEUEAGENTS_%s", queue_name);
     if (session_get_variable(sess, queue_var->str)) {
         session_write(sess, "QUEUEAGENTSOK Already showing agents for queue %s\r\n", queue_name);
-        application_free_args(args);
         return 0;
     } else {
         // Store we're monitoring this queue
         session_set_variable(sess, queue_var->str, queue_name);
     }
 
-    // Register a Filter to get All generated channels for
-    Filter *queuefilter = filter_create_async(sess, app, "Queue Agents statistics", queueagents_print);
-    filter_new_condition(queuefilter, MATCH_EXACT_CASE, "UserEvent", "QUEUEAGENTS");
-    filter_new_condition(queuefilter, MATCH_EXACT_CASE, "Queue", queue_name);
-    filter_register(queuefilter);
-
-    // Check with uniqueid mode
-    session_write(sess, "QUEUEAGENTSOK Queueinfo for %s will be printed\r\n", queue_name);
-
-    // If queue has been validated
+    // Check if queue name needs to be validated
     if (validate) {
-        // Printi intial queue status
-        session_write(sess, "QUEUEAGENTS %s FREE %s\r\n", queue_name, message_get_header(&retmsg, "Available"));
+        g_autofree gchar *actionid = g_uuid_string_random();
+        // Check we have a valid queue name
+        Filter *validate_filter = filter_create_async(
+            sess, app, "Validate entered queue name", queueagents_validate_queue
+        );
+        filter_new_condition(validate_filter, MATCH_REGEX, "Event", "QueueSummary|QueueSummaryComplete");
+        filter_new_condition(validate_filter, MATCH_EXACT, "ActionID", actionid);
+        filter_set_userdata(validate_filter, g_strdup(queue_name));
+        filter_register(validate_filter);
+
+        // Construct a Request message
+        AmiMessage msg;
+        memset(&msg, 0, sizeof(AmiMessage));
+        message_add_header(&msg, "Action: QueueSummary");
+        message_add_header(&msg, "Queue: %s", queue_name);
+        message_add_header(&msg, "ActionID: %s", actionid);
+        manager_write_message(manager, &msg);
+    } else {
+        // Register a Filter to get All generated channels for
+        Filter *queuefilter = filter_create_async(sess, app, "Queue Agents statistics", queueagents_print);
+        filter_new_condition(queuefilter, MATCH_EXACT_CASE, "UserEvent", "QUEUEAGENTS");
+        filter_new_condition(queuefilter, MATCH_EXACT_CASE, "Queue", queue_name);
+        filter_register(queuefilter);
+
+        // Check with uniqueid mode
+        session_write(sess, "QUEUEAGENTSOK Queueinfo for %s will be printed\r\n", queue_name);
     }
 
     // Free args app arguments
