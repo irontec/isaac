@@ -22,51 +22,51 @@
  * @file app_acd.c
  * @author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
- * @brief Module for manage IronACD actions
- *
- * @warning This module is customized for Ivoz-NG. If won't work without the
- *  required karma files.
+ * @warning This module is customized for Ivoz-NG.
  *
  * This is a special module that spawns a php for its actions.
  * This allow the VoIP developers to work in a more familiar environment.
  */
 #include "config.h"
 #include <glib.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <libconfig.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
 #include "app.h"
 #include "log.h"
-#include "util.h"
 
 #define ACDCONF CONFDIR "/acd.conf"
-#define BSIZE 1024
 
-/**
- * @brief Module configuration readed from ACDCONF file
- *
- * @see read_acd_config
- */
-struct app_acd_config
+//! Module configuration read from ACDCONF file
+typedef struct
 {
-    //! PHP File to spawn
-    char phpfile[80];
+    gchar *php_file;
+    gchar *api_url;
+    gchar *api_user;
+    gchar *api_pass;
+    gchar *api_token;
 
-} acd_config;
+} AppAcdConfig;
+
+//! Callback structure data
+typedef struct
+{
+    GIOChannel *channel;
+    GSource *source;
+    Session *session;
+} AppAcdData;
+
+//! Module Configuration
+static AppAcdConfig acd_config;
 
 /**
  * @brief Read module configure options
  *
- * This function will read ACDCONF file and fill app_acd_config
+ * This function will read ACDCONF file and fill acd_config
  * structure.
  *
  * @param cfile Full path to configuration file
  * @return 0 in case of read success, -1 otherwise
  */
-int
+gboolean
 read_acd_config(const char *cfile)
 {
     config_t cfg;
@@ -75,178 +75,215 @@ read_acd_config(const char *cfile)
     // Initialize configuration
     config_init(&cfg);
 
-    // Read configuraiton file
+    // Read configuration file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
         isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
                   config_error_line(&cfg), config_error_text(&cfg));
         config_destroy(&cfg);
-        return -1;
+        return FALSE;
     }
 
     // Get PHP file that will be spawned in this module
     if (config_lookup_string(&cfg, "acd.php_file", &value) == CONFIG_TRUE) {
-        strcpy(acd_config.phpfile, value);
+        acd_config.php_file = g_strdup(value);
     }
+    if (config_lookup_string(&cfg, "acd.api_url", &value) == CONFIG_TRUE) {
+        acd_config.api_url = g_strdup(value);
+    }
+    if (config_lookup_string(&cfg, "acd.api_user", &value) == CONFIG_TRUE) {
+        acd_config.api_user = g_strdup(value);
+    }
+    if (config_lookup_string(&cfg, "acd.api_pass", &value) == CONFIG_TRUE) {
+        acd_config.api_pass = g_strdup(value);
+    }
+
     // Dealloc libconfig structure
     config_destroy(&cfg);
-    isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
+    isaac_log(LOG_VERBOSE_3, "Read configuration from %s\n", cfile);
 
-    // Validate phpfile exists
-    if (!g_file_test(acd_config.phpfile, G_FILE_TEST_IS_REGULAR)) {
-        sprintf(acd_config.phpfile, "%s/acd.php", MODDIR);
-        isaac_log(LOG_INFO, "Using default ACD script %s\n", acd_config.phpfile);
-        if (!g_file_test(acd_config.phpfile, G_FILE_TEST_IS_REGULAR)) {
-            isaac_log(LOG_ERROR, "Unable to locate ACD script %s\n", acd_config.phpfile);
+    // Validate php_file exists
+    if (!g_file_test(acd_config.php_file, G_FILE_TEST_IS_REGULAR)) {
+        g_free(acd_config.php_file);
+        acd_config.php_file = g_strdup_printf("%s/acd.php", MODDIR);
+        isaac_log(LOG_INFO, "Using default ACD script %s\n", acd_config.php_file);
+        if (!g_file_test(acd_config.php_file, G_FILE_TEST_IS_REGULAR)) {
+            isaac_log(LOG_ERROR, "Unable to locate ACD script %s\n", acd_config.php_file);
         }
     }
 
-    return 0;
+    return TRUE;
 }
 
-/**
- * Copyright 2009-2010 Bart Trojanowski <bart@jukie.net>
- * Licensed under GPLv2, or later, at your choosing.
- *
- * bidirectional popen() call
- *
- * @param rwepipe - int array of sockets
- * @param exe - program to run
- * @param argv - argument list
- * @return pid or -1 on error
- *
- * The caller passes in an array of three integers (rwepipe), on successful
- * execution it can then write to element 0 (stdin of exe), and read from
- * element 1 (stdout) and 2 (stderr).
- */
-static int
-popenRWE(int *rwepipe, const char *exe, const char *const argv[])
+static gboolean
+acd_refresh_api_token(G_GNUC_UNUSED gpointer user_data)
 {
-    int err[2];
-    int pid;
-    int rc;
+    GError *error = NULL;
 
-    rc = pipe(err);
-    if (rc < 0) return rc;
+    gchar *args[] = {
+        "/usr/bin/php",
+        acd_config.php_file,
+        "TOKEN",
+        acd_config.api_url,
+        acd_config.api_user,
+        acd_config.api_pass,
+        NULL
+    };
 
-    pid = fork();
-    if (pid > 0) {
-        // Parent, store the first side of the pipe
-        *rwepipe = err[0];
-        // Close the other part, we wont send anything
-        close(err[1]);
-        return pid;
-    } else if (pid == 0) {
-        // Child, replace STDERR with the second side of the pipe
-        close(2);
-        dup(err[1]);
-        // Close the other part, we wont send anything
-        close(err[0]);
-        execvp(exe, (char **) argv);
-        isaac_log(LOG_ERROR, "Error executing %s: %s\n", exe, strerror(errno));
-    } else {
-        // Error, close both sides of the pipe
-        close(err[0]);
-        close(err[1]);
-        isaac_log(LOG_ERROR, "Error creating spawn: %s\n", strerror(errno));
-        return -1;
+    g_autofree gchar *output;
+    if (!g_spawn_sync(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &output, NULL, NULL, &error)) {
+        isaac_log(LOG_ERROR, "Failed to spawn PHP ACD script: %s\n", error->message);
+        return G_SOURCE_CONTINUE;
     }
 
-    return pid;
+    // Remove trailing new lines from response
+    g_autoptr(GString) response = g_string_new(output);
+    g_string_replace(response, "\r", "", 0);
+    g_string_replace(response, "\n", "", 0);
+
+    if (g_str_has_prefix(response->str, "ACDTOKENOK")) {
+        // Free old token data
+        g_free(acd_config.api_token);
+        // Use new retrieved token
+        acd_config.api_token = g_strdup(response->str + strlen("ACDTOKENOK") + 1);
+        isaac_log(LOG_DEBUG, "Obtained API token %s\n", acd_config.api_token);
+    } else {
+        isaac_log(LOG_ERROR, "Failed to get ivozng API token from response: %s\n", response->str);
+    }
+
+    return G_SOURCE_CONTINUE;
 }
 
-/**
- * Copyright 2009-2010 Bart Trojanowski <bart@jukie.net>
- * Licensed under GPLv2, or later, at your choosing.
- *
- * @brief Stops a process opened with popenRWE
- *
- * @param pid The pid of the child process
- */
-static int
-pcloseRWE(int pid, int *rwepipe)
+static gboolean
+acd_process_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, AppAcdData *data)
 {
-    int status;
-    close(*rwepipe);
-    waitpid(pid, &status, 0);
-    return status;
+    GError *error = NULL;
+    g_autoptr(GString) buffer = g_string_new(NULL);
+    if (g_io_channel_read_line_string(channel, buffer, NULL, &error) != G_IO_STATUS_NORMAL) {
+        isaac_log(LOG_ERROR, "Failed to parse ACD process response: %s\n", error->message);
+    } else {
+        session_write(data->session, buffer->str);
+    }
+
+    // We're done with this ACD process
+    g_source_destroy(data->source);
+    g_source_unref(data->source);
+    g_io_channel_unref(data->channel);
+    g_free(data);
+
+    return G_SOURCE_REMOVE;
 }
 
-int
-acd_exec(Session *sess, Application *app, const char *args)
+static gint
+acd_exec(Session *sess, Application *app, const char *argstr)
 {
-    int pid;
-    int out = 0;
-    char line[BSIZE];
-    char extraparams[256];
-    char interface[40], action[20];
-
     if (!session_test_flag(sess, SESS_FLAG_AUTHENTICATED)) {
         return NOT_AUTHENTICATED;
     }
 
-    // Initialize
-    memset(line, 0, BSIZE);
-    memset(extraparams, 0, 256);
-    memset(action, 0, 20);
-    memset(interface, 0, 40);
+    // Check if uniqueid info is requested
+    GSList *args = application_parse_args(argstr);
 
-    // Get the ACD Action
-    isaac_strcpy(action, app->name);
-    sscanf(action, "ACD%s", action);
+    g_autoptr(GStrvBuilder) args_builder = g_strv_builder_new();
+    g_strv_builder_add(args_builder, "/usr/bin/php");
+    g_strv_builder_add(args_builder, acd_config.php_file);
 
-    if (!strcasecmp(action, "LOGIN")) {
-        // Get Login parameteres
-        if (sscanf(args, "%s", interface) != 1) {
-            return INVALID_ARGUMENTS;
-        }
-    } else if (!strcasecmp(action, "PAUSE")) {
-        // Check if whe have a pausetype
-        sscanf(args, "%[^\n]", extraparams);
-    } else if (!strcasecmp(app->name, "QueueJoin")) {
-        // Get extra arguments
-        if (sscanf(args, "%[^\n]", extraparams) != 1) {
-            return INVALID_ARGUMENTS;
-        }
-        strcpy(action, "JOIN");
-    } else if (!strcasecmp(app->name, "QueueLeave")) {
-        // Get Queue name
-        if (sscanf(args, "%[^\n]", extraparams) != 1) {
-            return INVALID_ARGUMENTS;
-        }
-        strcpy(action, "LEAVE");
-    } else {
-        memset(interface, 0, sizeof(interface));
+    if (g_ascii_strcasecmp(app->name, "ACDSTATUS") == 0) {
+        g_strv_builder_add(args_builder, "STATUS");
+        g_strv_builder_add(args_builder, acd_config.api_url);
+        g_strv_builder_add(args_builder, acd_config.api_token);
+        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
     }
 
-    const char *const php_args[] = {
-        "php",
-        acd_config.phpfile,
-        interface,
-        session_get_variable(sess, "AGENT"),
-        action,
-        extraparams,
-        NULL };
-
-    // Some logging
-    isaac_log(LOG_DEBUG, "Spawing PHP with args %s %s %s %s %s\n", php_args[1], php_args[2], php_args[3], php_args[4],
-              php_args[5]);
-
-    // Open the requested file, load I/O file descriptors
-    pid = popenRWE(&out, php_args[0], php_args);
-
-    // Check we have a valid PID and file descriptor
-    if (pid < 0 || out <= 0)
-        return INTERNAL_ERROR;
-
-    // Open file input descriptor and read the php script output
-    if (read(out, line, BSIZE) > 0) {
-        session_write(sess, "%s", line);
-    } else {
-        return INTERNAL_ERROR;
+    if (g_ascii_strcasecmp(app->name, "ACDLOGIN") == 0) {
+        if (g_slist_length(args) < 1) {
+            application_free_args(args);
+            return INVALID_ARGUMENTS;
+        }
+        g_strv_builder_add(args_builder, "LOGIN");
+        g_strv_builder_add(args_builder, acd_config.api_url);
+        g_strv_builder_add(args_builder, acd_config.api_token);
+        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
     }
 
-    // Stops spawned php
-    pcloseRWE(pid, &out);
+    if (g_ascii_strcasecmp(app->name, "ACDLOGOUT") == 0) {
+        g_strv_builder_add(args_builder, "LOGOUT");
+        g_strv_builder_add(args_builder, acd_config.api_url);
+        g_strv_builder_add(args_builder, acd_config.api_token);
+        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        g_strv_builder_add(args_builder, session_get_variable(sess, "INTERFACE_NAME"));
+    }
+
+    if (g_ascii_strcasecmp(app->name, "ACDPAUSE") == 0) {
+        g_strv_builder_add(args_builder, "PAUSE");
+        g_strv_builder_add(args_builder, acd_config.api_url);
+        g_strv_builder_add(args_builder, acd_config.api_token);
+        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        g_strv_builder_add(args_builder, session_get_variable(sess, "INTERFACE_NAME"));
+        // Add custom pause code if requested
+        if (g_slist_length(args) == 1) {
+            g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
+        }
+    }
+
+    if (g_ascii_strcasecmp(app->name, "ACDUNPAUSE") == 0) {
+        g_strv_builder_add(args_builder, "UNPAUSE");
+        g_strv_builder_add(args_builder, acd_config.api_url);
+        g_strv_builder_add(args_builder, acd_config.api_token);
+        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        g_strv_builder_add(args_builder, session_get_variable(sess, "INTERFACE_NAME"));
+    }
+
+    if (g_ascii_strcasecmp(app->name, "QUEUEJOIN") == 0) {
+        if (g_slist_length(args) < 1) {
+            application_free_args(args);
+            return INVALID_ARGUMENTS;
+        }
+        g_strv_builder_add(args_builder, "JOIN");
+        g_strv_builder_add(args_builder, acd_config.api_url);
+        g_strv_builder_add(args_builder, acd_config.api_token);
+        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        // Queue name
+        g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
+        // Add custom priority if requested
+        if (g_slist_length(args) == 2) {
+            g_strv_builder_add(args_builder, application_get_nth_arg(args, 1));
+        }
+    }
+
+    if (g_ascii_strcasecmp(app->name, "QUEUELEAVE") == 0) {
+        if (g_slist_length(args) < 1) {
+            application_free_args(args);
+            return INVALID_ARGUMENTS;
+        }
+        g_strv_builder_add(args_builder, "LEAVE");
+        g_strv_builder_add(args_builder, acd_config.api_url);
+        g_strv_builder_add(args_builder, acd_config.api_token);
+        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        // Queue name
+        g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
+    }
+
+    GError *error = NULL;
+    gint fd;
+
+    GStrv php_args = g_strv_builder_end(args_builder);
+    if (!g_spawn_async_with_pipes(NULL, php_args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, NULL, &fd, NULL, &error)) {
+        isaac_log(LOG_ERROR, "Failed to spawn PHP ACD script: %s\n", error->message);
+        return 1;
+    }
+
+    AppAcdData *data = g_new(AppAcdData, 1);
+    data->channel = g_io_channel_unix_new(fd);
+    data->source = g_io_create_watch(data->channel, G_IO_IN);
+    data->session = sess;
+
+    // Read script response asynchronously
+    g_source_set_callback(data->source, (GSourceFunc) acd_process_response, data, NULL);
+    g_source_attach(data->source, g_main_context_get_thread_default());
+
+    // Free args app arguments
+    application_free_args(args);
 
     return 0;
 }
@@ -259,11 +296,11 @@ acd_exec(Session *sess, Application *app, const char *args)
  * @retval 0 if all applications and configuration has been loaded
  * @retval -1 if any application fails to register or configuration can not be readed
  */
-int
+gint
 load_module()
 {
-    int res = 0;
-    if (read_acd_config(ACDCONF) != 0) {
+    gint res = 0;
+    if (!read_acd_config(ACDCONF)) {
         isaac_log(LOG_ERROR, "Failed to read app_acd config file %s\n", ACDCONF);
         return -1;
     }
@@ -274,6 +311,12 @@ load_module()
     res |= application_register("ACDUNPAUSE", acd_exec);
     res |= application_register("QUEUEJOIN", acd_exec);
     res |= application_register("QUEUELEAVE", acd_exec);
+
+    // Add a timer to get API token periodically
+    g_timeout_add_seconds(60 * 60, (GSourceFunc) acd_refresh_api_token, NULL);
+    // Retrieve initial token
+    acd_refresh_api_token(NULL);
+
     return res;
 }
 
@@ -284,10 +327,10 @@ load_module()
  *
  * @return 0 if all applications are unloaded, -1 otherwise
  */
-int
+gint
 unload_module()
 {
-    int res = 0;
+    gint res = 0;
     res |= application_unregister("ACDSTATUS");
     res |= application_unregister("ACDLOGIN");
     res |= application_unregister("ACDLOGOUT");
@@ -295,5 +338,13 @@ unload_module()
     res |= application_unregister("ACDUNPAUSE");
     res |= application_unregister("QUEUEJOIN");
     res |= application_unregister("QUEUELEAVE");
+
+    // Deallocate used memory
+    g_free(acd_config.php_file);
+    g_free(acd_config.api_url);
+    g_free(acd_config.api_user);
+    g_free(acd_config.api_pass);
+    g_free(acd_config.api_token);
+
     return res;
 }

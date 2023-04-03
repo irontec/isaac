@@ -1,205 +1,280 @@
 #!/usr/bin/php
 <?php
 
-define("CHK_KARMA", "1");
-define("BASE_URL", "/var/www/ivozng/karma/libs/");
-define("DB_CON", "asterisk");
-require_once(BASE_URL."autoload.php");
-spl_autoload_register("iron_autoload");
-
-$server="http://127.0.0.1:8088";    // The server to connect to
-$amiuser="AMI_USER";
-$password="AMI_SECRET";
-
-if ($argc < 4) {
-	echo "ACD NOT ENOUGH PARAMETERS\n";
-	exit(1);
-}
-
-$interface = $argv[1];
-$agente = $argv[2];
-$op = strtoupper($argv[3]);
-$dp = 1; // Diaplan partition id
-
-$iacd = new IronACD($agente, NULL, $dp); //Instanciamos IronACD() para utilizar todas las funciones que necesitemos.
-$ami = new AJAM($server,$amiuser,$password);
-
-
-if ($op != "LOGIN")
+function acd_verify_argv($argv, $count)
 {
-	$interfaz = $iacd->getAgentInterface($agente, $dp);
-	if (is_null($interfaz)) {
-		fwrite(STDERR, "ACD${op}FAIL AGENT NOT LOGGED IN\r\n");
-	}
-
-	$partes = explode('/',$interfaz);		// Explodeamos para quitar SIP/
-	$interface = $partes[1];    			// Y tenemos ya tal cual la extension sip pura :D)
+    if (count($argv) < $count) {
+        echo "ACD NOT ENOUGH PARAMETERS\n";
+        exit(1);
+    }
 }
 
+function acd_request($method, $url, $token, $data = null)
+{
+    $headers = array(
+        'Content-Type:application/json',
+        'accept: application/json',
+    );
 
-// Set Agent interface
-$iacd->setSIPpeer($interface);
+    if ($token) {
+        $headers[] = "Authorization: Bearer $token";
+    }
 
-switch ($op){
-	case "STATUS":
-		if (!$iacd->agentAlreadyOn()) {
-			fwrite(STDERR, "ACDSTATUS NOT LOGGED IN\r\n");
-		} else {
-			$id_pausa = $iacd->isAgentPausedNEW();
-			if (!is_null($id_pausa) && !$id_pausa) {
-				fwrite(STDERR, "ACDSTATUS UNPAUSED\r\n");
-			} else {
-				fwrite(STDERR, "ACDSTATUS PAUSED\r\n");
-			}
-		}
-		break;
-	case "LOGIN":
-		if ($iacd->agentAlreadyOn()) {
-			fwrite(STDERR, "ACDLOGINFAIL AGENT ALREADY LOGGED IN\r\n");
-			break;
-		}
-		$iacd->setSIPpeer($interface);
-		if ($iacd->queueLoginSuper()) {
-			$ami->login();
-			$ami->devstate("access",$interface,"NOT_INUSE");
-			$ami->logoff();
-			fwrite(STDERR, "ACDLOGINOK AGENT LOGGED IN\r\n");
-		} else {
-			fwrite(STDERR, "ACDLOGINFAIL UNABLE TO LOG IN\r\n");
-		}
-		break;
-	case "LOGOUT":
-		if (!$iacd->agentAlreadyOn()) {
-			fwrite(STDERR, "ACDLOGOUTOK AGENT NOT LOGGED IN\r\n");
-			break;
-		}
-		if ($iacd->queueLogoffSuper()) {
-			$ami->login();
-			$ami->devstate("pause",$interface,"NOT_INUSE");
-			$iacd->storeAgentInfo("LOGOFF");
-			$ami->devstate("access",$interface,"INUSE");
-			$ami->logoff();
-			fwrite(STDERR, "ACDLOGOUTOK AGENT LOGGED OUT\r\n");
-		} else {
-			fwrite(STDERR, "ACDLOGOUTFAIL UNABLE TO LOG OUT\r\n");
-		}
+    $ch = curl_init($url);
+    if ($method == "POST") {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    }
+    if ($method == "PUT") {
+        curl_setopt($ch, CURLOPT_PUT, true);
+    }
+    if ($method == "DELETE") {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+//     curl_setopt($ch, CURLOPT_VERBOSE, true);
 
-		break;
-	case "PAUSE":
-        // Check agent is logged in
-		if (!$iacd->agentAlreadyOn()) {
-			fwrite(STDERR, "ACDPAUSEFAIL AGENT NOT LOGGED IN\r\n");
-			break;
-		}
+    $result = curl_exec($ch);
+    if (curl_errno($ch)) {
+        echo 'Error: ' . curl_error($ch);
+        exit(0);
+    }
 
-        // Check we have a custom pause id
-        $pausecode = strtoupper($argv[4]);
-        if (is_null($pausecode) || empty($pausecode)) {
-	        if ($iacd->agentPauseSuper()) {
-		    	$ami->login();
-		    	$ami->devstate("pause",$interface,"RINGING");
-		    	$ami->logoff();
-		    	fwrite(STDERR, "ACDPAUSEOK AGENT PAUSED\r\n");
-		    } else {
-		    	fwrite(STDERR, "ACDPAUSEFAIL AGENT ALREADY PAUSED\r\n");
-		    }
-        } else {
-            // Get the id_pausa from its code
-            $sql = "SELECT id_pausa FROM callcenter_pausas WHERE cod_pausa = '$pausecode'";
-            $con = new con($sql, DB_CON);
-            if ($con->getError() || !$con->getNumRows()) {
-                fwrite(STDERR, "ACDPAUSEFAIL UNKOWN PAUSE CODE\r\n");
+    $response = json_decode($result, true);
+    if (!is_array($response)) {
+        echo "ACD INTERNAL ERROR\r\n";
+        exit(1);
+    }
+
+//     print_r($response);
+    return $response;
+}
+
+function acd_token($url, $user, $pass)
+{
+    $response = acd_request(
+        "POST",
+        $url . "/login",
+        null,
+        [
+            'username' => $user,
+            'password' => $pass
+        ]
+    );
+    if (array_key_exists("token", $response)) {
+        echo sprintf("ACDTOKENOK %s\n", $response['token']);
+    } else {
+        echo "ACDTOKENFAIL INTERNAL ERROR\r\n";
+    }
+}
+
+function acd_status($url, $token, $agent)
+{
+    $response = acd_request(
+        "GET",
+        $url . "/agent/pausestatus/$agent",
+        $token
+    );
+
+    if (array_key_exists("status", $response) && $response['status'] == "Paused") {
+        echo "ACDSTATUS PAUSED\r\n";
+    } elseif (array_key_exists("status", $response) && $response['status'] == "Not Paused") {
+        echo "ACDSTATUS UNPAUSED\r\n";
+    } else {
+        echo "ACDSTATUSFAIL INTERNAL ERROR\r\n";
+    }
+}
+
+function acd_login($url, $token, $agent, $interface)
+{
+    $payload = [
+        "agent" => $agent,
+        "interface" => $interface,
+    ];
+
+    $response = acd_request(
+        "POST",
+        $url . "/agent/login",
+        $token,
+        $payload
+    );
+
+    if (array_key_exists("status", $response) && $response['status'] == "Logged-in") {
+        echo "ACDLOGINOK AGENT LOGGED IN\r\n";
+    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent already logged in") {
+        echo "ACDLOGINFAIL AGENT ALREADY LOGGED IN\r\n";
+    } else {
+        echo "ACDLOGINFAIL UNABLE TO LOG IN\r\n";
+    }
+}
+
+function acd_logout($url, $token, $agent, $interface)
+{
+    $payload = [
+        "agent" => $agent,
+        "interface" => $interface,
+    ];
+
+    $response = acd_request(
+        "POST",
+        $url . "/agent/logout",
+        $token,
+        $payload
+    );
+
+    if (array_key_exists("status", $response) && $response['status'] == "Logged-out") {
+        echo "ACDLOGOUTOK AGENT LOGGED OUT\r\n";
+    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent not logged in") {
+        echo "ACDLOGINFAIL AGENT ALREADY LOGGED IN\r\n";
+    } else {
+        echo "ACDLOGOUTFAIL INTERNAL ERROR\r\n";
+    }
+}
+
+function acd_pause($url, $token, $agent, $interface, $code)
+{
+    // Validate custom pause code
+    if ($code) {
+        $valid_code = false;
+        $response = acd_request("GET", $url . "/agent/listcustompause", $token);
+        foreach ($response as $custompause) {
+            if ($custompause['cod_pause'] == $code) {
+                $valid_code = true;
                 break;
-            } 
-
-            // Get Agent queue information
-            $r =  $con->getResult();
-
-            // Pause Custom
-            if ($iacd->agentPauseCustom($r['id_pausa'])) {
-                $ami->login();
-                $ami->devstate("pause",$interface,"RINGING");
-                $ami->logoff();
-                fwrite(STDERR, "ACDPAUSEOK AGENT PAUSED\r\n");
-            } else {
-                fwrite(STDERR, "ACDPAUSEFAIL AGENT ALREADY PAUSED\r\n");
-            } 
+            }
         }
-		break;
-	case "UNPAUSE":
-		if (!$iacd->agentAlreadyOn()) {
-			fwrite(STDERR, "ACDUNPAUSEFAIL AGENT NOT LOGGED IN\n");
-			break;
-		}
-		if ($iacd->agentPauseSuper(false)) {
-			$ami->login();
-			$ami->devstate("pause",$interface,"NOT_INUSE");
-			$ami->logoff();
-			fwrite(STDERR, "ACDUNPAUSEOK AGENT UNPAUSED\r\n");
-		} else {
-			fwrite(STDERR, "ACDUNPAUSEFAIL AGENT ALREADY UNPAUSED\r\n");
-		}
-		break;
-    case "JOIN":
-    case "LEAVE":
-
-        // Parse remaining arguments
-        $args = explode(" ", trim($argv[4]));
-
-        // Check we have a queuename
-        $cola = strtoupper($args[0]);
-        if (is_null($cola) || empty($cola)) {
-			fwrite(STDERR, "QUEUE${op}FAILED Queuename is required\r\n");
-            break;
+        if (!$valid_code) {
+            echo "ACDPAUSEFAIL UNKNOWN PAUSE CODE\r\n";
+            exit(1);
         }
-    
-        // Check if the agent can login in given queue
-        $sql = "SELECT r.penalty, r.ringinuse
-            FROM ast_queues AS q 
-            LEFT JOIN callcenter_rel_queues_agents AS r ON q.id_queue = r.id_queue 
-            LEFT JOIN karma_usuarios AS k ON r.id_agent = k.id_usuario
-            WHERE q.name = '$cola' and k.login_num = '$agente'";
+    }
 
-        $con = new con($sql, DB_CON);
-        if ($con->getError() || !$con->getNumRows()) {
-            fwrite(STDERR, "QUEUE${op}FAILED Agent $agente has no rights on queue $cola\r\n");
-            break;
-        } 
+    // Different endpoint for custom pauses
+    if ($code) {
+        $url .= "/agent/custompause/$agent/$interface/$code";
+    } else {
+        $url .= "/agent/pause/$agent/$interface";
+    }
 
-        // Get Agent queue information
-        $r =  $con->getResult();
-        
-        // Check if command specifies priority
-        if (isset($args[1])) {
-            $priority = $args[1]; 
-        } else {
-            $priority = $r['penalty'];
-        }
+    $response = acd_request(
+        "PUT",
+        $url,
+        $token
+    );
 
-        // Check if command specifies ringinuse
-        if (isset($args[2])) {
-            $ringinuse = 1;
-        } else {
-            $ringinuse = $r['ringinuse'];
-        }
-
-        // Check we have a valid priority
-        if (!is_numeric($priority)) {
-            fwrite(STDERR, "QUEUE${op}FAIL Priority $priority is not numeric\r\n");
-            break;
-        }
-
-        // Always Leave the queue
-        $iacd->queueJoinLeaveManual(false,  $cola, $priority, $ringinuse);
-
-        // Join/Leave Queue
-        if ($iacd->queueJoinLeaveManual(($op == "JOIN"), $cola, $priority, $ringinuse) == true) {
-            fwrite(STDERR, "QUEUE${op}OK Successfully ${op} queue $cola\r\n");
-        } else {
-            fwrite(STDERR, "QUEUE${op}FAIL Unable to ${op} queue $cola\r\n");
-        }
+    if (array_key_exists("status", $response) && $response['status'] == "Paused") {
+        echo "ACDPAUSEOK AGENT PAUSED\r\n";
+    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent not logged in") {
+        echo "ACDPAUSEFAIL AGENT NOT LOGGED IN\r\n";
+    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent already paused") {
+        echo "ACDPAUSEFAIL AGENT ALREADY PAUSED\r\n";
+    } else {
+        echo "ACDPAUSEFAIL INTERNAL ERROR\r\n";
+    }
 }
 
-exit(0);
+function acd_unpause($url, $token, $agent, $interface)
+{
+    // Check if already paused
+    $response = acd_request("GET", $url . "/agent/loginstatus/$agent", $token);
+    if (is_array($response) && array_key_exists("status", $response) && $response['status'] != "Logged") {
+        echo "ACDUNPAUSEFAIL AGENT NOT LOGGED IN\r\n";
+    }
 
-?>
+    $response = acd_request(
+        "PUT",
+        $url . "/agent/unpause/$agent/$interface",
+        $token
+    );
+
+    if (array_key_exists("status", $response) && $response['status'] == "Unpaused") {
+        echo "ACDUNPAUSEOK AGENT UNPAUSED\r\n";
+    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent not logged in") {
+        echo "ACDUNPAUSEFAIL AGENT NOT LOGGED IN\r\n";
+    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent already unpaused") {
+        echo "ACDUNPAUSEFAIL AGENT ALREADY UNPAUSED\r\n";
+    } else {
+        echo "ACDUNPAUSEFAIL INTERNAL ERROR\r\n";
+    }
+}
+
+function acd_join($url, $token, $agent, $queue, $priority = null)
+{
+    $payload = [
+        "agent" => $agent,
+        "queue" => $queue,
+    ];
+
+    if ($priority) {
+        $payload['priority'] = $priority;
+    }
+
+    $response = acd_request(
+        "POST",
+        $url . "/queue/addagent",
+        $token,
+        $payload
+    );
+
+    if (array_key_exists("status", $response) && $response['status'] == "Agent $agent added to queue $queue") {
+        echo "QUEUEJOINOK Successfully JOIN queue $queue\r\n";
+    } else {
+        echo "QUEUEJOIFAIL Unable to JOIN queue $queue\r\n";
+    }
+}
+
+function acd_leave($url, $token, $agent, $queue)
+{
+    $response = acd_request(
+        "DELETE",
+        $url . "/queue/removeagent/$agent/$queue",
+        $token
+    );
+
+    if (array_key_exists("status", $response) && $response['status'] == "Agent $agent removed from queue $queue") {
+        echo "QUEUELEAVEOK Successfully LEAVE queue $queue\r\n";
+    } else {
+        echo "QUEUELEAVEFAIL Unable to LEAVE queue $queue\r\n";
+    }
+}
+
+// Minimal command line parameters
+acd_verify_argv($argv, 3);
+$action = strtoupper($argv[1]);
+$url = rtrim($argv[2], "/");
+
+if ($action == "STATUS" || $action == "TOKEN") {
+    acd_verify_argv($argv, 5);
+} else {
+    acd_verify_argv($argv, 6);
+}
+
+switch ($action) {
+    case "TOKEN":
+        acd_token($url, $argv[3], $argv[4]);
+        break;
+    case "STATUS":
+        acd_status($url, $argv[3], $argv[4]);
+        break;
+    case "LOGIN":
+        acd_login($url, $argv[3], $argv[4], $argv[5]);
+        break;
+    case "LOGOUT":
+        acd_logout($url, $argv[3], $argv[4], $argv[5]);
+        break;
+    case "PAUSE":
+        acd_pause($url, $argv[3], $argv[4], $argv[5], (count($argv) == 7) ? $argv[6] : null);
+        break;
+    case "UNPAUSE":
+        acd_unpause($url, $argv[3], $argv[4], $argv[5]);
+        break;
+    case "JOIN":
+        acd_join($url, $argv[3], $argv[4], $argv[5], (count($argv) == 7) ? $argv[6] : null);
+        break;
+    case "LEAVE":
+        acd_leave($url, $argv[3], $argv[4], $argv[5]);
+        break;
+}

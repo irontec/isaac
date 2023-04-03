@@ -325,6 +325,7 @@ login_exec(Session *sess, Application *app, const gchar *argstr)
         SQLGetData(stmt, 2, SQL_C_CHAR, module, sizeof(interface), &indicator);
 
         session_set_variable(sess, "INTERFACE", interface);
+        session_set_variable(sess, "INTERFACE_NAME", interface + 4);
         // Login successful!! Mark this session as authenticated
         session_set_flag(sess, SESS_FLAG_AUTHENTICATED);
         // Store the login agent for later use
