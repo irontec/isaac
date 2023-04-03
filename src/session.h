@@ -73,6 +73,8 @@ struct _Session
     unsigned int flags;
     //! Session variables (SessionVar*)
     GSList *vars;
+    //! Session conection
+    GSocketConnection *connection;
     //! Session client file descriptor
     int fd;
     //! Address string IPv4:Port
@@ -126,7 +128,7 @@ sessions_release_lock();
  * \return 		The new created session or NULL in case of alloc error
  */
 Session *
-session_create(GSocket *socket);
+session_create(GSocketConnection *connection);
 
 /**
  * \brief Free session memory

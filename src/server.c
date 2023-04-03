@@ -45,14 +45,8 @@ Server *server;
 static gboolean
 server_thread_manage_connection(GSocketConnection *connection, G_GNUC_UNUSED gpointer user_data)
 {
-    GSocket *socket = g_socket_connection_get_socket(connection);
-    g_return_val_if_fail(socket != NULL, TRUE);
-
-    // Configure socket keep-alive
-    g_socket_set_keepalive(socket, cfg_get_keepalive());
-
     // Create a new session for this connection
-    Session *sess = session_create(socket);
+    Session *sess = session_create(connection);
     g_return_val_if_fail(sess != NULL, FALSE);
 
     if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {
@@ -131,7 +125,7 @@ server_incoming_connection(G_GNUC_UNUSED GSocketService *service,
                            G_GNUC_UNUSED gpointer user_data)
 {
     // Add a ref to the connection so it keeps alive after this callback
-    g_object_ref (connection);
+    g_object_ref(connection);
 
     // Get first thread of the queue
     ServerThread *thread = g_queue_pop_head(server->threads);
@@ -214,9 +208,11 @@ server_start()
         );
         g_source_attach(thread->source, thread->context);
 
+        // Build a thread name for debugging
+        g_autofree gchar *thread_name = g_strdup_printf("Server Thread %d", i);
         // Launch thread loop
         thread->thread = g_thread_new(
-            g_strdup_printf("Server Thread %d", i),
+            thread_name,
             (GThreadFunc) server_thread_run,
             thread
         );
@@ -248,7 +244,19 @@ server_stop()
     g_object_unref(server->service);
 
 #ifdef SERVER_THREADS
+    ServerThread *thread;
+    while ((thread = g_queue_pop_head(server->threads)) != NULL) {
+        g_source_destroy(thread->source);
+        g_source_unref(thread->source);
+        g_main_loop_quit(thread->loop);
+        g_main_loop_unref(thread->loop);
+        g_main_context_unref(thread->context);
+        g_async_queue_unref(thread->queue);
+        g_thread_join(thread->thread);
+        g_free(thread);
+    }
     g_queue_free(server->threads);
 #endif
+
     g_free(server);
 }

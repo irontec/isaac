@@ -173,21 +173,6 @@ filter_destroy(Filter *filter)
     // Remove filter from session
     filter->sess->filters = g_slist_remove(filter->sess->filters, filter);
 
-    // Check if the info is still being shared by someone
-    gpointer user_data = filter_get_userdata(filter);
-    gboolean shared = FALSE;
-    if (user_data) {
-        for (GSList *l = filter->sess->filters; l; l = l->next) {
-            Filter *other = l->data;
-            if (filter_get_userdata(other) == user_data) {
-                shared = TRUE;
-            }
-        }
-        if (!shared) {
-            g_free(user_data);
-        }
-    }
-
     // Deallocate filter memory
     g_ptr_array_free(filter->conditions, TRUE);
     g_free(filter);
@@ -206,6 +191,7 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
     if (filter->data.async.callback) {
         if (session_test_flag(filter->sess, SESS_FLAG_DEBUG)) {
             gboolean oneshot = filter_is_oneshot(filter);
+            g_autofree gchar *text = message_to_text(msg);
             isaac_log(LOG_DEBUG,
                       "[Session#%s] Executing filter \033[1;33m[%s] %s\033[0m [%p] %s triggered by message [%p]\n%s\n",
                       filter->sess->id,
@@ -214,7 +200,7 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
                       filter,
                       (oneshot) ? "(oneshot)" : "",
                       msg,
-                      message_to_text(msg));
+                      text);
         }
         ret = filter->data.async.callback(filter, msg);
     }

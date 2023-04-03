@@ -522,6 +522,6 @@ int
 unload_module()
 {
     int res = 0;
-    res |= application_unregister("RECORDSTOP");
+    res |= application_unregister("CONFERENCE");
     return res;
 }

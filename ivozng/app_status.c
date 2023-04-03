@@ -471,7 +471,7 @@ status_print(Filter *filter, AmiMessage *msg)
             // We have the destination information
             strcpy(info->xfer_channel, message_get_header(msg, "TargetChannel"));
             strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
-            // Blonde transfer, destiny was ringing
+            // Blonde transfer, destination was ringing
             info->xfer_state = 6;
             // We have enough information to inject messages in receiver bus
             isaac_log(LOG_NOTICE, "[Session#%s] Detected Attended Transfer to %s\n", filter->sess->id,
@@ -483,7 +483,7 @@ status_print(Filter *filter, AmiMessage *msg)
             // We have the destination information
             strcpy(info->xfer_channel, message_get_header(msg, "TargetChannel"));
             strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
-            // Blonde transfer, destiny was ringing
+            // Blonde transfer, destination was ringing
             info->xfer_state = 5;
             // We have enough information to inject messages in receiver bus
             isaac_log(LOG_NOTICE, "[Session#%s] Detected Blonde Transfer to %s\n", filter->sess->id, info->xfer_agent);
@@ -491,7 +491,7 @@ status_print(Filter *filter, AmiMessage *msg)
         }
 
         if (g_ascii_strcasecmp(message_get_header(msg, "TransferType"), "Blind") == 0) {
-            // Copy the destiny agent
+            // Copy the destination agent
             strcpy(info->xfer_agent, message_get_header(msg, "TransferExten"));
             isaac_log(LOG_NOTICE, "[Session#%s] Detected Blind Transfer to %s\n", filter->sess->id, info->xfer_agent);
 
@@ -1386,6 +1386,7 @@ gint
 unload_module()
 {
     gint ret = 0;
+
     ret |= application_unregister("STATUS");
     ret |= application_unregister("ANSWER");
     ret |= application_unregister("ANSWERUID");
@@ -1397,5 +1398,9 @@ unload_module()
     ret |= application_unregister("REDIRECTUID");
     ret |= application_unregister("RECORDUID");
     ret |= application_unregister("RECORDSTOPUID");
+
+    // Free module configuration data
+    g_free(status_config.record_path);
+
     return ret;
 }

@@ -392,6 +392,8 @@ stop_manager()
     shutdown(manager->fd, SHUT_RDWR);
     // Wait for the accept thread to finish
     pthread_join(manager_thread, NULL);
+    // Clear manager mutex
+    g_rec_mutex_clear(&manager->lock);
     // Free manager memory
     isaac_free(manager);
 

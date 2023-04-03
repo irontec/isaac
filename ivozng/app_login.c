@@ -141,11 +141,11 @@ odbc_connect()
 {
     g_rec_mutex_lock(&odbc_lock);
     // Allocate an environment handle
-    SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
+    SQLAllocEnv(&env);
     // We want ODBC 3 support */
     SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
     // Allocate a connection handle
-    SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
+    SQLAllocConnect(env, &dbc);
     // Connect to the DSN asterisk
     SQLDriverConnect(dbc, NULL, (SQLCHAR *) "DSN=asterisk;", SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
     g_rec_mutex_unlock(&odbc_lock);
@@ -169,8 +169,8 @@ odbc_disconnect()
     // Disconnect ODBC driver and cleanup
     g_rec_mutex_lock(&odbc_lock);
     SQLDisconnect(dbc);
-    SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-    SQLFreeHandle(SQL_HANDLE_ENV, env);
+    SQLFreeConnect(dbc);
+    SQLFreeEnv(env);
     g_rec_mutex_unlock(&odbc_lock);
 }
 

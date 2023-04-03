@@ -1,0 +1,176 @@
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:add_alias2.part.0
+   fun:add_alias2
+   fun:__gconv_read_conf
+   fun:__pthread_once_slow
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:tsearch
+   fun:add_alias2.part.0
+   fun:add_alias2
+   fun:add_alias
+   fun:read_conf_file.isra.0
+   fun:gconv_parseconfdir
+   fun:__gconv_read_conf
+   fun:__pthread_once_slow
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:add_derivation
+   fun:find_derivation
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:add_alias2.part.0
+   fun:add_alias2
+   fun:add_alias
+   fun:read_conf_file.isra.0
+   fun:gconv_parseconfdir
+   fun:__gconv_read_conf
+   fun:__pthread_once_slow
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:tsearch
+   fun:add_derivation
+   fun:find_derivation
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:malloc
+   fun:_dlfo_mappings_segment_allocate
+   fun:_dl_find_object_update_1
+   fun:_dl_find_object_update
+   fun:dl_open_worker_begin
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_exception
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen_implementation
+   fun:dlopen@@GLIBC_2.34
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:tsearch
+   fun:add_alias2.part.0
+   fun:add_alias2
+   fun:__gconv_read_conf
+   fun:__pthread_once_slow
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:add_alias2.part.0
+   fun:add_alias2
+   fun:add_alias
+   fun:read_conf_file.isra.0
+   fun:gconv_parseconfdir
+   fun:__gconv_read_conf
+   fun:__pthread_once_slow
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:tsearch
+   fun:add_derivation
+   fun:find_derivation
+   fun:__gconv_find_transform
+   fun:__gconv_open
+   fun:iconv_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}

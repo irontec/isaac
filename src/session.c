@@ -153,9 +153,14 @@ session_destroy(Session *session)
     g_rec_mutex_unlock(&session_mutex);
 
     // Detach and free sources
-    if (session->timeout) g_source_destroy(session->timeout);
+    if (session->timeout) {
+        g_source_destroy(session->timeout);
+        g_source_unref(session->timeout);
+    }
     g_source_destroy(session->commands);
+    g_source_unref(session->commands);
     g_source_destroy(session->messages);
+    g_source_unref(session->messages);
 
     // Remove queue pending messages
     while (g_async_queue_length(session->queue) != 0) {
@@ -179,34 +184,42 @@ session_destroy(Session *session)
     g_slist_free(session->filters);
 
     // Free session memory
+    g_object_unref(session->connection);
     g_free(session->addrstr);
     g_free(session);
 }
 
 /*****************************************************************************/
 Session *
-session_create(GSocket *socket)
+session_create(GSocketConnection *connection)
 {
     GError *error = NULL;
+
+    GSocket *socket = g_socket_connection_get_socket(connection);
+    g_return_val_if_fail(socket != NULL, FALSE);
+
+    // Configure socket keep-alive
+    g_socket_set_keepalive(socket, cfg_get_keepalive());
 
     // Get some memory for this session
     Session *sess = g_malloc0(sizeof(Session));
     g_return_val_if_fail(sess != NULL, NULL);
 
     // Get Local address
-    GSocketAddress *address = g_socket_get_remote_address(socket, &error);
+    g_autoptr(GSocketAddress) address = g_socket_get_remote_address(socket, &error);
     g_return_val_if_fail(address != NULL, NULL);
 
     GInetAddress *inet = g_inet_socket_address_get_address(G_INET_SOCKET_ADDRESS(address));
+    g_autofree gchar *addrstr = g_inet_address_to_string(inet);
     sess->addrstr = g_strdup_printf(
         "%s:%d",
-        g_inet_address_to_string(inet),
+        addrstr,
         g_inet_socket_address_get_port(G_INET_SOCKET_ADDRESS(address))
     );
 
+    sess->connection = connection;
     sess->fd = g_socket_get_fd(socket);
     sess->flags = 0x00;
-
     sess->queue = g_async_queue_new();
     sess->last_cmd_time = g_get_monotonic_time();
     sess->vars = NULL;
