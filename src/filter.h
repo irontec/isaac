@@ -120,6 +120,8 @@ struct _Condition {
  * that will determine which messages are sent back to the applications.
  */
 struct _Filter {
+    //! Determine if this filter is active. Inactive filters are destroyed
+    gboolean active;
     //! Session that requested the application that registered this filter
     Session *sess;
     //! Useful for debugging purposes
@@ -130,10 +132,12 @@ struct _Filter {
     GPtrArray *conditions;
     //! Pointer to the callback function
     FilterFunc callback;
-    //! If this flag is on, the filter will be unregisted after triggering once
+    //! If this flag is on, the filter will be unregister after triggering once
     gboolean oneshot;
     //! User pointer for storing application information if required
     gpointer app_info;
+    //! User pointer destroy notify
+    GDestroyNotify destroy_func;
 };
 
 /**
@@ -188,6 +192,13 @@ extern int
 filter_register_oneshot(Filter *filter);
 
 /**
+ * @brief Mark a filter as inactive
+ * @param filter
+ */
+void
+filter_inactivate(Filter *filter);
+
+/**
  * @brief Remove a filter from the filters list.
  *
  * Main function for destroying a filter and remove it from the filter list.
@@ -223,7 +234,10 @@ filter_exec_async(Filter *filter, AmiMessage *msg);
  * @param userdata Pointer to the custom information
  */
 void
-filter_set_userdata(Filter *filter, void *userdata);
+filter_set_userdata(Filter *filter, gpointer user_data);
+
+void
+filter_set_userdata_full(Filter *filter, gpointer user_data, GDestroyNotify destroy_func);
 
 /**
  * @brief Get the userdata pointer of the filter

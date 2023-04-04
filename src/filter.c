@@ -51,6 +51,7 @@ filter_create_async(Session *sess, Application *app, const gchar *name, FilterFu
     Filter *filter = g_malloc0(sizeof(Filter));
     g_return_val_if_fail(filter != NULL, NULL);
 
+    filter->active = TRUE;
     filter->sess = sess;
     filter->app = app;
     filter->name = name;
@@ -107,6 +108,13 @@ filter_is_oneshot(Filter *filter)
     return filter->oneshot;
 }
 
+void
+filter_inactivate(Filter *filter)
+{
+    g_return_if_fail(filter != NULL);
+    filter->active = FALSE;
+}
+
 int
 filter_register(Filter *filter)
 {
@@ -142,6 +150,11 @@ filter_destroy(Filter *filter)
     // Remove filter from session
     filter->sess->filters = g_slist_remove(filter->sess->filters, filter);
 
+    // Free info data, call destroy notify if required
+    if (filter->destroy_func) {
+        g_rc_box_release_full(filter->app_info, filter->destroy_func);
+    }
+
     // Deallocate filter memory
     g_ptr_array_free(filter->conditions, TRUE);
     g_free(filter);
@@ -173,10 +186,18 @@ filter_exec_async(Filter *filter, AmiMessage *msg)
 }
 
 void
-filter_set_userdata(Filter *filter, void *userdata)
+filter_set_userdata(Filter *filter, gpointer user_data)
 {
     g_return_if_fail(filter != NULL);
-    filter->app_info = userdata;
+    filter->app_info = user_data;
+}
+
+void
+filter_set_userdata_full(Filter *filter, gpointer user_data, GDestroyNotify destroy_func)
+{
+    g_return_if_fail(filter != NULL);
+    filter->app_info = g_rc_box_acquire(user_data);
+    filter->destroy_func = destroy_func;
 }
 
 gpointer
@@ -285,6 +306,11 @@ filter_check_message(Filter *filter, AmiMessage *msg)
 gboolean
 filter_check_and_exec(Filter *filter, AmiMessage *msg)
 {
+    if (!filter->active) {
+        filter_destroy(filter);
+        return TRUE;
+    }
+
     if (filter_check_message(filter, msg)) {
         // Exec the filter callback with the current message
         filter_exec_async(filter, msg);
@@ -294,4 +320,6 @@ filter_check_and_exec(Filter *filter, AmiMessage *msg)
             filter_destroy(filter);
         }
     }
+
+    return TRUE;
 }

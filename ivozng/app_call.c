@@ -48,23 +48,21 @@
 #define CALLCONF CONFDIR "/call.conf"
 
 /**
- * @brief Module configuration readed from CALLCONF file
+ * @brief Module configuration read from CALLCONF file
  *
  * @see read_call_config
  */
-struct app_call_config
+typedef struct
 {
     //! Context to originate the first leg during CALL action
-    char incontext[80];
+    gchar *incontext;
     //! Context to originate the second leg during CALL action
-    char outcontext[80];
-    //! Custom variable of Ivoz-NG to determine the context behaviour
-    //char rol[20];
-    //! Autoanswer flag. Does not work in all terminals.
-    int autoanswer;
+    gchar *outcontext;
+    //! Auto-answer flag. Does not work in all terminals.
+    gboolean autoanswer;
     //! File recorded path
-    char record_path[512];
-} call_config;
+    gchar *record_path;
+} AppCallConfig;
 
 /**
  * @brief Common structure for Call filters
@@ -72,60 +70,57 @@ struct app_call_config
  * This structure contains the shared information between different
  * filters of the same call.
  */
-struct app_call_info
+typedef struct
 {
     //! Unique ID supplied during CALL action
-    char actionid[ACTIONID_LEN];
-    //! Filter for capturing the events of Dialed channels
-    Filter *callfilter;
-    //! Filter for capturing the events of agent channel
-    Filter *ofilter;
-    //! Filter for capturing the events of remote channel
-    Filter *dfilter;
-    //! Filter for capturing the events of agent displayed channel
-    Filter *odfilter;
-    //! Original call destiny
-    char destiny[50];
+    gchar *actionid;
+    //! Original call destination
+    gchar *destination;
     //! Dialplan partition id
-    char partition[50];
+    gchar *partition;
     //! Agent Channel UniqueID
-    char ouid[50];
+    gchar *agent_uniqueid;
     //! Remote Channel UniqueID
-    char duid[50];
+    gchar *remote_uniqueid;
     //! Agent Channel Name
-    char ochannel[50];
+    gchar *agent_channel;
     //! Remote Channel Name
-    char dchannel[50];
-    //** Display variables were intrdoduced in isaac 2.x for asterisk 18+
+    gchar *remote_channel;
+    //** Display variables were introduced in isaac 2.x for asterisk 18+
     //** in order to support integrations that relay on UniqueID information we keep uniqueids to
     //** track calls, and uniqueids to display in CALLSTATUS commands
     //! Agent Channel Displayed UniqueID
-    char oduid[50];
+    gchar *agent_display_uniqueid;
     //! Remote Channel Displayed UniqueID
-    char dduid[50];
+    gchar *remote_display_uniqueid;
     //! Agent Channel Displayed Name
-    char odchannel[50];
+    gchar *agent_display_channel;
     //! Flag: This call is being Recorded
-    bool recording;
-    //! Mixmonitor id being Recorded
-    char recording_id[256];
+    gboolean recording;
+    //! MixMonitor id being Recorded
+    gchar *recording_id;
     //! Flag for printing uniqueid info
-    bool print_uniqueid;
+    gboolean print_uniqueid;
     //! Flag for broadcasting call info
-    bool broadcast;
+    gboolean broadcast;
 
     //! Store recording vars
-    char grabaciones_modulo[512];
-    char grabaciones_tipo[1024];
-    char grabaciones_plataforma[2048];
-    char grabaciones_origen[2048];
-    char grabaciones_destino[2048];
-    char grabaciones_fecha_hora[2048];
-    char grabaciones_ruta[4086];;
-    char grabaciones_fichero[4086];
-    char grabaciones_partition[4086];
-    char grabaciones_idcola[4086];
-};
+    gchar grabaciones_modulo[512];
+    gchar grabaciones_tipo[1024];
+    gchar grabaciones_plataforma[2048];
+    gchar grabaciones_origen[2048];
+    gchar grabaciones_destino[2048];
+    gchar grabaciones_fecha_hora[2048];
+    gchar grabaciones_ruta[4086];;
+    gchar grabaciones_fichero[4086];
+    gchar grabaciones_partition[4086];
+    gchar grabaciones_idcola[4086];
+} AppCallInfo;
+
+/**
+ * @brief Module configuration storage
+ */
+static AppCallConfig call_config;
 
 /**
  * @brief Read module configure options
@@ -135,19 +130,19 @@ struct app_call_info
  * @see call_exec
  *
  * @param cfile Full path to configuration file
- * @return 0 in case of read success, -1 otherwise
+ * @return TRUE in case of read success, FALSE otherwise
  */
-int
-read_call_config(const char *cfile)
+static gboolean
+read_call_config(const gchar *cfile)
 {
     config_t cfg;
-    const char *value;
-    int intvalue;
+    const gchar *value;
+    gint intvalue;
 
     // Initialize configuration
     config_init(&cfg);
 
-    // Read configuraiton file
+    // Read configuration file
     if (config_read_file(&cfg, cfile) == CONFIG_FALSE) {
         isaac_log(LOG_ERROR, "Error parsing configuration file %s on line %d: %s\n", cfile,
                   config_error_line(&cfg), config_error_text(&cfg));
@@ -157,31 +152,27 @@ read_call_config(const char *cfile)
 
     // Incoming context for first call leg in Originate @see call_exec
     if (config_lookup_string(&cfg, "originate.incontext", &value) == CONFIG_TRUE) {
-        strcpy(call_config.incontext, value);
+        call_config.incontext = g_strdup(value);
     }
     // Outgoing context for second call leg in Originate @see call_exec
     if (config_lookup_string(&cfg, "originate.outcontext", &value) == CONFIG_TRUE) {
-        strcpy(call_config.outcontext, value);
+        call_config.outcontext = g_strdup(value);
     }
-    // Rol variable (AGENTE, USUARIO) for incontext dialplan process
-    //if (config_lookup_string(&cfg, "originate.rol", &value) == CONFIG_TRUE) {
-    //    strcpy(call_config.rol, value);
-    //}
 
-    // Autoanwer variable (0,1) for incontext dialplan process
+    // Auto-answer variable (0,1) for incontext dialplan process
     if (config_lookup_int(&cfg, "originate.autoanswer", &intvalue) == CONFIG_TRUE) {
         call_config.autoanswer = intvalue;
     }
 
-    // Filepat to store the recordings
+    // Filepath to store the recordings
     if (config_lookup_string(&cfg, "record.filepath", &value) == CONFIG_TRUE) {
-        strcpy(call_config.record_path, value);
+        call_config.record_path = g_strdup(value);
     }
 
     // Dealloc libconfig structure
     config_destroy(&cfg);
 
-    isaac_log(LOG_VERBOSE_3, "Readed configuration from %s\n", cfile);
+    isaac_log(LOG_VERBOSE_3, "Read configuration from %s\n", cfile);
     return 0;
 }
 
@@ -191,31 +182,86 @@ read_call_config(const char *cfile)
  * Loop through all session filters searching for a call info
  * structure with the given id.
  *
- * @todo I think I should implement locking here, a filter could be
- * unregistering while it is being searched.
- *
  * @param sess Session Structure
- * @param id ID supplied in CALL action
+ * @param actionid ID supplied in CALL action
  * @return Call info structure
  */
-struct app_call_info *
-get_call_info_from_id(Session *sess, const char *id)
+static AppCallInfo *
+get_call_info_from_id(Session *sess, const gchar *actionid)
 {
-    struct app_call_info *info = NULL;
     for (GSList *l = sess->filters; l; l = l->next) {
-        info = (struct app_call_info *) filter_get_userdata(l->data);
-        // We found the requested action!
-        if (info && !strcasecmp(id, info->actionid)) {
-            return info;
+        Filter *filter = l->data;
+        if (g_ascii_strcasecmp(filter->app->name, "CALL") == 0) {
+            // We found the requested action!
+            AppCallInfo *info = (AppCallInfo *) filter_get_userdata(l->data);
+            if (info && g_ascii_strcasecmp(actionid, info->actionid) == 0) {
+                return info;
+            }
         }
     }
     return NULL;
 }
 
+static void
+call_info_free(AppCallInfo *info)
+{
+    g_free(info->actionid);
+    g_free(info->destination);
+    g_free(info->partition);
+    g_free(info->agent_uniqueid);
+    g_free(info->remote_uniqueid);
+    g_free(info->agent_channel);
+    g_free(info->remote_channel);
+    g_free(info->agent_display_uniqueid);
+    g_free(info->remote_display_uniqueid);
+    g_free(info->agent_display_channel);
+    g_free(info->recording_id);
+}
+
+static void
+call_status_inactivate_filters(Filter *filter, AppCallInfo *info)
+{
+    g_return_if_fail(filter != NULL);
+    g_return_if_fail(info != NULL);
+
+    if (filter_get_userdata(filter) == info) {
+        filter_inactivate(filter);
+    }
+}
+
+static void
+call_status_send_response(Session *sess, AppCallInfo *info, gboolean agent_event, const gchar *state)
+{
+    g_autoptr(GString) response = g_string_new("CALLSTATUS");
+    g_string_append_printf(response, " %s", info->actionid);
+
+    // Add Display UniqueID if required
+    if (info->print_uniqueid) {
+        g_string_append_printf(
+            response, " %s",
+            (agent_event)
+            ? info->agent_display_uniqueid
+            : info->remote_display_uniqueid
+        );
+    }
+
+    // Add the rest of the event data
+    g_string_append_printf(response, " %s", (agent_event) ? "AGENT" : "REMOTE");
+    g_string_append_printf(response, " %s", state);
+    g_string_append(response, "\n");
+
+    // Send this message to other clients if requested
+    if (info->broadcast) {
+        session_write_broadcast(sess, response->str);
+    } else {
+        session_write(sess, response->str);
+    }
+}
+
 /**
  * @brief Writes to session CALLEVENT messages
  *
- * This function sends the CALLEVENTS to a session when some filter
+ * This function sends the CALLEVENT to a session when some filter
  * events triggers. It is used for Agent and Remote channel events.\n
  *
  * This function will be called when one of this happens:\n
@@ -227,274 +273,211 @@ get_call_info_from_id(Session *sess, const char *id)
  * @param msg Matching message from Manager
  * @return 0 in all cases
  */
-gint
+static gint
 call_state(Filter *filter, AmiMessage *msg)
 {
     // Get Call information
-    struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
+    AppCallInfo *info = filter_get_userdata(filter);
+
     // Get message event
-    const char *event = message_get_header(msg, "Event");
-    char from[80], state[80], uniqueid[80], response[256];
-    bool finished = false;
+    const gchar *event = message_get_header(msg, "Event");
 
-    // Initialize arrays
-    memset(from, 0, sizeof(from));
-    memset(state, 0, sizeof(state));
-    memset(uniqueid, 0, sizeof(uniqueid));
-    memset(response, 0, sizeof(response));
+    // Determine if event is for AGENT or REMOTE channel
+    gboolean agent_event = g_ascii_strcasecmp(
+        message_get_header(msg, "UniqueID"),
+        info->agent_uniqueid
+    ) == 0;
 
-    // So this leg is first one or second one?
-    if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
-        isaac_strcpy(from, "AGENT");
-    } else if (!strcasecmp(message_get_header(msg, "UniqueID"), info->duid)) {
-        isaac_strcpy(from, "REMOTE");
-    }
+    // Determine channel state
+    gchar *state = NULL;
 
     // Send CallStatus message depending on received event
-    if (!strcasecmp(event, "Hangup")) {
-        // Print status message dpending on Hangup Cause
-        const char *cause = message_get_header(msg, "Cause");
-        if (!strcasecmp(cause, "0") || !strcasecmp(cause, "21")) {
-            isaac_strcpy(state, "ERROR");
+    if (g_ascii_strcasecmp(event, "Hangup") == 0) {
+        // Print status message depending on Hangup Cause
+        const gchar *cause = message_get_header(msg, "Cause");
+        if (g_ascii_strcasecmp(cause, "0") == 0 || g_ascii_strcasecmp(cause, "21") == 0) {
+            state = "ERROR";
         } else if (!strcasecmp(cause, "16")) {
-            isaac_strcpy(state, "HANGUP");
+            state = "HANGUP";
         } else if (!strcasecmp(cause, "17")) {
-            isaac_strcpy(state, "BUSY");
+            state = "BUSY";
+        } else if (!strcasecmp(cause, "19")) {
+            state = "REJECTED";
         } else {
-            sprintf(state, "UNKNOWNHANGUP %s", cause);
+            g_autoptr(GString) unknown_hangup = g_string_new("UNKNOWNHANGUP");
+            g_string_append_printf(unknown_hangup, " %s", cause);
+            state = unknown_hangup->str;
         }
 
-        // This call info has ended
-        finished = true;
+        // Send current state to session
+        call_status_send_response(filter->sess, info, agent_event, state);
 
-    } else if (!strncasecmp(event, "MusicOnHold", 11)) {
-        if (!strcasecmp(event, "MusicOnHoldStart") || !strcasecmp(message_get_header(msg, "State"), "Start")) {
-            isaac_strcpy(state, "HOLD");
+        // Channel is down, remove this filter
+        if (agent_event) {
+            g_slist_foreach(filter->sess->filters, (GFunc) call_status_inactivate_filters, info);
+        }
+
+        return 0;
+    } else if (g_ascii_strncasecmp(event, "MusicOnHold", 11) == 0) {
+        if (g_ascii_strcasecmp(event, "MusicOnHoldStart") == 0
+            || g_ascii_strcasecmp(message_get_header(msg, "State"), "Start") == 0) {
+            state = "HOLD";
         } else {
-            isaac_strcpy(state, "UNHOLD");
+            state = "UNHOLD";
         }
 
         // In this case, the channel that receives the Hold event is the
         // one that is being hold, not holding. So we should swap the
         // AGENT <-> REMOVE value
-        if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
-            isaac_strcpy(from, "REMOTE");
-        } else {
-            isaac_strcpy(from, "AGENT");
+        call_status_send_response(filter->sess, info, !agent_event, state);
+    } else if (g_ascii_strcasecmp(event, "Newstate") == 0) {
+        // Print status message depending on Channel Status
+        const gchar *channel_state = message_get_header(msg, "ChannelState");
+        if (g_ascii_strcasecmp(channel_state, "5") == 0) {
+            state = "RINGING";
+        } else if (g_ascii_strcasecmp(channel_state, "6") == 0) {
+            state = "ANSWERED";
         }
 
-    } else if (!strcasecmp(event, "Newstate")) {
-        // Print status message depending on Channel Status
-        const char *chanstate = message_get_header(msg, "ChannelState");
-        if (!strcasecmp(chanstate, "5")) {
-            isaac_strcpy(state, "RINGING");
-        } else if (!strcasecmp(chanstate, "6")) {
-            isaac_strcpy(state, "ANSWERED");
+        // Send current state to session
+        call_status_send_response(filter->sess, info, agent_event, state);
+    } else if (g_ascii_strcasecmp(event, "Rename") == 0) {
+        if (g_ascii_strcasecmp(message_get_header(msg, "UniqueID"), info->agent_uniqueid) == 0) {
+            info->agent_channel = g_strdup(message_get_header(msg, "NewName"));
         }
-    } else if (!strcasecmp(event, "Rename")) {
-        if (!strcasecmp(message_get_header(msg, "UniqueID"), info->ouid)) {
-            strcpy(info->ochannel, message_get_header(msg, "NewName"));
-        }
-    } else if (!strcasecmp(event, "VarSet")) {
-        const char *varvalue = message_get_header(msg, "Value");
-        const char *varname = message_get_header(msg, "Variable");
+    } else if (g_ascii_strcasecmp(event, "VarSet") == 0) {
+        const gchar *var_name = message_get_header(msg, "Variable");
+        const gchar *var_value = message_get_header(msg, "Value");
 
         // Progress event on cellphones
-        if (!strcasecmp(varvalue, "SIP 183 Session Progress")) {
-            isaac_strcpy(state, "PROGRESS");
+        if (g_ascii_strcasecmp(var_value, "SIP 183 Session Progress") == 0) {
+            call_status_send_response(filter->sess, info, agent_event, "PROGRESS");
         }
 
-        if (strcasecmp(varname, "IDDIALPLANPARTITION") == 0) {
-            isaac_strcpy(info->partition, varvalue);
+        if (g_ascii_strcasecmp(var_name, "IDDIALPLANPARTITION") == 0) {
+            info->partition = g_strdup(var_value);
         }
 
         // Update recording variables
-        if (!strncasecmp(varname, "GRABACIONES_", 12)) {
+        if (g_ascii_strncasecmp(var_name, "GRABACIONES_", 12) == 0) {
             char recordvar[256], recorduniqueid[80], grabaciones[80], recordtype[80];
-            isaac_strcpy(recordvar, varname);
+            isaac_strcpy(recordvar, var_name);
             if (sscanf(recordvar, "%[^_]_%[^_]_%s", grabaciones, recorduniqueid, recordtype) == 3) {
-                if (!strcasecmp(recordtype, "MODULO")) sprintf(info->grabaciones_modulo, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "TIPO")) sprintf(info->grabaciones_tipo, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "PLATAFORMA")) sprintf(info->grabaciones_plataforma, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "ORIGEN")) sprintf(info->grabaciones_origen, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "DESTINO")) sprintf(info->grabaciones_destino, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "FECHA_HORA")) sprintf(info->grabaciones_fecha_hora, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "RUTA")) sprintf(info->grabaciones_ruta, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "FICHERO")) sprintf(info->grabaciones_fichero, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "IDDIALPLANPARTITION")) sprintf(info->grabaciones_partition, "%s;", varvalue);
-                if (!strcasecmp(recordtype, "IDCOLA")) sprintf(info->grabaciones_idcola, "%s;", varvalue);
+                if (g_ascii_strcasecmp(recordtype, "MODULO") == 0)
+                    sprintf(info->grabaciones_modulo, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "TIPO") == 0)
+                    sprintf(info->grabaciones_tipo, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "PLATAFORMA") == 0)
+                    sprintf(info->grabaciones_plataforma, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "ORIGEN") == 0)
+                    sprintf(info->grabaciones_origen, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "DESTINO") == 0)
+                    sprintf(info->grabaciones_destino, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "FECHA_HORA") == 0)
+                    sprintf(info->grabaciones_fecha_hora, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "RUTA") == 0)
+                    sprintf(info->grabaciones_ruta, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "FICHERO") == 0)
+                    sprintf(info->grabaciones_fichero, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "IDDIALPLANPARTITION") == 0)
+                    sprintf(info->grabaciones_partition, "%s;", var_value);
+                if (g_ascii_strcasecmp(recordtype, "IDCOLA") == 0)
+                    sprintf(info->grabaciones_idcola, "%s;", var_value);
             } else {
-                isaac_log(LOG_WARNING, "Unhandled record variable %s\n", varname);
+                isaac_log(LOG_WARNING, "Unhandled record variable %s\n", var_name);
             }
         }
 
         // A channel has set ACTIONID var, this is our leg1 channel. It will Dial soon!
-        if (!strcasecmp(varname, "ACTIONID") && strlen(message_get_header(msg, "Linkedid")) == 0) {
-            // Get the UniqueId from the agent channel
-            isaac_strcpy(info->ouid, message_get_header(msg, "UniqueID"));
-            isaac_strcpy(info->oduid, message_get_header(msg, "UniqueID"));
-            // Store provisional Channel Name
-            isaac_strcpy(info->ochannel, message_get_header(msg, "Channel"));
-            isaac_strcpy(info->odchannel, message_get_header(msg, "Channel"));
-            // This messages are always from agent
-            isaac_strcpy(from, "AGENT");
-
-            // Register a Filter for the agent status
-            info->ofilter = filter_create_async(
-                filter->sess,
-                filter->app,
-                "Call Status events on Leg1 channel",
-                call_state
-            );
-            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
-            filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
-            filter_set_userdata(info->ofilter, (void *) info);
-            filter_register(info->ofilter);
-
-            // Tell the client the channel is going on!
-            isaac_strcpy(state, "STARTING");
-        }
-
-        //--------------------------------------------------------------------------------------------------------------
-        // VarSet Event (Asterisk 18+)
-        //
-        // Looks like ACTIONID is now set into Local Channels so we need to handle DialBegin events to discover the
-        // final original and destination channels and uniqueids.
-        //
-        //--------------------------------------------------------------------------------------------------------------
-        if (strcasecmp(varname, "ACTIONID") == 0 && strlen(message_get_header(msg, "Linkedid")) != 0) {
-            const char *uniqueid = message_get_header(msg, "Uniqueid");
-            const char *linkedid = message_get_header(msg, "Linkedid");
-
-            // These event now happen on a local channel, so try to find the final channel
-            Filter *dial_filter = filter_create_async(filter->sess, filter->app, "Find first channel from Local", call_state);
-            filter_new_condition(dial_filter, MATCH_REGEX, "Event", "DialBegin");
-            filter_new_condition(dial_filter, MATCH_EXACT, "Uniqueid", uniqueid);
-            filter_set_userdata(dial_filter, (void *) info);
-            filter_register_oneshot(dial_filter);
+        if (g_ascii_strcasecmp(var_name, "ACTIONID") == 0) {
+            const gchar *uniqueid = message_get_header(msg, "Uniqueid");
+            const gchar *linkedid = message_get_header(msg, "Linkedid");
 
             // If this is the first Local channel
-            if (strcasecmp(uniqueid, linkedid) == 0) {
+            if (g_ascii_strcasecmp(uniqueid, linkedid) == 0) {
                 // Store uniqueid for DialBegin event
-                isaac_strcpy(info->duid, uniqueid);
-                isaac_strcpy(info->dduid, uniqueid);
-                isaac_strcpy(info->odchannel, message_get_header(msg, "Channel"));
-
-                // Try to find second Local channel
-                Filter *callfilter = filter_create_async(filter->sess, filter->app, "Find second channel from Local", call_state);
-                filter_new_condition(callfilter, MATCH_EXACT, "Event", "VarSet");
-                filter_new_condition(callfilter, MATCH_EXACT, "Variable", "ACTIONID");
-                filter_new_condition(callfilter, MATCH_EXACT, "Value", message_get_header(msg, "Value"));
-                filter_new_condition(callfilter, MATCH_EXACT, "Linkedid", uniqueid);
-                filter_set_userdata(callfilter, (void *) info);
-                filter_register_oneshot(callfilter);
+                info->remote_display_uniqueid = g_strdup(uniqueid);
+                info->agent_display_channel = g_strdup(message_get_header(msg, "Channel"));
             } else {
                 // Store uniqueid for DialBegin event
-                isaac_strcpy(info->ouid, uniqueid);
-                isaac_strcpy(info->oduid, uniqueid);
+                info->agent_display_uniqueid = g_strdup(uniqueid);
+
+                // Create a new filter to find the final channel these Local channels will dial
+                // These event now happen on a local channel, so try to find the final channel
+                Filter *dial_filter = filter_create_async(
+                    filter->sess, filter->app, "Get Channels info from DialBegin events", call_state
+                );
+                filter_new_condition(dial_filter, MATCH_REGEX, "Event", "DialBegin");
+                filter_new_condition(
+                    dial_filter,
+                    MATCH_REGEX,
+                    "Uniqueid",
+                    "%s|%s",
+                    info->remote_display_uniqueid,
+                    info->agent_display_uniqueid
+                );
+                filter_set_userdata_full(dial_filter, (gpointer) info, (GDestroyNotify) call_info_free);
+                filter_register(dial_filter);
             }
         }
-
-    } else if (!strcasecmp(event, "Dial") && !strcasecmp(message_get_header(msg, "SubEvent"),
-                                                         "Begin")) {
-        // Get the UniqueId from the agent channel
-        isaac_strcpy(info->duid, message_get_header(msg, "DestUniqueID"));
-        isaac_strcpy(info->dchannel, message_get_header(msg, "Destination"));
-        isaac_strcpy(info->dduid, message_get_header(msg, "DestUniqueID"));
-
-        // Register a Filter for the agent status
-        info->dfilter = filter_create_async(filter->sess, filter->app, "Destination channel events", call_state);
-        filter_set_userdata(info->dfilter, info);
-        filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
-        filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
-        filter_register(info->dfilter);
-
-        // This messages are always from agent
-        isaac_strcpy(from, "REMOTE");
-
-        // Store the call state
-        isaac_strcpy(state, "STARTING");
-
-    } else if (strcasecmp(event, "DialBegin") == 0) {
-        //--------------------------------------------------------------------------------------------------------------
-        // DialBegin Event (Asterisk 18+)
-        //
-        // In this event Local channel dials Click2Dial both caller and callee so we override the channel and unique id
-        // with the information provided in the event.
-        //
-        //--------------------------------------------------------------------------------------------------------------
-
-        if (strcasecmp(message_get_header(msg, "UniqueID"), info->ouid) == 0) {
+    } else if (g_ascii_strcasecmp(event, "DialBegin") == 0) {
+        if (g_ascii_strcasecmp(message_get_header(msg, "UniqueID"), info->agent_display_uniqueid) == 0) {
             // Get the UniqueId from the agent channel
-            isaac_strcpy(info->ouid, message_get_header(msg, "DestUniqueid"));
-            isaac_strcpy(info->ochannel, message_get_header(msg, "DestChannel"));
-            isaac_strcpy(info->oduid, message_get_header(msg, "Linkedid"));
-            // This messages are always from agent
-            isaac_strcpy(from, "AGENT");
+            info->agent_uniqueid = g_strdup(message_get_header(msg, "DestUniqueid"));
+            info->agent_channel = g_strdup(message_get_header(msg, "DestChannel"));
 
             // Register a Filter for the agent status
-            info->ofilter = filter_create_async(filter->sess, filter->app, "Agent channel events", call_state);
-            filter_new_condition(info->ofilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|MusicOnHoldStart|MusicOnHoldStop|Newstate|Rename|VarSet|Dial");
-            filter_new_condition(info->ofilter, MATCH_EXACT, "UniqueID", info->ouid);
-            filter_set_userdata(info->ofilter, (void *) info);
-            filter_register(info->ofilter);
+            Filter *agent_filter = filter_create_async(
+                filter->sess, filter->app, "Agent real channel events", call_state
+            );
+            filter_new_condition(agent_filter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|Dial");
+            filter_new_condition(agent_filter, MATCH_EXACT, "UniqueID", info->agent_uniqueid);
+            filter_set_userdata_full(agent_filter, (gpointer) info, (GDestroyNotify) call_info_free);
+            filter_register(agent_filter);
 
-            info->odfilter = filter_create_async(filter->sess, filter->app, "Agent channel events", call_state);
-            filter_new_condition(info->odfilter , MATCH_REGEX, "Event", "VarSet|Hangup");
-            filter_new_condition(info->odfilter , MATCH_EXACT, "UniqueID", info->oduid);
-            filter_set_userdata(info->odfilter , (void *) info);
-            filter_register(info->odfilter);
+            Filter *agent_vars_filter = filter_create_async(
+                filter->sess, filter->app, "Agent real channel Var Events", call_state
+            );
+            filter_new_condition(agent_vars_filter, MATCH_REGEX, "Event", "VarSet");
+            filter_new_condition(agent_vars_filter, MATCH_EXACT, "UniqueID", info->agent_uniqueid);
+            filter_new_condition(agent_vars_filter, MATCH_REGEX, "Variable", "IDDIALPLANPARTITION|GRABACIONES_");
+            filter_set_userdata_full(agent_vars_filter, (gpointer) info, (GDestroyNotify) call_info_free);
+            filter_register(agent_vars_filter);
 
-            isaac_strcpy(state, "STARTING");
+            // Send current state to session
+            call_status_send_response(filter->sess, info, TRUE, "STARTING");;
         }
 
-        if (strcasecmp(message_get_header(msg, "UniqueID"), info->duid) == 0) {
+        if (g_ascii_strcasecmp(message_get_header(msg, "UniqueID"), info->remote_display_uniqueid) == 0) {
             // Get the UniqueId from the remote channel
-            isaac_strcpy(info->duid, message_get_header(msg, "DestUniqueid"));
-            isaac_strcpy(info->dchannel, message_get_header(msg, "DestChannel"));
-            isaac_strcpy(info->dduid, message_get_header(msg, "DestUniqueid"));
-            // This messages are always from remote
-            isaac_strcpy(from, "REMOTE");
+            info->remote_uniqueid = g_strdup(message_get_header(msg, "DestUniqueid"));
+            info->remote_channel = g_strdup(message_get_header(msg, "DestChannel"));
 
             // Register a Filter for the agent status
-            info->dfilter = filter_create_async(filter->sess, filter->app, "Destination channel events", call_state);
-            filter_set_userdata(info->dfilter, info);
-            filter_new_condition(info->dfilter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|VarSet|Dial");
-            filter_new_condition(info->dfilter, MATCH_EXACT, "UniqueID", info->duid);
-            filter_register(info->dfilter);
+            Filter *remote_filter = filter_create_async(
+                filter->sess, filter->app, "Remote real channel events", call_state
+            );
+            filter_set_userdata_full(remote_filter, (gpointer) info, (GDestroyNotify) call_info_free);
+            filter_new_condition(remote_filter, MATCH_REGEX, "Event", "Hangup|MusicOnHold|Newstate|Rename|Dial");
+            filter_new_condition(remote_filter, MATCH_EXACT, "UniqueID", info->remote_uniqueid);
+            filter_register(remote_filter);
 
-            // Store the call state
-            isaac_strcpy(state, "STARTING");
+            Filter *remote_vars_filter = filter_create_async(
+                filter->sess, filter->app, "Remote real channel Var Events", call_state
+            );
+            filter_new_condition(remote_vars_filter, MATCH_REGEX, "Event", "VarSet");
+            filter_new_condition(remote_vars_filter, MATCH_EXACT, "UniqueID", info->remote_uniqueid);
+            filter_new_condition(remote_vars_filter, MATCH_REGEX, "Variable", "IDDIALPLANPARTITION|GRABACIONES_");
+            filter_set_userdata_full(remote_vars_filter, (gpointer) info, (GDestroyNotify) call_info_free);
+            filter_register(remote_vars_filter);
+
+            // Send current state to session
+            call_status_send_response(filter->sess, info, FALSE, "STARTING");
+
+            // All data retrieved
+            filter_inactivate(filter);
         }
     }
-
-    if (strcasecmp(from, "AGENT") == 0) {
-        isaac_strcpy(uniqueid, info->oduid);
-    } else if (strcasecmp(from, "REMOTE") == 0) {
-        isaac_strcpy(uniqueid, info->dduid);
-    }
-
-    // Build the event message
-    if (strlen(state) && strlen(uniqueid)) {
-        // Add Uniqueid to response if requested
-        if (info->print_uniqueid) {
-            sprintf(response, "CALLSTATUS %s %s %s %s\r\n", info->actionid, uniqueid, from, state);
-        } else {
-            sprintf(response, "CALLSTATUS %s %s %s\r\n", info->actionid, from, state);
-        }
-
-        // Send this message to other clients if requested
-        if (info->broadcast) {
-            session_write_broadcast(filter->sess, response);
-        } else {
-            session_write(filter->sess, response);
-        }
-    }
-
-    // We dont expect more info about this filter, it's safe to unregister it here
-    if (finished)
-        filter_destroy(filter);
-
     return 0;
 }
 
@@ -539,10 +522,10 @@ call_exec(Session *sess, Application *app, const char *argstr)
     const gchar *exten = application_get_nth_arg(args, 1);
 
     // Initialize application info
-    struct app_call_info *info = malloc(sizeof(struct app_call_info));
-    memset(info, 0, sizeof(struct app_call_info));
-    isaac_strcpy(info->actionid, actionid);
-    isaac_strcpy(info->destiny, exten);
+    AppCallInfo *info = g_rc_box_new0(AppCallInfo);
+    g_return_val_if_fail(info != NULL, APP_RET_ERROR);
+    info->actionid = g_strdup(actionid);
+    info->destination = g_strdup(exten);
 
     if (application_arg_exists(args, "WUID")) {
         info->print_uniqueid = 1;
@@ -553,16 +536,16 @@ call_exec(Session *sess, Application *app, const char *argstr)
     }
 
     // Register a Filter to get Generated Channel
-    info->callfilter = filter_create_async(sess, app, "Originated call status", call_state);
-    filter_new_condition(info->callfilter, MATCH_EXACT, "Event", "VarSet");
-    filter_new_condition(info->callfilter, MATCH_EXACT, "Variable", "ACTIONID");
-    filter_new_condition(info->callfilter, MATCH_EXACT, "Value", actionid);
-    filter_set_userdata(info->callfilter, (void *) info);
-    filter_register_oneshot(info->callfilter);
+    Filter *local_chans_filter = filter_create_async(sess, app, "Originated call status", call_state);
+    filter_new_condition(local_chans_filter, MATCH_EXACT, "Event", "VarSet");
+    filter_new_condition(local_chans_filter, MATCH_EXACT, "Variable", "ACTIONID");
+    filter_new_condition(local_chans_filter, MATCH_EXACT, "Value", actionid);
+    filter_set_userdata_full(local_chans_filter, (gpointer) info, (GDestroyNotify) call_info_free);
+    filter_register(local_chans_filter);
 
     // Get the logged agent
-    const char *agent = session_get_variable(sess, "AGENT");
-    const char *rol = session_get_variable(sess, "ROL");
+    const gchar *agent = session_get_variable(sess, "AGENT");
+    const gchar *rol = session_get_variable(sess, "ROL");
 
     // Construct a Request message
     AmiMessage msg;
@@ -602,13 +585,16 @@ call_exec(Session *sess, Application *app, const char *argstr)
         message_add_header(&msg, "Timeout: %s", value);
     }
 
+    // Remove initial info reference
+    g_rc_box_release(info);
+
     // Send this message to ami
     manager_write_message(manager, &msg);
 
     // Free args app arguments
     application_free_args(args);
 
-    return 0;
+    return APP_RET_SUCCESS;
 }
 
 /**
@@ -625,7 +611,7 @@ call_exec(Session *sess, Application *app, const char *argstr)
 int
 dtmf_exec(Session *sess, Application *app, const char *args)
 {
-    struct app_call_info *info;
+    AppCallInfo *info;
     char actionid[ACTIONID_LEN];
     char digit[20];
 
@@ -634,18 +620,18 @@ dtmf_exec(Session *sess, Application *app, const char *args)
         return NOT_AUTHENTICATED;
     }
 
-    // Get Hangup parameteres
+    // Get Hangup parameters
     if (sscanf(args, "%s %s", actionid, digit) != 2) {
         return INVALID_ARGUMENTS;
     }
 
     // Try to find the action info of the given actionid
-    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->dchannel)) {
+    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->remote_channel)) {
         // Send the digit to remote channel using PlayDTMF manager action
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: PlayDTMF");
-        message_add_header(&msg, "Channel: %s", info->dchannel);
+        message_add_header(&msg, "Channel: %s", info->remote_channel);
         message_add_header(&msg, "Digit: %s", digit);
         manager_write_message(manager, &msg);
         usleep(300 * 1000); // Wait 300 ms before accepting any other command
@@ -673,7 +659,7 @@ dtmf_exec(Session *sess, Application *app, const char *args)
 int
 hangup_exec(Session *sess, Application *app, const char *args)
 {
-    struct app_call_info *info;
+    AppCallInfo *info;
     char actionid[ACTIONID_LEN];
 
     // This can only be done after authentication
@@ -688,11 +674,11 @@ hangup_exec(Session *sess, Application *app, const char *args)
 
     // Try to find the action info of the given actionid
     if ((info = get_call_info_from_id(sess, actionid))) {
-        if (!isaac_strlen_zero(info->ochannel)) {
+        if (!isaac_strlen_zero(info->agent_channel)) {
             AmiMessage msg;
             memset(&msg, 0, sizeof(AmiMessage));
             message_add_header(&msg, "Action: Hangup");
-            message_add_header(&msg, "Channel: %s", info->ochannel);
+            message_add_header(&msg, "Channel: %s", info->agent_channel);
             manager_write_message(manager, &msg);
             session_write(sess, "HANGUPOK\r\n");
         } else {
@@ -720,7 +706,7 @@ hangup_exec(Session *sess, Application *app, const char *args)
 int
 hold_unhold_exec(Session *sess, Application *app, const char *args)
 {
-    struct app_call_info *info;
+    AppCallInfo *info;
     char actionid[ACTIONID_LEN];
     char action[10];
     int i;
@@ -742,11 +728,11 @@ hold_unhold_exec(Session *sess, Application *app, const char *args)
     }
 
     // Try to find the action info of the given actionid
-    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
+    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->agent_channel)) {
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: SIPNotifyChan");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Channel: %s", info->agent_channel);
         message_add_header(&msg, "Event: %s", ((!strcasecmp(app->name, "Hold")) ? "hold" : "talk"));
         manager_write_message(manager, &msg);
         session_write(sess, "%sOK\r\n", action);
@@ -761,7 +747,7 @@ int
 record_state(Filter *filter, AmiMessage *msg)
 {
     // Get Call information
-    struct app_call_info *info = (struct app_call_info *) filter_get_userdata(filter);
+    AppCallInfo *info = (AppCallInfo *) filter_get_userdata(filter);
 
     // Get message data
     const char *response = message_get_header(msg, "Response");
@@ -774,7 +760,7 @@ record_state(Filter *filter, AmiMessage *msg)
     if (strncasecmp(response, "Success", 7) == 0) {
         const char *mixmonitor_id = message_get_header(msg, "MixmonitorID");
         if (mixmonitor_id != NULL) {
-            strcpy(info->recording_id, mixmonitor_id);
+            info->recording_id = g_strdup(mixmonitor_id);
         }
     }
 
@@ -800,7 +786,7 @@ record_state(Filter *filter, AmiMessage *msg)
 int
 record_exec(Session *sess, Application *app, const char *args)
 {
-    struct app_call_info *info;
+    AppCallInfo *info;
     char actionid[ACTIONID_LEN];
     char filename[128];
     time_t timer;
@@ -812,13 +798,13 @@ record_exec(Session *sess, Application *app, const char *args)
         return NOT_AUTHENTICATED;
     }
 
-    // Get Hangup parameteres
+    // Get Hangup parameters
     if (sscanf(args, "%s %s", actionid, filename) != 2) {
         return INVALID_ARGUMENTS;
     }
 
     // Try to find the action info of the given actionid
-    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
+    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->agent_channel)) {
 
         // Check if this call is already being recorded
         if (info->recording) {
@@ -828,53 +814,51 @@ record_exec(Session *sess, Application *app, const char *args)
 
         Filter *record_status = filter_create_async(sess, app, "Recording status", record_state);
         filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s", actionid);
-        filter_set_userdata(record_status, (void *) info);
+        filter_set_userdata_full(record_status, (gpointer) info, (GDestroyNotify) call_info_free);
         filter_register_oneshot(record_status);
 
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: MixMonitor");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Channel: %s", info->agent_channel);
         message_add_header(&msg, "File: %s/%s.wav", call_config.record_path, filename);
         message_add_header(&msg, "ActionID: RECORD_%s", actionid);
         message_add_header(&msg, "Options: i(ISAAC_RECORDING)");
         manager_write_message(manager, &msg);
 
-        isaac_log(LOG_NOTICE, "Setting debugging variables in %s\n", info->odchannel);
-
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_MODULO", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %sCC", info->grabaciones_modulo);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_PLATAFORMA", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %s", info->grabaciones_plataforma);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_TIPO", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %son-demand_ISAAC", info->grabaciones_tipo);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_ORIGEN", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_origen, session_get_variable(sess, "AGENT"));
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->oduid);
-        message_add_header(&msg, "Value: %s%s", info->grabaciones_destino, info->destiny);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_DESTINO", info->agent_display_uniqueid);
+        message_add_header(&msg, "Value: %s%s", info->grabaciones_destino, info->destination);
         manager_write_message(manager, &msg);
 
         time(&timer);
@@ -882,36 +866,36 @@ record_exec(Session *sess, Application *app, const char *args)
         strftime(timestr, 25, "%Y:%m:%d_%H:%M:%S", tm_info);
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FECHA_HORA", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_fecha_hora, timestr);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_RUTA", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_ruta, call_config.record_path);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_FICHERO", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %s%s.wav", info->grabaciones_fichero, filename);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_IDDIALPLANPARTITION", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_IDDIALPLANPARTITION", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %s%s", info->grabaciones_partition, info->partition);
         manager_write_message(manager, &msg);
 
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: Setvar");
-        message_add_header(&msg, "Channel: %s", info->odchannel);
-        message_add_header(&msg, "Variable: GRABACIONES_%s_IDCOLA", info->oduid);
+        message_add_header(&msg, "Channel: %s", info->agent_display_channel);
+        message_add_header(&msg, "Variable: GRABACIONES_%s_IDCOLA", info->agent_display_uniqueid);
         message_add_header(&msg, "Value: %s", info->grabaciones_idcola);
         manager_write_message(manager, &msg);
 
@@ -936,7 +920,7 @@ record_exec(Session *sess, Application *app, const char *args)
 int
 recordstop_exec(Session *sess, Application *app, const char *args)
 {
-    struct app_call_info *info;
+    AppCallInfo *info;
     char actionid[ACTIONID_LEN];
 
     // This can only be done after authentication
@@ -950,7 +934,7 @@ recordstop_exec(Session *sess, Application *app, const char *args)
     }
 
     // Try to find the action info of the given actionid
-    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->ochannel)) {
+    if ((info = get_call_info_from_id(sess, actionid)) && !isaac_strlen_zero(info->agent_channel)) {
 
         // Check if this call is not being recorded
         if (!info->recording) {
@@ -961,7 +945,7 @@ recordstop_exec(Session *sess, Application *app, const char *args)
         AmiMessage msg;
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: StopMixMonitor");
-        message_add_header(&msg, "Channel: %s", info->ochannel);
+        message_add_header(&msg, "Channel: %s", info->agent_channel);
         if (strlen(info->recording_id) != 0) {
             message_add_header(&msg, "MixMonitorID: %s", info->recording_id);
         }
@@ -1022,5 +1006,11 @@ unload_module()
     res |= application_unregister("UNHOLD");
     res |= application_unregister("RECORD");
     res |= application_unregister("RECORDSTOP");
+
+    // Free module configuration data
+    g_free(call_config.incontext);
+    g_free(call_config.outcontext);
+    g_free(call_config.record_path);
+
     return res;
 }
