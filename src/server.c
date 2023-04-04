@@ -20,9 +20,9 @@
  *****************************************************************************/
 /**
  * \file server.c
- * \author Iván Alonso [aka Kaian] <kaian@irontec.com>
+ * \author Ivan Alonso [aka Kaian] <kaian@irontec.com>
  *
- * \brief Source code for funtions defined in server.h
+ * \brief Source code for functions defined in server.h
  *
  */
 #include "config.h"
@@ -39,7 +39,7 @@
 //! GIO TCP Socket server
 Server *server;
 
-#define SERVER_THREADS
+#define SERVER_THREADS 1
 
 #ifdef SERVER_THREADS
 static gboolean
@@ -75,9 +75,7 @@ server_thread_run(ServerThread *thread)
     // Run thread loop
     g_main_loop_run(thread->loop);
 }
-
 # else
-
 static gpointer
 server_session_manage_run(GSocketConnection *connection)
 {
@@ -155,8 +153,8 @@ server_start()
     g_return_val_if_fail(server != NULL, FALSE);
 
     // Get Server address and port from configuration
-    GInetAddress *address = g_inet_address_new_from_string(cfg_get_server_address());
-    GSocketAddress *socket_address = g_inet_socket_address_new(address, cfg_get_server_port());
+    g_autoptr(GInetAddress) address = g_inet_address_new_from_string(cfg_get_server_address());
+    g_autoptr(GSocketAddress) socket_address = g_inet_socket_address_new(address, cfg_get_server_port());
 
     // Allocate memory for the Socket service
     server->service = g_socket_service_new();
@@ -177,10 +175,6 @@ server_start()
 
     // Connect signal on new connections
     g_signal_connect (server->service, "incoming", G_CALLBACK(server_incoming_connection), NULL);
-
-    // Remove allocated memory
-    g_object_unref(socket_address);
-    g_object_unref(address);
 
 #ifdef SERVER_THREADS
     // Allocate memory for threads queue

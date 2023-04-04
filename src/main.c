@@ -42,6 +42,9 @@
 #include "server.h"
 #include "util.h"
 
+//! Program global main loop
+GMainLoop *main_loop;
+
 void
 print_version()
 {
@@ -50,21 +53,10 @@ print_version()
 }
 
 void
-quit(int exitcode)
+signal_handler(int exitcode)
 {
     printf("Signal %d received\n", exitcode);
-    // Stop server thread
-    server_stop();
-    // Stop CLI server thread
-    cli_server_stop();
-    // Stop manager thread
-    stop_manager();
-    // Remove all loaded modules. They should unregister their apps
-    unload_modules();
-    // if requested to restart
-    //if (sig == SIGHUP) execvp(_argv[0], _argv);
-    // Exit the program!
-    exit(exitcode);
+    g_main_loop_quit(main_loop);
 }
 
 /**
@@ -84,7 +76,6 @@ main(int argc, char *argv[])
     GError *error = NULL;
     gchar *opt_execute = NULL;
     gboolean opt_version = FALSE;
-    gboolean opt_help = FALSE;
     gboolean opt_debug = FALSE;
     gboolean opt_remote = FALSE;
 
@@ -146,43 +137,43 @@ main(int argc, char *argv[])
     }
 
     // Setup signal handlers
-    (void) signal(SIGINT, quit);
-    (void) signal(SIGTERM, quit);
+    (void) signal(SIGINT, signal_handler);
+    (void) signal(SIGTERM, signal_handler);
     (void) signal(SIGPIPE, SIG_IGN);
 
     // Create main loop for default context
-    GMainLoop *main_loop = g_main_loop_new(NULL, FALSE);
+    main_loop = g_main_loop_new(NULL, FALSE);
 
     // Read configuration files
     if (cfg_read(CFILE) != 0) {
         fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
-        quit(EXIT_FAILURE);
+        return 1;
     }
 
     // Initialize logging
     if (!start_logging(opt_debug)) {
         fprintf(stderr, "Failed to read configuration file %s\n", CFILE);
-        quit(EXIT_FAILURE);
+        return 1;
     }
 
     // Load Modules. The contain the server Applications
     if (load_modules() != 0) {
-        quit(EXIT_FAILURE);
+        return 1;
     }
 
     // Start manager thread
     if (!start_manager()) {
-        quit(EXIT_FAILURE);
+        return 1;
     }
 
     // Start cli service
     if (!cli_server_start()) {
-        quit(EXIT_FAILURE);
+        return 1;
     }
 
     // Start server thread
     if (!server_start()) {
-        quit(EXIT_FAILURE);
+        return 1;
     }
 
     // All subsystems Up!
@@ -190,6 +181,18 @@ main(int argc, char *argv[])
 
     // Wait here until any signal is sent
     g_main_loop_run(main_loop);
+
+    // Stop server thread
+    server_stop();
+
+    // Stop CLI server thread
+    cli_server_stop();
+
+    // Stop manager thread
+    stop_manager();
+
+    // Remove all loaded modules. They should unregister their apps
+    unload_modules();
 
     return 0;
 }

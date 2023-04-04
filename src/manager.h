@@ -75,6 +75,8 @@ struct isaac_manager
     int msg_read_count;
     //! How many messages are still in session queues
     int msg_active_count;
+    //! Thread running manager read process
+    GThread *thread;
     //! Mutex to avoid simultaneous writting to manager
     GRecMutex lock;
 

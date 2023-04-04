@@ -37,7 +37,7 @@
 
 //! Loaded modules list
 // We wont mutexlock this list because is only accessed on startup or
-// shutdown. This will only be a problem if \ref quit is called from
+// shutdown. This will only be a problem if \ref signal_handler is called from
 // other thread.
 module_t *modules = NULL;
 

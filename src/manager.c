@@ -36,8 +36,6 @@
 
 //! Manager connection singleton instance
 manager_t *manager;
-//! Manager accept connections thread
-pthread_t manager_thread;
 
 // Running flag
 static int running;
@@ -85,7 +83,8 @@ manager_read_header(manager_t *man, char *output)
             if (res < 1) return -1;
             break;
         }
-    } while (res < 0);
+    }
+    while (res < 0);
 
     // We have some input, but it's not ready for processing,
     // store it in inbuf for the next call
@@ -208,7 +207,8 @@ manager_connect(manager_t *man)
 
     // Give some feedack
     isaac_log(LOG_NOTICE, "Manager: Connecting to AMI (host = %s, port = %d)\n", inet_ntoa(
-        man->addr.sin_addr), ntohs(man->addr.sin_port));
+        man->addr.sin_addr
+    ), ntohs(man->addr.sin_port));
 
     // Construct a Login message
     memset(&msg, 0, sizeof(AmiMessage));
@@ -325,8 +325,7 @@ manager_read_thread(void *man)
 
     isaac_log(LOG_VERBOSE, "Shutting down manager thread.\n");
     // Exit manager thread gracefully
-    pthread_exit(NULL);
-    return NULL;
+    g_thread_exit(NULL);
 }
 
 static gboolean
@@ -370,15 +369,12 @@ start_manager()
     manager->secret = cfg_get_manager_pass();
     g_rec_mutex_init(&manager->lock);
 
-    // Create the manager thread to do the rest of the process (Connection, Authentication,
-    // and message reading)
-    if (pthread_create(&manager_thread, NULL, (void *) manager_read_thread, manager)) {
-        isaac_log(LOG_WARNING, "Error creating manager thread: %s\n", strerror(errno));
-        return FALSE;
-    }
-
     // Manager statistics thread
     g_timeout_add(5000, (GSourceFunc) manager_print_message_count, manager);
+
+    // Create the manager thread to do the rest of the process (Connection, Authentication, and message reading)
+    manager->thread = g_thread_new("Manager Thread", (GThreadFunc) manager_read_thread, manager);
+    g_assert_nonnull(manager->thread);
 
     return TRUE;
 }
@@ -391,11 +387,11 @@ stop_manager()
     // Disconnect manager socket
     shutdown(manager->fd, SHUT_RDWR);
     // Wait for the accept thread to finish
-    pthread_join(manager_thread, NULL);
+    g_thread_join(manager->thread);
     // Clear manager mutex
     g_rec_mutex_clear(&manager->lock);
     // Free manager memory
-    isaac_free(manager);
+    g_free(manager);
 
     return 0;
 }
