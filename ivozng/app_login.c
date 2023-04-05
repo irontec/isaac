@@ -409,10 +409,10 @@ devicestatus_changed(Filter *filter, AmiMessage *msg)
     const gchar *exten = message_get_header(msg, "Exten");
     gint agent = atoi(session_get_variable(sess, "AGENT"));
     gint id_pausa = -1;
-    const gchar *actionid;
+    const gchar *actionid = message_get_header(msg, "ActionID");
 
     // If there is an ActionID header
-    if ((actionid = message_get_header(msg, "ActionID")) != NULL) {
+    if (strlen(actionid) > 0) {
         // And Its not our session ID, this message is not for ours
         if (g_ascii_strcasecmp(actionid, sess->id))
             return 0;
