@@ -131,7 +131,7 @@ queueinfo_print_queues(Filter *filter, AmiMessage *msg)
         }
     } else if (!strcasecmp(event, "QueueStatusComplete")) {
         session_write(sess, "%s\r\n", session_get_variable(sess, "QUEUEINFO_RESPONSE"));
-        filter_destroy(filter);
+        filter_inactivate(filter);
     }
 
     return 0;
@@ -196,7 +196,7 @@ queueinfo_validate_queue(Filter *filter, AmiMessage *msg)
         if (!session_get_variable(sess, queuevar)) {
             session_write(sess, "QUEUEINFOFAIL Unable to get queue data of %s\r\n", queuename);
         }
-        filter_destroy(filter);
+        filter_inactivate(filter);
     }
 
     return 0;
@@ -363,7 +363,7 @@ queueagents_validate_queue(Filter *filter, AmiMessage *msg)
             session_write(sess, "QUEUEAGENTSFAIL Unable to get queue data of %s\r\n", queue_name);
         }
         g_free(queue_name);
-        filter_destroy(filter);
+        filter_inactivate(filter);
     }
     return 0;
 }
@@ -505,7 +505,7 @@ queueshow_print(Filter *filter, AmiMessage *msg)
     } else if (!strcasecmp(event, "QueueStatusComplete")) {
         session_write(filter->sess, "%s\r\n", "QUEUESHOWEND");
         // We dont expect more info about this filter, unregister it here
-        filter_destroy(filter);
+        filter_inactivate(filter);
     }
 
     return 0;

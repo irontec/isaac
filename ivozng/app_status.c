@@ -351,6 +351,17 @@ status_builtin_xfer(Filter *filter, AmiMessage *msg)
     return 0;
 }
 
+static void
+status_inactivate_filters(Filter *filter, AppStatusInfo *info)
+{
+    g_return_if_fail(filter != NULL);
+    g_return_if_fail(info != NULL);
+
+    if (filter_get_userdata(filter) == info) {
+        filter_inactivate(filter);
+    }
+}
+
 /**
  * @brief Agent's Call state changes filter callback.
  *
@@ -434,7 +445,7 @@ status_print(Filter *filter, AmiMessage *msg)
             }
         } else {
             // Hold filter is no longer needed
-            filter_destroy(filter);
+            filter_inactivate(filter);
             // Clear this event
             g_string_truncate(response, 0);
         }
@@ -459,10 +470,7 @@ status_print(Filter *filter, AmiMessage *msg)
         info->answered = FALSE;
 
         // Unregister all filters of current channel
-        filter = NULL;
-        while ((filter = filter_from_userdata(sess, info))) {
-            filter_destroy(filter);
-        }
+        g_slist_foreach(filter->sess->filters, (GFunc) status_inactivate_filters, info);
     } else if (g_ascii_strcasecmp(event, "IsaacTransfer") == 0) {
         // Queue call has been transferred
         g_string_append_printf(response, "TRANSFERRED\r\n");
@@ -685,7 +693,7 @@ status_incoming_uniqueid(Filter *filter, AmiMessage *msg)
 
             // Register a Filter for notifying this call
             Filter *callfilter =
-                filter_create_async(filter->sess, filter->app, "Agent channel status changes", status_print);
+                filter_create_async(filter->sess, filter->app, "Agent channel status changes (WAGENT)", status_print);
             filter_new_condition(callfilter, MATCH_REGEX, "Event", "Newstate|Hangup|IsaacTransfer|VarSet");
             filter_new_condition(callfilter, MATCH_EXACT, "Channel", info->agent_channel);
             filter_set_userdata(callfilter, (void *) info);
@@ -756,7 +764,7 @@ status_exec(Session *sess, Application *app, const gchar *argstr)
     Filter *queue_channel_filter = filter_create_async(sess, app, "Incoming call from queue", status_incoming_uniqueid);
     filter_new_condition(queue_channel_filter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(queue_channel_filter, MATCH_EXACT, "Variable", "__ISAAC_MONITOR");
-    filter_new_condition(queue_channel_filter, MATCH_REGEX, "Channel", "Local/%s(_1)?@agentes", agent);
+    filter_new_condition(queue_channel_filter, MATCH_REGEX, "Channel", "Local/%s(_1)?@agentes.+;2", agent);
     filter_register(queue_channel_filter);
 
     // Parse rest of status arguments

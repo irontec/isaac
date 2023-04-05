@@ -249,7 +249,7 @@ conference_guest_state(Filter *filter, AmiMessage *msg)
         );
 
         // This is the last interesting message for this guest
-        filter_destroy(filter);
+        filter_inactivate(filter);
     } else if (!strcasecmp(event, "MeetmeJoin")) {
         session_write(filter->sess,
                       "CONFERENCESTATUS %s %s JOINED\n",
@@ -264,7 +264,7 @@ conference_guest_state(Filter *filter, AmiMessage *msg)
         );
 
         // This is the last interesting message for this guest
-        filter_destroy(filter);
+        filter_inactivate(filter);
     }
 
     return 0;
