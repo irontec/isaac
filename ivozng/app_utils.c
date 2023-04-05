@@ -145,6 +145,21 @@ int broadcast_exec(Session *sess, Application *app, const char *args)
     return 0;
 }
 
+static int
+debug_exec(Session *sess, Application *app, const char *args)
+{
+    g_return_val_if_fail(sess != NULL, 1);
+    gboolean debug = session_test_flag(sess, SESS_FLAG_DEBUG);
+    if (debug) {
+        session_clear_flag(sess, SESS_FLAG_DEBUG);
+        isaac_log(LOG_NOTICE, "Debug on session %s \033[1;31mdisabled\033[0m.\n", sess->id);
+    } else {
+        session_set_flag(sess, SESS_FLAG_DEBUG);
+        isaac_log(LOG_NOTICE, "Debug on session %s \033[1;32menabled\033[0m.\n", sess->id);
+    }
+    return 0;
+}
+
 /**
  * @brief Module load entry point
  *
@@ -160,6 +175,7 @@ int load_module()
     ret |= application_register("SET", set_exec);
     ret |= application_register("GET", get_exec);
     ret |= application_register("BROADCAST", broadcast_exec);
+    ret |= application_register("DEBUG", debug_exec);
     return ret;
 }
 
@@ -177,5 +193,6 @@ int unload_module()
     ret |= application_unregister("GET");
     ret |= application_unregister("SET");
     ret |= application_unregister("BROADCAST");
+    ret |= application_unregister("DEBUG");
     return ret;
 }
