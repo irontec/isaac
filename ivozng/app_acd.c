@@ -115,11 +115,40 @@ read_acd_config(const char *cfile)
 }
 
 static gboolean
-acd_refresh_api_token(G_GNUC_UNUSED gpointer user_data)
+acd_refresh_api_token_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, AppAcdData *data)
 {
     GError *error = NULL;
 
-    gchar *args[] = {
+    g_autoptr(GString) response = g_string_new(NULL);
+    if (g_io_channel_read_line_string(channel, response, NULL, &error) != G_IO_STATUS_NORMAL) {
+        isaac_log(LOG_ERROR, "Failed to get ivozng API token from response: %s\n", response->str);
+    } else {
+        // Remove trailing new lines from response
+        g_string_replace(response, "\r", "", 0);
+        g_string_replace(response, "\n", "", 0);
+        // Free old token data
+        g_free(acd_config.api_token);
+        // Use new retrieved token
+        acd_config.api_token = g_strdup(response->str + strlen("ACDTOKENOK") + 1);
+        isaac_log(LOG_DEBUG, "Obtained API token %s\n", acd_config.api_token);
+    }
+
+    // We're done with this ACD process
+    g_source_destroy(data->source);
+    g_source_unref(data->source);
+    g_io_channel_unref(data->channel);
+    g_free(data);
+
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean
+acd_refresh_api_token(G_GNUC_UNUSED gpointer user_data)
+{
+    GError *error = NULL;
+    gint fd;
+
+    gchar *php_args[] = {
         "/usr/bin/php",
         acd_config.php_file,
         "TOKEN",
@@ -129,32 +158,24 @@ acd_refresh_api_token(G_GNUC_UNUSED gpointer user_data)
         NULL
     };
 
-    g_autofree gchar *output;
-    if (!g_spawn_sync(NULL, args, NULL, G_SPAWN_DEFAULT, NULL, NULL, &output, NULL, NULL, &error)) {
+    if (!g_spawn_async_with_pipes(NULL, php_args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, NULL, &fd, NULL, &error)) {
         isaac_log(LOG_ERROR, "Failed to spawn PHP ACD script: %s\n", error->message);
-        return G_SOURCE_CONTINUE;
+        return 1;
     }
 
-    // Remove trailing new lines from response
-    g_autoptr(GString) response = g_string_new(output);
-    g_string_replace(response, "\r", "", 0);
-    g_string_replace(response, "\n", "", 0);
+    AppAcdData *data = g_new(AppAcdData, 1);
+    data->channel = g_io_channel_unix_new(fd);
+    data->source = g_io_create_watch(data->channel, G_IO_IN);
 
-    if (g_str_has_prefix(response->str, "ACDTOKENOK")) {
-        // Free old token data
-        g_free(acd_config.api_token);
-        // Use new retrieved token
-        acd_config.api_token = g_strdup(response->str + strlen("ACDTOKENOK") + 1);
-        isaac_log(LOG_DEBUG, "Obtained API token %s\n", acd_config.api_token);
-    } else {
-        isaac_log(LOG_ERROR, "Failed to get ivozng API token from response: %s\n", response->str);
-    }
+    // Read script response asynchronously
+    g_source_set_callback(data->source, (GSourceFunc) acd_refresh_api_token_response, data, NULL);
+    g_source_attach(data->source, g_main_context_get_thread_default());
 
     return G_SOURCE_CONTINUE;
 }
 
 static gboolean
-acd_process_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, AppAcdData *data)
+acd_exec_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, AppAcdData *data)
 {
     GError *error = NULL;
     g_autoptr(GString) buffer = g_string_new(NULL);
@@ -279,7 +300,7 @@ acd_exec(Session *sess, Application *app, const char *argstr)
     data->session = sess;
 
     // Read script response asynchronously
-    g_source_set_callback(data->source, (GSourceFunc) acd_process_response, data, NULL);
+    g_source_set_callback(data->source, (GSourceFunc) acd_exec_response, data, NULL);
     g_source_attach(data->source, g_main_context_get_thread_default());
 
     // Free args app arguments
