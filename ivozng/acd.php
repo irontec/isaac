@@ -209,7 +209,7 @@ function acd_join($url, $token, $agent, $queue, $priority = null)
     ];
 
     if ($priority) {
-        $payload['priority'] = $priority;
+        $payload['prioridad'] = $priority;
     }
 
     $response = acd_request(
