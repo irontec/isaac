@@ -508,7 +508,7 @@ devicestatus_exec(Session *sess, Application *app, G_GNUC_UNUSED const gchar *ar
     // Add a filter for handling device state changes
     Filter *device_filter = filter_create_async(sess, app, "Pause and Exten events", devicestatus_changed);
     filter_new_condition(device_filter, MATCH_REGEX, "Context", "pbx-hints|cc-hints");
-    g_autofree gchar *exten = g_strdup_printf("^%s(_1)?$|pause_%s", agent, interface + 4);
+    g_autofree gchar *exten = g_strdup_printf("^%s$|pause_%s", agent, interface + 4);
     filter_new_condition(device_filter, MATCH_REGEX, "Exten", exten);
     filter_register(device_filter);
 
