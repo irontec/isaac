@@ -295,6 +295,7 @@ call_state(Filter *filter, AmiMessage *msg)
     if (g_ascii_strcasecmp(event, "Hangup") == 0) {
         // Print status message depending on Hangup Cause
         const gchar *cause = message_get_header(msg, "Cause");
+        g_autoptr(GString) unknown_hangup = g_string_new(NULL);
         if (g_ascii_strcasecmp(cause, "0") == 0 || g_ascii_strcasecmp(cause, "21") == 0) {
             state = "ERROR";
         } else if (!strcasecmp(cause, "16")) {
@@ -304,8 +305,7 @@ call_state(Filter *filter, AmiMessage *msg)
         } else if (!strcasecmp(cause, "19")) {
             state = "REJECTED";
         } else {
-            g_autoptr(GString) unknown_hangup = g_string_new("UNKNOWNHANGUP");
-            g_string_append_printf(unknown_hangup, " %s", cause);
+            g_string_append_printf(unknown_hangup, "UNKNOWNHANGUP %s", cause);
             state = unknown_hangup->str;
         }
 
