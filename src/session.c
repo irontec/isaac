@@ -503,8 +503,11 @@ session_by_id(const char *id)
 
     g_rec_mutex_lock(&session_mutex);
     for (GSList *l = sessions; l; l = l->next) {
-        sess = l->data;
-        if (!strcmp(sess->id, id)) break;
+        Session *candidate = l->data;
+        if (g_ascii_strcasecmp(candidate->id, id) == 0) {
+            sess = candidate;
+            break;
+        }
     }
     g_rec_mutex_unlock(&session_mutex);
     return sess;
