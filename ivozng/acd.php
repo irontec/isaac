@@ -194,7 +194,7 @@ function acd_unpause($url, $token, $agent, $interface)
         echo "ACDUNPAUSEOK AGENT UNPAUSED\r\n";
     } elseif (array_key_exists("message", $response) && $response['message'] == "Agent not logged in") {
         echo "ACDUNPAUSEFAIL AGENT NOT LOGGED IN\r\n";
-    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent already unpaused") {
+    } elseif (array_key_exists("message", $response) && $response['message'] == "Agent not paused") {
         echo "ACDUNPAUSEFAIL AGENT ALREADY UNPAUSED\r\n";
     } else {
         echo "ACDUNPAUSEFAIL INTERNAL ERROR\r\n";
