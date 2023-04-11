@@ -125,8 +125,7 @@ application_run(Application *app, Session *sess, const gchar *args)
 
     // Fix the arguments string, remove any \r or \n characters
     g_autoptr(GString) arguments = g_string_new(args);
-    g_string_replace(arguments, "\r", "", 0);
-    g_string_replace(arguments, "\n", "", 0);
+    g_strchomp(arguments->str);
 
     // Some debug logging
     if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {

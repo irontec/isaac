@@ -124,8 +124,7 @@ acd_refresh_api_token_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition c
         isaac_log(LOG_ERROR, "Failed to get ivozng API token from response: %s\n", response->str);
     } else {
         // Remove trailing new lines from response
-        g_string_replace(response, "\r", "", 0);
-        g_string_replace(response, "\n", "", 0);
+        g_strchomp(response->str);
         // Free old token data
         g_free(acd_config.api_token);
         // Use new retrieved token
