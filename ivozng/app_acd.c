@@ -203,7 +203,7 @@ acd_exec(Session *sess, Application *app, const char *argstr)
     // Check if uniqueid info is requested
     GSList *args = application_parse_args(argstr);
 
-    g_autoptr(GStrvBuilder) args_builder = g_strv_builder_new();
+    GStrvBuilder *args_builder = g_strv_builder_new();
     g_strv_builder_add(args_builder, "/usr/bin/php");
     g_strv_builder_add(args_builder, acd_config.php_file);
 
@@ -304,6 +304,8 @@ acd_exec(Session *sess, Application *app, const char *argstr)
 
     // Free args app arguments
     application_free_args(args);
+    // Free builder memory
+    g_strv_builder_unref(args_builder);
 
     return 0;
 }
