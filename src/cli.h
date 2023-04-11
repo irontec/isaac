@@ -40,6 +40,8 @@
 #ifndef __ISAAC_CLI_H_
 #define __ISAAC_CLI_H_
 
+#include <glib.h>
+#include <gio/gio.h>
 #include <poll.h>
 #include <sys/un.h>
 #include <pthread.h>
@@ -64,48 +66,44 @@
 //! Macro for easy inclusion of handler functions.
 #define AST_CLI_DEFINE(fn, txt, ...)  { .handler = fn, .summary = txt, ## __VA_ARGS__ }
 
-//! Sorter declaration of isaac_cli struct
-typedef struct isaac_cli cli_t;
-//! Sorter declaration of isaac_cli_entry struct
-typedef struct isaac_cli_entry cli_entry_t;
-//! Sorter declaration of isaac_cli_args struct
-typedef struct isaac_cli_args cli_args_t;
+//! Sorter declaration of _CLIClient struct
+typedef struct _CLIClient CLIClient;
+//! Sorter declaration of _CLIEntry struct
+typedef struct _CLIEntry CLIEntry;
+//! Sorter declaration of CLIArgs struct
+typedef struct _CLIArgs CLIArgs;
 
 /**
  * @brief Structure from an incoming CLI connection.
  *
  * This structure stores all basic information from cli connections.
  * It also works as a node of a linked list in all schoold style.
- *
- * @todo Check if all this fields are used.
  */
-struct isaac_cli
+struct _CLIClient
 {
+    //! CLI connection
+    GSocketConnection *conn;
+    //! Connection socket
+    GSocket *socket;
+    //! CLI Source of events
+    GSource *source;
     //! CLI connection socket
-    int fd;
-    //! Conection Address
-    struct sockaddr_un sun;
-    //! Connection Pipes
-    int p[2];
-    //! CLI running thread
-    pthread_t thread;
+    gint fd;
     //! CLI structure lock
-    pthread_mutex_t lock;
-
-    cli_t *next;
+    GRecMutex lock;
 };
 
 /**
  * @brief Calling arguments for handlers.
  */
-enum isaac_cli_command
+enum CLICommand
 {
     //! Return the usage string
-        CLI_INIT = -2,
-    //! Behave as 'generator', remap argv to struct isaac_cli_args
-        CLI_GENERATE = -3,
+    CLI_INIT = -2,
+    //! Behave as 'generator', remap argv to CLIArgs
+    CLI_GENERATE = -3,
     //! Run the normal handler
-        CLI_HANDLER = -4,
+    CLI_HANDLER = -4,
 };
 
 /**
@@ -113,22 +111,22 @@ enum isaac_cli_command
  *
  * @todo Check if all this fields are used.
  */
-struct isaac_cli_args
+struct _CLIArgs
 {
     //! CLI structure entering this command
-    cli_t *cli;
+    CLIClient *cli;
     //! Number of command arguments (including command)
-    const int argc;
+    const gint argc;
     //! Command argument list (including command)
-    const char **argv;
+    const gchar **argv;
     //! Current input line
-    const char *line;
+    const gchar *line;
     //! Word we want to complete
-    const char *word;
+    const gchar *word;
     //! Position of the word to complete
-    const int pos;
+    const gint pos;
     //! Iteration count (n-th entry we generate)
-    const int n;
+    const gint n;
 };
 
 /**
@@ -136,32 +134,32 @@ struct isaac_cli_args
  *
  * @todo Check if all this fields are used.
  */
-struct isaac_cli_entry
+struct _CLIEntry
 {
     //! Words making up the command.
-    const char *const cmda[400];
+    const gchar *const cmda[400];
     //! Summary of the command (< 60 characters)
-    const char *const summary;
+    const gchar *const summary;
     //! Detailed usage information
-    char *usage;
+    gchar *usage;
     //! For keeping track of usage
     int inuse;
     //! Module this belongs to
     struct module *module;
     //! Built at load time from cmda[]
-    char *_full_cmd;
+    gchar *_full_cmd;
     //! Len up to the first invalid char [<{%
-    int cmdlen;
+    gint cmdlen;
     //! Number of non-null entries in cmda
-    int args;
+    gint args;
     //! Command, non-null for new-style entries
-    char *command;
+    gchar *command;
     //! Handler function for this cli entry
-    char *
-    (*handler)(cli_entry_t *e, int cmd, cli_args_t *a);
+    gchar *
+    (*handler)(CLIEntry *e, gint cmd, CLIArgs *a);
 
     //! For linking
-    cli_entry_t *next;
+    CLIEntry *next;
 };
 
 /**
@@ -169,12 +167,12 @@ struct isaac_cli_entry
  *
  * This function will create the local socket and bind it for accepting
  * CLI client connections.\n
- * It will also create an @ref cli_accept "Accepting connection thread" to
+ * It will also create an @ref cli_incoming_connection "Accepting connection thread" to
  * manage incoming connections.
  *
  * @return 0 in case of success, -1 otherwise
  */
-extern int
+int
 cli_server_start();
 
 /**
@@ -184,19 +182,30 @@ cli_server_start();
  * It will also close any active CLI connection and cancel the accept new
  * connections thread.
  */
-extern void
+void
 cli_server_stop();
 
 /**
- * @brief Accepts new connection and launches a @ref cli_do thread to manage it
+ * @brief Allocate memory for a new CLI and add to CLI lists
  *
- * This function will be launched in a new thread by @ref cli_server_start and
- * will manage incoming connections.\n
- * For each connection it will create it's @ref isaac_cli structure and append it
- * to the @ref clilist "CLI client list".\n
+ * This function will create a CLI structure with the given parameters
+ * and add it to the CLI list.
+ *
+ * @return A pointer to the allocated CLI structure or NULL in case of error
  */
-extern void
-cli_accept();
+CLIClient *
+cli_create(GSocketConnection *connection);
+
+/**
+ * @brief Destroys an active CLI client connection deallocating its memory
+ *
+ * This function will cleanup the running CLI thread for a given connection.\n
+ * Can be used when a client disconnects or when CLI server stops.
+ *
+ * @param cli CLI client connection
+ */
+void
+cli_destroy(CLIClient *cli);
 
 /**
  * @brief Handle input commands issued from a CLI client connection
@@ -207,32 +216,8 @@ cli_accept();
  *
  * @param cli CLI client connection
  */
-extern void *
-cli_do(cli_t *cli);
-
-/**
- * @brief Allocate memory for a new CLI and add to CLI lists
- *
- * This function will create a CLI structure with the given parameters
- * and add it to the CLI list.
- *
- * @param fd cli connected socket descriptor
- * @param sun conected socket information
- * @return A pointer to the allocated CLI structure or NULL in case of error
- */
-extern cli_t *
-cli_create(int fd, struct sockaddr_un sun);
-
-/**
- * @brief Destroys an active CLI client connection deallocating its memory
- *
- * This function will cleanup the running CLI thread for a given connection.\n
- * Can be used when a client disconnects or when CLI server stops.
- *
- * @param cli CLI client connection
- */
-extern void
-cli_destroy(cli_t *cli);
+void *
+cli_do(CLIClient *cli);
 
 /**
  * @brief Reads next command from CLI.
@@ -246,8 +231,8 @@ cli_destroy(cli_t *cli);
  * @param readed Buffer to store input CLI command
  * @return Number of bytes readed from socket
  */
-extern int
-cli_read(cli_t *cli, char *readed);
+int
+cli_read(CLIClient *cli, char *readed);
 
 /**
  * @brief Writes some text to a CLI client connection
@@ -260,8 +245,8 @@ cli_read(cli_t *cli, char *readed);
  * @param fmt Format and args in printf style
  * @return Number of writen bytes
  */
-extern int
-cli_write(cli_t *cli, const char *fmt, ...);
+int
+cli_write(CLIClient *cli, const char *fmt, ...);
 
 /**
  * @brief Write some text to all connected CLI clients
@@ -271,7 +256,7 @@ cli_write(cli_t *cli, const char *fmt, ...);
  *
  * @param msg Textmessage to send to all CLI clients
  */
-extern void
+void
 cli_broadcast(const char *msg);
 
 /**
@@ -282,8 +267,8 @@ cli_broadcast(const char *msg);
  * @param entry CLI command entry pointer
  * @return 0 On success, 1 otherwise
  */
-extern int
-cli_register_entry(cli_entry_t *entry);
+int
+cli_register_entry(CLIEntry *entry);
 
 /**
  * @brief Register an array of entries.
@@ -295,8 +280,8 @@ cli_register_entry(cli_entry_t *entry);
  * @param len Length of list of entries
  * @return 0 On success, 1 otherwise
  */
-extern int
-cli_register_entry_multiple(cli_entry_t *entry, int len);
+int
+cli_register_entry_multiple(CLIEntry *entry, int len);
 
 /**
  * @brief Sets the full command field in passed entry
@@ -308,8 +293,8 @@ cli_register_entry_multiple(cli_entry_t *entry, int len);
  * @return 0 On success
  * @return 1 On error
  */
-extern int
-cli_entry_cmd(cli_entry_t *entry);
+int
+cli_entry_cmd(CLIEntry *entry);
 
 /**
  * @brief Match a word in the CLI entry.
@@ -324,13 +309,13 @@ cli_entry_cmd(cli_entry_t *entry);
  * @retval 0  On match of an optional word,
  * @retval 1  On match of a full word.
  */
-extern int
+int
 cli_word_match(const char *cmd, const char *cli_word);
 
 /**
  * @brief Locate a cli command in the 'helpers' list (which must be locked).
  *     The search compares word by word taking care of regexps in e->cmda
- *     This function will return NULL when nothing is matched, or the cli_entry_t that matched.
+ *     This function will return NULL when nothing is matched, or the CLIEntry that matched.
  * @param cmds
  * @param match_type has 3 possible values:
  *      - 0  If the search key is equal or longer than the entry.
@@ -340,83 +325,82 @@ cli_word_match(const char *cmd, const char *cli_word);
  *
  * @return The CLI entry or NULL if not found
  */
-extern cli_entry_t *
+CLIEntry *
 cli_find(const char *const cmds[], int match_type);
 
-extern char *
+char *
 cli_complete_number(const char *partial, unsigned int min, unsigned int max, int n);
 
-extern char *
+char *
 cli_parse_args(const char *s, int *argc, const char *argv[], int max, int *trailingwhitespace);
 
-extern char *
+char *
 cli_find_best(const char *argv[]);
 
-extern int
-cli_command_full(cli_t *cli, const char *s);
+int
+cli_command_full(CLIClient *cli, const char *s);
 
-extern int
-cli_command_multiple_full(cli_t *cli, size_t size, const char *s);
+int
+cli_command_multiple_full(CLIClient *cli, size_t size, const char *s);
 
-extern char *
+char *
 cli_is_prefix(const char *word, const char *token, int pos, int *actual);
 
-extern int
+int
 cli_more_words(const char *const *dst);
 
-extern char *
+char *
 cli_generator(const char *text, const char *word, int state);
 
-extern int
+int
 cli_generatornummatches(const char *text, const char *word);
 
-extern char **
+char **
 cli_completion_matches(const char *text, const char *word);
 
-
-extern char *
+char *
 cli_complete_session(const char *line, const char *word, int pos, int state, int rpos);
 
 /******************************************************************************
  **                     Handlers for CLI commands                            **
  *****************************************************************************/
-extern char *
-handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_commandmatchesarray(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_commandcomplete(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_commandnummatches(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_core_show_version(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_core_show_version(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_core_show_uptime(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_core_show_settings(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_core_show_applications(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_core_show_applications(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_core_set_verbose(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_show_connections(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_show_filters(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_show_variables(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_kill_connection(CLIEntry *entry, int cmd, CLIArgs *args);
 
-extern char *
-handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args);
+char *
+handle_debug_connection(CLIEntry *entry, int cmd, CLIArgs *args);
 
 #endif /* __ISAAC_CLI_H_ */

@@ -26,7 +26,9 @@
  */
 
 #include "config.h"
-#include <errno.h>
+#include <glib.h>
+#include <glib-unix.h>
+#include <gio/gio.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include "cfg.h"
@@ -38,22 +40,18 @@
 #include "manager.h"
 #include "filter.h"
 
-//! Incoming CLI clients linked list
-cli_t *clilist = NULL;
-//! Lock for concurrent access to \ref clilist "CLI client list"
-pthread_mutex_t clilock;
+//! Incoming CLI clients linked list (CLIClient *)
+static GSList *cli_list = NULL;
+//! Lock for concurrent access to \ref cli_list "CLI client list"
+static GRecMutex cli_lock;
 //! Linked list of available CLI commands an their handleds
-cli_entry_t *entries = NULL;
+static CLIEntry *entries = NULL;
 //! Lock for concurrent access to \ref entries "CLI commands list"
-pthread_mutex_t entrieslock;
-//! Thread for accepting new CLI client connections
-pthread_t cli_accept_thread;
-//! Socket for accepting new CLI client connections
-int cli_sock;
-//! General flag to stop cli server
-static int running;
+static GRecMutex entries_lock;
+//! Service for accepting new CLI client connections
+static GSocketService *cli_service;
 //! Starting time, used to count the uptime time
-struct timeval startuptime;
+static struct timeval startuptime;
 
 /**
  * @brief List with all default CLI commands
@@ -63,7 +61,7 @@ struct timeval startuptime;
  * This commands are added into the @ref entries "CLI command list" when
  * CLI servers starts using @ref cli_register_multiple
  */
-static cli_entry_t cli_entries[] = {
+static CLIEntry cli_entries[] = {
     AST_CLI_DEFINE(handle_commandcomplete, "Internal use: Complete"),
     AST_CLI_DEFINE(handle_commandmatchesarray, "Internal use: Match Array"),
     AST_CLI_DEFINE(handle_commandnummatches, "Internal use: Match Array"),
@@ -76,47 +74,123 @@ static cli_entry_t cli_entries[] = {
     AST_CLI_DEFINE(handle_show_filters, "Show session filters"),
     AST_CLI_DEFINE(handle_show_variables, "Show session variables"),
     AST_CLI_DEFINE(handle_kill_connection, "Stops a connected session"),
-    AST_CLI_DEFINE(handle_debug_connection, "Mark debug flag to a connected session")};
+    AST_CLI_DEFINE(handle_debug_connection, "Mark debug flag to a connected session")
+};
 
 //! Some regexp characters in cli arguments are reserved and used as separators.
-static const char cli_rsvd[] = "[]{}|*%";
+static const gchar cli_rsvd[] = "[]{}|*%";
+
+CLIClient *
+cli_create(GSocketConnection *connection)
+{
+    CLIClient *cli = g_malloc0(sizeof(CLIClient));
+    g_return_val_if_fail(cli != NULL, NULL);
+
+    // Copy all required data to this client
+    cli->conn = g_object_ref(connection);
+    cli->socket = g_socket_connection_get_socket(connection);
+    cli->fd = g_socket_get_fd(cli->socket);
+
+    // Initialize cli lock
+    g_rec_mutex_init(&cli->lock);
+
+    // Add client to the client list
+    g_rec_mutex_lock(&cli_lock);
+    cli_list = g_slist_append(cli_list, cli);
+    g_rec_mutex_unlock(&cli_lock);
+
+    return cli;
+}
+
+void
+cli_destroy(CLIClient *cli)
+{
+    g_return_if_fail(cli != NULL);
+
+    // Remove client from list
+    g_rec_mutex_lock(&cli_lock);
+    cli_list = g_slist_remove(cli_list, cli);
+    g_rec_mutex_unlock(&cli_lock);
+
+    // This message won't be notified to current cli because it's no longer in the cli list
+    isaac_log(LOG_VERBOSE, "Remote UNIX connection disconnected\n");
+    close(cli->fd);
+    g_rec_mutex_clear(&cli->lock);
+    g_object_unref(cli->conn);
+    g_source_destroy(cli->source);
+    g_source_unref(cli->source);
+    g_free(cli);
+}
+
+static gboolean
+cli_handle_command(gint fd, GIOCondition condition, CLIClient *cli)
+{
+    char command[256];
+    int rbytes;
+
+    if ((rbytes = cli_read(cli, command)) <= 0) {
+        cli_destroy(cli);
+        return G_SOURCE_REMOVE;
+    }
+
+    if (strncmp(command, "cli quit after ", 15) == 0) {
+        cli_command_multiple_full(cli, rbytes - 15, command + 15);
+        cli_destroy(cli);
+        return G_SOURCE_REMOVE;
+    }
+
+    cli_command_multiple_full(cli, rbytes, command);
+    return G_SOURCE_CONTINUE;
+}
+
+static gboolean
+cli_incoming_connection(G_GNUC_UNUSED GSocketService *service, GSocketConnection *connection,
+                        G_GNUC_UNUSED GObject *source_object, G_GNUC_UNUSED gpointer user_data)
+{
+    // Create a new cli structure
+    CLIClient *cli = cli_create(connection);
+
+    // Attach socket to current thread main loop
+    // Create a source from session client file descriptor
+    cli->source = g_unix_fd_source_new(cli->fd, G_IO_IN | G_IO_ERR | G_IO_HUP);
+    g_source_set_callback(cli->source, (GSourceFunc) G_SOURCE_FUNC(cli_handle_command), cli, NULL);
+    g_source_attach(cli->source, NULL);
+
+    return TRUE;
+}
 
 int
 cli_server_start()
 {
-    struct sockaddr_un sunaddr;
+    // Create a new socket service
+    cli_service = g_socket_service_new();
+    // Create an address to bind the socket to
+    g_autoptr(GSocketAddress) socket_address = g_unix_socket_address_new(CLI_SOCKET);
 
-    // Create a new Local socket for incoming connections
-    if ((cli_sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
-        isaac_log(LOG_ERROR, "Cannot create listener socket!: %s\n", strerror(errno));
-        return -1;
-    }
-    memset(&sunaddr, 0, sizeof(sunaddr));
-    sunaddr.sun_family = AF_LOCAL;
-    strcpy(sunaddr.sun_path, CLI_SOCKET);
-
-    // fixme Drop socket before starting. When ISC crashes it leaves the socket binded.
-    unlink(CLI_SOCKET);
-
-    // Bind socket to local address
-    if (bind(cli_sock, (struct sockaddr *) &sunaddr, sizeof(sunaddr)) < 0) {
-        isaac_log(LOG_ERROR, "Cannot bind to listener socket %s!: %s\n", CLI_SOCKET, strerror(errno));
+    // Bind the socket service to the socket_address
+    GError *error = NULL;
+    if (!g_socket_listener_add_address(
+        G_SOCKET_LISTENER(cli_service),
+        socket_address,
+        G_SOCKET_TYPE_STREAM,
+        G_SOCKET_PROTOCOL_DEFAULT,
+        NULL,
+        NULL,
+        &error
+    )) {
+        g_printerr("Error binding to socket: %s\n", error->message);
+        g_error_free(error);
         return FALSE;
     }
 
-    // Open the socket to new incoming connections
-    if (listen(cli_sock, 5) < 0) {
-        isaac_log(LOG_ERROR, "Cannot listen on socket!: %s\n", strerror(errno));
-        return FALSE;
-    }
+    // Connect the service to the incoming-connection signal
+    g_signal_connect(cli_service, "incoming", G_CALLBACK(cli_incoming_connection), NULL);
 
     // Register Core commands
     cli_register_entry_multiple(cli_entries, ARRAY_LEN(cli_entries));
 
-    // Start Accept connections thread
-    if (pthread_create(&cli_accept_thread, NULL, (void *) cli_accept, NULL)) {
-        fprintf(stderr, "Unable to create CLI Thread!\n");
-    }
+    // Start CLI Service
+    g_socket_service_start(cli_service);
 
     return TRUE;
 }
@@ -124,170 +198,32 @@ cli_server_start()
 void
 cli_server_stop()
 {
-    // Mark ourselfs as not running
-    running = 0;
+    // Notify all CLI connections
+    isaac_log(LOG_VERBOSE, "Shutting down cli server.\n");
+    // Stop Socket service
+    g_socket_service_stop(cli_service);
+    // Close the underlying socket
+    g_socket_listener_close(G_SOCKET_LISTENER(cli_service));
+    // Deallocate its memory
+    g_object_unref(cli_service);
 
-    // Stop the socket from receiving new connections
-    shutdown(cli_sock, SHUT_RDWR);
     // Remove the unix socket file
     unlink(CLI_SOCKET);
-    //@todo iterate here
     // Destroy all clients in client list
-    while (clilist) {
-        cli_destroy(clilist);
-    }
-    if (cli_accept_thread)
-        pthread_join(cli_accept_thread, NULL);
-}
-
-void
-cli_accept()
-{
-    struct sockaddr_un sun;
-    socklen_t sunlen;
-    pthread_attr_t attr;
-    struct isaac_cli *cli;
-    int clifd;
-
-    // Give some feedback about us
-    isaac_log(LOG_VERBOSE, "Launched cli thread [ID %ld].\n", TID);
-
-    // Initialize stored stats
-    startuptime = isaac_tvnow();
-
-    // Mark us as running
-    running = 1;
-
-    while (running) {
-        // Get the next connection
-        sunlen = sizeof(sun);
-        if ((clifd = accept(cli_sock, (struct sockaddr *) &sun, &sunlen)) < 0) {
-            if (errno != EINVAL) {
-                isaac_log(LOG_WARNING, "Error accepting new connection: %s\n", strerror(errno));
-            }
-            break;
-        }
-        isaac_log(LOG_VERBOSE, "Remote UNIX connection\n");
-        int sckopt = 1;
-        if (setsockopt(clifd, SOL_SOCKET, SO_PASSCRED, &sckopt, sizeof(sckopt)) < 0) {
-            isaac_log(LOG_WARNING, "Unable to turn on socket credentials passing\n");
-            continue;
-        }
-        // Create a new cli structure for this connection
-        if (!(cli = cli_create(clifd, sun))) {
-            continue;
-        }
-        // Launch cli thread in detached mode
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        if (pthread_create(&cli->thread, &attr, (void *) cli_do, cli) != 0) {
-            cli_destroy(cli);
-        }
-        pthread_attr_destroy(&attr);
-    }
-    isaac_log(LOG_VERBOSE, "Shutting down cli thread...\n");
-
-    // Exit cli thread gracefully
-    pthread_exit(NULL);
-    return;
-}
-
-void *
-cli_do(cli_t *cli)
-{
-    char command[256];
-    int rbytes;
-
-    for (;;) {
-        if ((rbytes = cli_read(cli, command)) <= 0) {
-            break;
-        }
-        if (strncmp(command, "cli quit after ", 15) == 0) {
-            cli_command_multiple_full(cli, rbytes - 15, command + 15);
-            break;
-        }
-        cli_command_multiple_full(cli, rbytes, command);
-    }
-    cli_destroy(cli);
-    pthread_exit(NULL);
-}
-
-cli_t *
-cli_create(int fd, struct sockaddr_un sun)
-{
-    cli_t *cli;
-
-    // Reserve memory for this client
-    if (!(cli = malloc(sizeof(cli_t)))) {
-        isaac_log(LOG_ERROR, "Failed to allocate client manager: %s\n", strerror(errno));
-        return NULL;
-    }
-
-    // Copy all required data to this client
-    memset(cli, 0, sizeof(cli_t));
-    memcpy(&cli->sun, &sun, sizeof(sun));
-    cli->fd = fd;
-
-    // Initialize cli lock
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
-    pthread_mutex_init(&cli->lock, &attr);
-
-    // Add client to the client list
-    pthread_mutex_lock(&clilock);
-    cli->next = clilist;
-    clilist = cli;
-    pthread_mutex_unlock(&clilock);
-
-    return cli;
-}
-
-void
-cli_destroy(cli_t *cli)
-{
-    struct isaac_cli *cur, *prev = NULL;
-
-    // todo Do this with an iterator
-    pthread_mutex_lock(&clilock);
-    cur = clilist;
-    /** Look for the current client in the client list **/
-    while (cur) {
-        if (cur == cli) {
-            // Update CLI list
-            if (prev) prev->next = cur->next;
-            else
-                clilist = cur->next;
-            break;
-        }
-        prev = cur;
-        cur = cur->next;
-    }
-    pthread_mutex_unlock(&clilock); // We have finished with the list
-
-    if (cur) {
-        // This message won't be notify to current cli cause it's no longer
-        // in the cli list
-        isaac_log(LOG_VERBOSE, "Remote UNIX connection disconnected\n");
-        close(cli->fd);
-        pthread_cancel(cli->thread);
-        pthread_mutex_destroy(&cli->lock);
-        isaac_free(cli);
-    } else {
-        // This should happen!!
-        isaac_log(LOG_ERROR, "Trying to destroy non-existent CLI: %d\n", cli->fd);
+    for (GSList *l = cli_list; l; l = l->next) {
+        cli_destroy(l->data);
     }
 }
 
 int
-cli_read(cli_t *cli, char *readed)
+cli_read(CLIClient *cli, char *readed)
 {
     bzero(readed, 256);
-    return read(cli->fd, readed, 255);
+    return g_socket_receive(cli->socket, readed, 255, NULL, NULL);
 }
 
 int
-cli_write(cli_t *cli, const char *fmt, ...)
+cli_write(CLIClient *cli, const char *fmt, ...)
 {
     char message[MAX_MSG_SIZE];
     va_list ap;
@@ -296,27 +232,28 @@ cli_write(cli_t *cli, const char *fmt, ...)
     va_start(ap, fmt);
     vsprintf(message, fmt, ap);
     va_end(ap);
-    pthread_mutex_lock(&cli->lock);
+    g_rec_mutex_lock(&cli->lock);
     ret = write(cli->fd, message, isaac_strlen(message) + 1);
-    pthread_mutex_unlock(&cli->lock);
+    g_rec_mutex_unlock(&cli->lock);
     return ret;
 }
 
 void
 cli_broadcast(const char *msg)
 {
-    cli_t *cur;
-    // Loop through the CLIs and writting the message
-    for (cur = clilist; cur; cur = cur->next) {
-        cli_write(cur, msg);
+    // Loop through the CLIs and writing the message
+    g_rec_mutex_lock(&cli_lock);
+    for (GSList *l = cli_list; l; l = l->next) {
+        cli_write(l->data, msg);
     }
+    g_rec_mutex_unlock(&cli_lock);
 }
 
 int
-cli_register_entry(cli_entry_t *entry)
+cli_register_entry(CLIEntry *entry)
 {
     int i;
-    cli_args_t args; /* fake argument */
+    CLIArgs args; /* fake argument */
     char **dst = (char **) entry->cmda; /* need to cast as the entry is readonly */
     char *s;
 
@@ -338,7 +275,8 @@ cli_register_entry(cli_entry_t *entry)
 
     // Check if already has been registered
     if (cli_find(entry->cmda, 1)) {
-        isaac_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n",
+        isaac_log(LOG_WARNING,
+                  "Command '%s' already registered (or something close enough)\n",
                   (entry->_full_cmd) ? entry->_full_cmd : entry->command);
         return -1;
     }
@@ -347,17 +285,17 @@ cli_register_entry(cli_entry_t *entry)
     }
 
     // Push this entry in the top of the list
-    pthread_mutex_lock(&entrieslock);
+    g_rec_mutex_lock(&entries_lock);
     entry->next = entries;
     entries = entry;
-    pthread_mutex_unlock(&entrieslock);
+    g_rec_mutex_unlock(&entries_lock);
 
     isaac_log(LOG_VERBOSE_2, "Registered command '%s'\n", entry->_full_cmd);
     return 0;
 }
 
 int
-cli_register_entry_multiple(cli_entry_t *entry, int len)
+cli_register_entry_multiple(CLIEntry *entry, int len)
 {
     int i, res = 0;
     for (i = 0; i < len; i++) {
@@ -367,7 +305,7 @@ cli_register_entry_multiple(cli_entry_t *entry, int len)
 }
 
 int
-cli_entry_cmd(cli_entry_t *entry)
+cli_entry_cmd(CLIEntry *entry)
 {
     int i;
     char buf[80];
@@ -391,7 +329,8 @@ cli_word_match(const char *cmd, const char *cli_word)
 {
     int l;
     char *pos;
-    if (isaac_strlen_zero(cmd) || isaac_strlen_zero(cli_word)) return -1;
+    if (isaac_strlen_zero(cmd) || isaac_strlen_zero(cli_word))
+        return -1;
     if (!strchr(cli_rsvd, cli_word[0])) /* normal match */
         return (strcasecmp(cmd, cli_word) == 0) ? 1 : -1;
     // regexp match, takes [foo|bar] or {foo|bar}
@@ -406,15 +345,16 @@ cli_word_match(const char *cmd, const char *cli_word)
         return cli_word[0] == '[' ? 0 : -1;
     if (pos == cli_word) /* no valid match at the beginning */
         return -1;
-    if (strchr(cli_rsvd, pos[-1]) && strchr(cli_rsvd, pos[l])) return 1; /* valid match */
+    if (strchr(cli_rsvd, pos[-1]) && strchr(cli_rsvd, pos[l]))
+        return 1; /* valid match */
     return -1; /* not found */
 }
 
-cli_entry_t *
+CLIEntry *
 cli_find(const char *const cmds[], int match_type)
 {
-    int matchlen = -1; /* length of longest match so far */
-    cli_entry_t *cand = NULL, *entry = NULL;
+    int matchlen = -1; /* length of the longest match so far */
+    CLIEntry *cand = NULL, *entry = NULL;
 
     for (entry = entries; entry; entry = entry->next) {
 
@@ -424,7 +364,8 @@ cli_find(const char *const cmds[], int match_type)
         int n = 0;
         for (;; dst++, src += n) {
             n = cli_word_match(*src, *dst);
-            if (n < 0) break;
+            if (n < 0)
+                break;
         }
         if (isaac_strlen_zero(*dst) || ((*dst)[0] == '[' && isaac_strlen_zero(dst[1]))) {
             /* no more words in 'e' */
@@ -433,15 +374,16 @@ cli_find(const char *const cmds[], int match_type)
             /* Here, cmds has more words than the entry 'e' */
             if (match_type != 0) /* but we look for almost exact match... */
                 continue; /* so we skip this one. */
-            /* otherwise we like it (case 0) */
+            /* otherwise, we like it (case 0) */
         } else { /* still words in 'e' */
-            if (isaac_strlen_zero(*src)) continue; /* cmds is shorter than 'e', not good */
+            if (isaac_strlen_zero(*src))
+                continue; /* cmds is shorter than 'e', not good */
             /* Here we have leftover words in cmds and 'e',
              * but there is a mismatch. We only accept this one if match_type == -1
              * and this is the last word for both.
              */
-            if (match_type != -1 || !isaac_strlen_zero(src[1]) ||
-                !isaac_strlen_zero(dst[1])) /* not the one we look for */
+            if (match_type != -1 || !isaac_strlen_zero(src[1])
+                || !isaac_strlen_zero(dst[1])) /* not the one we look for */
                 continue;
             /* good, we are in case match_type == -1 and mismatch on last word */
         }
@@ -506,12 +448,14 @@ cli_parse_args(const char *s, int *argc, const char *argv[], int max, int *trail
     int whitespace = 1;
     int dummy = 0;
 
-    if (trailingwhitespace == NULL) trailingwhitespace = &dummy;
+    if (trailingwhitespace == NULL)
+        trailingwhitespace = &dummy;
     *trailingwhitespace = 0;
     if (s == NULL) /* invalid, though! */
         return NULL;
     /* make a copy to store the parsed string */
-    if (!(duplicate = strdup(s))) return NULL;
+    if (!(duplicate = strdup(s)))
+        return NULL;
 
     cur = duplicate;
     /* scan the original string copying into cur when needed */
@@ -566,31 +510,29 @@ cli_find_best(const char *argv[])
     static char cmdline[80];
     int x;
     /* See how close we get, then print the candidate */
-    const char *myargv[400] = {
-        NULL, };
+    const char *myargv[400] = { NULL, };
 
     for (x = 0; argv[x]; x++) {
         myargv[x] = argv[x];
-        if (!cli_find(myargv, -1)) break;
+        if (!cli_find(myargv, -1))
+            break;
     }
     isaac_join(cmdline, sizeof(cmdline), myargv);
     return cmdline;
 }
 
 int
-cli_command_full(cli_t *cli, const char *s)
+cli_command_full(CLIClient *cli, const char *s)
 {
     const char *args[AST_MAX_ARGS + 1];
-    cli_entry_t *entry;
+    CLIEntry *entry;
     int x;
     char *duplicate = cli_parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
     char *retval = NULL;
-    cli_args_t a = {
-        .cli = cli,
-        .argc = x,
-        .argv = args + 1 };
+    CLIArgs a = { .cli = cli, .argc = x, .argv = args + 1 };
 
-    if (duplicate == NULL) return -1;
+    if (duplicate == NULL)
+        return -1;
 
     if (x < 1) /* We need at least one entry, otherwise ignore */
         goto done;
@@ -601,7 +543,7 @@ cli_command_full(cli_t *cli, const char *s)
         goto done;
     }
 
-    /* Within the handler, argv[-1] contains a pointer to the cli_entry_t.
+    /* Within the handler, argv[-1] contains a pointer to the CLIEntry.
      * Remember that the array returned by parse_args is NULL-terminated.
      */
     args[0] = (char *) entry;
@@ -609,19 +551,18 @@ cli_command_full(cli_t *cli, const char *s)
     retval = entry->handler(entry, CLI_HANDLER, &a);
 
     if (retval == CLI_SHOWUSAGE) {
-        cli_write(cli, "%s", (entry->usage) ? entry->usage
-                                            : "Invalid usage, but no usage information available.\n");
+        cli_write(cli, "%s", (entry->usage) ? entry->usage : "Invalid usage, but no usage information available.\n");
     } else if (retval == CLI_FAILURE) {
         cli_write(cli, "Command '%s' failed.\n", s);
     }
 
-    done:
+done:
     isaac_free(duplicate);
     return 0;
 }
 
 int
-cli_command_multiple_full(cli_t *cli, size_t size, const char *s)
+cli_command_multiple_full(CLIClient *cli, size_t size, const char *s)
 {
     char cmd[512];
     int x, y = 0, count = 0;
@@ -649,10 +590,13 @@ cli_is_prefix(const char *word, const char *token, int pos, int *actual)
     char *s, *t1;
 
     *actual = 0;
-    if (isaac_strlen_zero(token)) return NULL;
-    if (isaac_strlen_zero(word)) word = ""; /* dummy */
+    if (isaac_strlen_zero(token))
+        return NULL;
+    if (isaac_strlen_zero(word))
+        word = ""; /* dummy */
     lw = strlen(word);
-    if (strcspn(word, cli_rsvd) != lw) return NULL; /* no match if word has reserved chars */
+    if (strcspn(word, cli_rsvd) != lw)
+        return NULL; /* no match if word has reserved chars */
     if (strchr(cli_rsvd, token[0]) == NULL) { /* regular match */
         if (strncasecmp(token, word, lw)) /* no match */
             return NULL;
@@ -670,7 +614,8 @@ cli_is_prefix(const char *word, const char *token, int pos, int *actual)
         if (strncasecmp(s, word, lw)) /* no match */
             continue;
         (*actual)++;
-        if (pos-- == 0) return strdup(s);
+        if (pos-- == 0)
+            return strdup(s);
     }
     return NULL;
 }
@@ -680,7 +625,8 @@ cli_more_words(const char *const *dst)
 {
     int i;
     for (i = 0; dst[i]; i++) {
-        if (dst[i][0] != '[') return -1;
+        if (dst[i][0] != '[')
+            return -1;
     }
     return 0;
 }
@@ -692,7 +638,7 @@ char *
 cli_generator(const char *text, const char *word, int state)
 {
     const char *argv[AST_MAX_ARGS];
-    cli_entry_t *entry = NULL;
+    CLIEntry *entry = NULL;
     int x = 0, argindex, matchlen;
     int matchnum = 0;
     char *ret = NULL;
@@ -713,14 +659,16 @@ cli_generator(const char *text, const char *word, int state)
     matchlen = strlen(matchstr);
     if (tws) {
         strcat(matchstr, " "); /* XXX */
-        if (matchlen) matchlen++;
+        if (matchlen)
+            matchlen++;
     }
     for (entry = entries; entry; entry = entry->next) {
         /* XXX repeated code */
         int src = 0, dst = 0, n = 0;
 
         /** Skip internal commands **/
-        if (entry->command[0] == '_') continue;
+        if (entry->command[0] == '_')
+            continue;
 
         /*
          * Try to match words, up to and excluding the last word, which
@@ -728,7 +676,8 @@ cli_generator(const char *text, const char *word, int state)
          */
         for (; src < argindex; dst++, src += n) {
             n = cli_word_match(argv[src], entry->cmda[dst]);
-            if (n < 0) break;
+            if (n < 0)
+                break;
         }
 
         if (src != argindex && cli_more_words(entry->cmda + dst)) /* not a match */
@@ -740,7 +689,8 @@ cli_generator(const char *text, const char *word, int state)
              * argv[src] is a valid prefix of the next word in this
              * command. If this is also the correct entry, return it.
              */
-            if (matchnum > state) break;
+            if (matchnum > state)
+                break;
             isaac_free(ret);
             ret = NULL;
         } else if (isaac_strlen_zero(entry->cmda[dst])) {
@@ -750,16 +700,12 @@ cli_generator(const char *text, const char *word, int state)
              * Run the generator if one is available. In any case we are done.
              */
             if (entry->handler) { /* new style command */
-                cli_args_t args = {
-                    .line = matchstr,
-                    .word = word,
-                    .pos = argindex,
-                    .n = state - matchnum,
-                    .argv = argv,
-                    .argc = x };
+                CLIArgs args =
+                    { .line = matchstr, .word = word, .pos = argindex, .n = state - matchnum, .argv = argv, .argc = x };
                 ret = entry->handler(entry, CLI_GENERATE, &args);
             }
-            if (ret) break;
+            if (ret)
+                break;
         }
     }
     isaac_free(duplicate);
@@ -774,11 +720,14 @@ cli_generatornummatches(const char *text, const char *word)
     char *buf = NULL, *oldbuf = NULL;
 
     while ((buf = cli_generator(text, word, i++))) {
-        if (!oldbuf || strcmp(buf, oldbuf)) matches++;
-        if (oldbuf) isaac_free(oldbuf);
+        if (!oldbuf || strcmp(buf, oldbuf))
+            matches++;
+        if (oldbuf)
+            isaac_free(oldbuf);
         oldbuf = buf;
     }
-    if (oldbuf) isaac_free(oldbuf);
+    if (oldbuf)
+        isaac_free(oldbuf);
     return matches;
 }
 
@@ -794,12 +743,14 @@ cli_completion_matches(const char *text, const char *word)
     while ((retstr = cli_generator(text, word, matches)) != NULL) {
         if (matches + 1 >= match_list_len) {
             match_list_len <<= 1;
-            if (!(match_list = realloc(match_list, match_list_len * sizeof(*match_list)))) return NULL;
+            if (!(match_list = realloc(match_list, match_list_len * sizeof(*match_list))))
+                return NULL;
         }
         match_list[++matches] = retstr;
     }
 
-    if (!match_list) return match_list; /* NULL */
+    if (!match_list)
+        return match_list; /* NULL */
 
     /* Find the longest substring that is common to all results
      * (it is a candidate for completion), and store a copy in entry 0.
@@ -815,14 +766,16 @@ cli_completion_matches(const char *text, const char *word)
         }
     }
 
-    if (!(retstr = malloc(max_equal + 1))) return NULL;
+    if (!(retstr = malloc(max_equal + 1)))
+        return NULL;
 
     isaac_strncpy(retstr, match_list[1], max_equal + 1);
     match_list[0] = retstr;
 
     /* ensure that the array is NULL terminated */
     if (matches + 1 >= match_list_len) {
-        if (!(match_list = realloc(match_list, (match_list_len + 1) * sizeof(*match_list)))) return NULL;
+        if (!(match_list = realloc(match_list, (match_list_len + 1) * sizeof(*match_list))))
+            return NULL;
     }
     match_list[matches + 1] = NULL;
 
@@ -856,7 +809,7 @@ cli_complete_session(const char *line, const char *word, int pos, int state, int
 /******************************************************************************
  *****************************************************************************/
 char *
-handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_commandmatchesarray(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     char *buf, *obuf;
     int buflen = 2048;
@@ -875,8 +828,10 @@ handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
             return NULL;
     }
 
-    if (args->argc != 4) return CLI_SHOWUSAGE;
-    if (!(buf = malloc(buflen))) return CLI_FAILURE;
+    if (args->argc != 4)
+        return CLI_SHOWUSAGE;
+    if (!(buf = malloc(buflen)))
+        return CLI_FAILURE;
     buf[len] = '\0';
     matches = cli_completion_matches(args->argv[2], args->argv[3]);
     if (matches) {
@@ -889,7 +844,8 @@ handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
                     /* Memory allocation failure...  Just free old buffer and be done */
                     isaac_free(obuf);
             }
-            if (buf) len += sprintf(buf + len, "%s ", matches[x]);
+            if (buf)
+                len += sprintf(buf + len, "%s ", matches[x]);
             isaac_free(matches[x]);
             matches[x] = NULL;
         }
@@ -906,7 +862,7 @@ handle_commandmatchesarray(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_commandcomplete(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     char *buf;
     switch (cmd) {
@@ -919,7 +875,8 @@ handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
         case CLI_GENERATE:
             return NULL;
     }
-    if (args->argc != 5) return CLI_SHOWUSAGE;
+    if (args->argc != 5)
+        return CLI_SHOWUSAGE;
     buf = cli_generator(args->argv[2], args->argv[3], atoi(args->argv[4]));
     if (buf) {
         cli_write(args->cli, "%s", buf);
@@ -931,7 +888,7 @@ handle_commandcomplete(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_commandnummatches(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     int matches = 0;
 
@@ -946,17 +903,19 @@ handle_commandnummatches(cli_entry_t *entry, int cmd, cli_args_t *args)
             return NULL;
     }
 
-    if (args->argc != 4) return CLI_SHOWUSAGE;
+    if (args->argc != 4)
+        return CLI_SHOWUSAGE;
 
+    g_rec_mutex_lock(&args->cli->lock);
     matches = cli_generatornummatches(args->argv[2], args->argv[3]);
-
     cli_write(args->cli, "%d", matches);
+    g_rec_mutex_unlock(&args->cli->lock);
 
     return CLI_SUCCESS;
 }
 
 char *
-handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_core_show_uptime(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     struct timeval curtime = isaac_tvnow();
     int printsec;
@@ -976,9 +935,9 @@ handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
 
     /* regular handler */
     if (args->argc == entry->args && !strcasecmp(args->argv[entry->args - 1], "seconds"))
-        printsec
-            = 1;
-    else if (args->argc == entry->args - 1) printsec = 0;
+        printsec = 1;
+    else if (args->argc == entry->args - 1)
+        printsec = 0;
     else
         return CLI_SHOWUSAGE;
 
@@ -992,7 +951,7 @@ handle_core_show_uptime(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_core_show_version(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_core_show_version(CLIEntry *entry, int cmd, CLIArgs *args)
 {
 
     switch (cmd) {
@@ -1012,7 +971,7 @@ handle_core_show_version(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_core_show_settings(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     char running[256];
     char manconnected[256];
@@ -1035,14 +994,13 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
     cli_write(args->cli, "   %-20s: %d (%s)\n", "Log Type", cfg_get_log_type(), "syslog");
     cli_write(args->cli, "   %-20s: %d\n", "Log Level", cfg_get_log_level());
     cli_write(args->cli, "   %-20s: %s\n", "Log Tag", cfg_get_log_tag());
-    cli_write(args->cli, "   %-20s: %d apps \n", "Aplications", application_count());
+    cli_write(args->cli, "   %-20s: %d apps \n", "Applications", application_count());
     cli_write(args->cli, "   %-20s:%s\n", "Running since", running);
     cli_write(args->cli, "\nManager settings\n----------------------\n");
     cli_write(args->cli, "   %-20s: %s\n", "Address", cfg_get_manager_address());
     cli_write(args->cli, "   %-20s: %d\n", "Port", cfg_get_manager_port());
     cli_write(args->cli, "   %-20s: %s\n", "Username", cfg_get_manager_user());
-    cli_write(args->cli, "   %-20s:%s\n", "Connected since", ((manager->connected) ? manconnected
-                                                                                   : " Disconnected"));
+    cli_write(args->cli, "   %-20s:%s\n", "Connected since", ((manager->connected) ? manconnected : " Disconnected"));
     cli_write(args->cli, "\nServer settings\n----------------------\n");
     cli_write(args->cli, "   %-20s: %s\n", "Address", cfg_get_server_address());
     cli_write(args->cli, "   %-20s: %d\n", "Port", cfg_get_server_port());
@@ -1055,7 +1013,7 @@ handle_core_show_settings(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_core_show_applications(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_core_show_applications(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     switch (cmd) {
         case CLI_INIT:
@@ -1070,7 +1028,7 @@ handle_core_show_applications(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_core_set_verbose(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     const char *const *argv = args->argv;
     int newlevel;
@@ -1085,9 +1043,11 @@ handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args)
             return NULL;
     }
 
-    if (args->argc != entry->args + 1) return CLI_SHOWUSAGE;
+    if (args->argc != entry->args + 1)
+        return CLI_SHOWUSAGE;
 
-    if (sscanf(argv[entry->args], "%30d", &newlevel) != 1) return CLI_SHOWUSAGE;
+    if (sscanf(argv[entry->args], "%30d", &newlevel) != 1)
+        return CLI_SHOWUSAGE;
 
     cfg_set_log_level(newlevel);
     cli_write(args->cli, "Verbosity level is %d\n", newlevel);
@@ -1096,7 +1056,7 @@ handle_core_set_verbose(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_show_connections(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     char idle[256];
 
@@ -1111,7 +1071,7 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     }
 
     /* Avoid other output for this cli */
-    pthread_mutex_lock(&clilock);
+    g_rec_mutex_lock(&cli_lock);
 
     /* Print header for sessions */
     cli_write(args->cli, "%-10s%-25s%-20s%s\n", "ID", "Address", "Logged as", "Idle");
@@ -1121,22 +1081,27 @@ handle_show_connections(cli_entry_t *entry, int cmd, cli_args_t *args)
     for (GSList *l = sessions; l; l = l->next) {
         Session *sess = l->data;
         gint64 idle = (g_get_monotonic_time() - sess->last_cmd_time) / G_USEC_PER_SEC;
-        cli_write(args->cli, "%-10s%-25s%-20s%jd\n", sess->id, sess->addrstr, ((session_test_flag(
-                sess, SESS_FLAG_AUTHENTICATED)) ? session_get_variable(sess, "AGENT")
-                                                : "not logged"), idle);
+        cli_write(args->cli,
+                  "%-10s%-25s%-20s%jd\n",
+                  sess->id,
+                  sess->addrstr,
+                  ((session_test_flag(sess, SESS_FLAG_AUTHENTICATED
+                  )) ? session_get_variable(sess, "AGENT") : "not logged"),
+                  idle
+        );
     }
     //cli_write(args->cli, "%d processed sessions\n", config.sessioncnt);
     cli_write(args->cli, "%d active sessions\n", g_slist_length(sessions));
     sessions_release_lock();
 
     /* Set cli output unlocked */
-    pthread_mutex_unlock(&clilock);
+    g_rec_mutex_unlock(&cli_lock);
 
     return CLI_SUCCESS;
 }
 
 char *
-handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_show_filters(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     Filter *filter = NULL;
     Session *sess;
@@ -1160,7 +1125,7 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     }
 
     /* Avoid other output for this cli */
-    pthread_mutex_lock(&clilock);
+    g_rec_mutex_lock(&args->cli->lock);
 
     /* Get session */
     if (!(sess = session_by_id(args->argv[2]))) {
@@ -1170,10 +1135,12 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
             Filter *filter = l->data;
 
             // Print session filters
-            cli_write(args->cli, "------------ [\033[1;34m%s\033[0m] \033[1;32m%s\033[0m%s ------------\n",
+            cli_write(args->cli,
+                      "------------ [\033[1;34m%s\033[0m] \033[1;32m%s\033[0m%s ------------\n",
                       filter->app->name,
                       filter->name,
-                      (filter->oneshot) ? "(OneShot)" : "");
+                      (filter->oneshot) ? "(OneShot)" : ""
+            );
 
             for (gint ccnt = 0; ccnt < filter->conditions->len; ccnt++) {
                 Condition *cond = g_ptr_array_index(filter->conditions, ccnt);
@@ -1206,13 +1173,13 @@ handle_show_filters(cli_entry_t *entry, int cmd, cli_args_t *args)
     }
 
     /* Set cli output unlocked */
-    pthread_mutex_unlock(&clilock);
+    g_rec_mutex_unlock(&args->cli->lock);
 
     return CLI_SUCCESS;
 }
 
 char *
-handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_show_variables(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     Session *sess;
     int i = 0;
@@ -1236,7 +1203,7 @@ handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
     }
 
     /* Avoid other output for this cli */
-    pthread_mutex_lock(&clilock);
+    g_rec_mutex_lock(&cli_lock);
 
     /* Get session */
     if (!(sess = session_by_id(args->argv[2]))) {
@@ -1250,14 +1217,13 @@ handle_show_variables(cli_entry_t *entry, int cmd, cli_args_t *args)
     }
 
     /* Set cli output unlocked */
-    pthread_mutex_unlock(&clilock);
+    g_rec_mutex_unlock(&cli_lock);
 
     return CLI_SUCCESS;
 }
 
-
 char *
-handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_kill_connection(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     Session *sess;
     switch (cmd) {
@@ -1290,7 +1256,7 @@ handle_kill_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
 }
 
 char *
-handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
+handle_debug_connection(CLIEntry *entry, int cmd, CLIArgs *args)
 {
     Session *sess;
     switch (cmd) {
@@ -1320,7 +1286,7 @@ handle_debug_connection(cli_entry_t *entry, int cmd, cli_args_t *args)
             isaac_log(LOG_NOTICE, "Debug on session %s \033[1;31mdisabled\033[0m.\n", args->argv[2]);
         } else {
             session_set_flag(sess, SESS_FLAG_DEBUG);
-            isaac_log(LOG_NOTICE, "Debug on session %s \e[1;32menabled\e[0m.\n", args->argv[2]);
+            isaac_log(LOG_NOTICE, "Debug on session %s \033[1;32menabled\033[0m.\n", args->argv[2]);
         }
     }
 

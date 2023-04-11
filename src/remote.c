@@ -26,9 +26,8 @@
  */
 
 #include "config.h"
-#include <fcntl.h>
+#include <glib.h>
 #include <unistd.h>
-#include <sys/socket.h>
 #include <errno.h>
 #include <signal.h>
 #include <ctype.h>
@@ -40,35 +39,27 @@
 struct remote_sig_flags sig_flags;
 
 //! Connection info to Isaac running process
-cli_t *remote_cli;
+CLIClient *remote_cli;
 //! Command line history
 History *el_hist;
 //! Command line object
 EditLine *el;
 
-int
+gint
 remote_tryconnect()
 {
-    struct sockaddr_un sunaddr;
-    // Create an UNIX local socket
-    int clisocket = socket(PF_LOCAL, SOCK_STREAM, 0);
-    if (clisocket < 0) {
-        fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
-        return 1;
-    }
-    memset(&sunaddr, 0, sizeof(sunaddr));
-    sunaddr.sun_family = AF_LOCAL;
-    strcpy(sunaddr.sun_path, CLI_SOCKET);
-    // Try to connect to CLI server socket
-    if (connect(clisocket, (struct sockaddr *) &sunaddr, sizeof(sunaddr))) {
-        fprintf(stderr, "Unable to connect CLI socket %d: %s\n", errno, strerror(errno));
-        return 1;
-    }
+    // Create unix socket address
+    g_autoptr(GSocketAddress) socket_address = g_unix_socket_address_new(CLI_SOCKET);
+
+    // Create Unix Socket client
+    GSocketClient *client = g_socket_client_new();
+    GSocketConnection *connection = g_socket_client_connect(client, G_SOCKET_CONNECTABLE(socket_address), NULL, NULL);
+    g_return_val_if_fail(connection != NULL, 1);
+
     // Create a cli structure for this connection
-    if (!(remote_cli = cli_create(clisocket, sunaddr))) {
-        fprintf(stderr, "Failed to create remote CLI session\n");
-        return 1;
-    }
+    remote_cli = cli_create(connection);
+    g_return_val_if_fail(remote_cli != NULL, 1);
+
     return 0;
 }
 
@@ -113,7 +104,7 @@ remote_control(char *command)
                 break;
             }
             // Read the answer from Isaac
-            if ((nbytes = read(remote_cli->fd, buffer, sizeof(buffer) - 1)) <= 0) {
+            if ((nbytes = cli_read(remote_cli, buffer)) <= 0) {
                 break;
             }
 
@@ -156,10 +147,12 @@ remote_control(char *command)
             break;
         }
 
-        if (!ebuf && write(1, "", 1) < 0) break;
+        if (!ebuf && write(1, "", 1) < 0)
+            break;
 
         if (!isaac_strlen_zero(ebuf)) {
-            if (ebuf[strlen(ebuf) - 1] == '\n') ebuf[strlen(ebuf) - 1] = '\0';
+            if (ebuf[strlen(ebuf) - 1] == '\n')
+                ebuf[strlen(ebuf) - 1] = '\0';
             if (!remote_consolehandler(ebuf)) {
                 /* Strip preamble from output */
                 char *temp;
@@ -216,7 +209,7 @@ remote_complete(EditLine *editline, int ch)
         }
     }
 
-    pthread_mutex_lock(&remote_cli->lock);
+    g_rec_mutex_lock(&remote_cli->lock);
 
     len = lf->cursor - ptr;
 
@@ -245,8 +238,9 @@ remote_complete(EditLine *editline, int ch)
                 }
             }
             // Only read 1024 bytes at a time
-            res = read(remote_cli->fd, mbuf + mlen, 1024);
-            if (res > 0) mlen += res;
+            res = cli_read(remote_cli, mbuf + mlen);
+            if (res > 0)
+                mlen += res;
         }
         mbuf[mlen] = '\0';
 
@@ -273,7 +267,8 @@ remote_complete(EditLine *editline, int ch)
             // Must be more than one match
             for (i = 1, maxlen = 0; matches[i]; i++) {
                 match_len = strlen(matches[i]);
-                if (match_len > maxlen) maxlen = match_len;
+                if (match_len > maxlen)
+                    maxlen = match_len;
             }
             matches_num = i - 1;
             if (matches_num > 1) {
@@ -290,7 +285,7 @@ remote_complete(EditLine *editline, int ch)
         isaac_free(matches);
     }
 
-    pthread_mutex_unlock(&remote_cli->lock);
+    g_rec_mutex_unlock(&remote_cli->lock);
 
     return (char *) (long) retval;
 }
@@ -303,11 +298,13 @@ remote_display_match_list(char **matches, int len, int max)
 
     // Find out how many entries can be put on one line, with two spaces between strings
     limit = 10;
-    if (limit == 0) limit = 1;
+    if (limit == 0)
+        limit = 1;
 
     // How many lines of output
     count = len / limit;
-    if (count * limit < len) count++;
+    if (count * limit < len)
+        count++;
 
     idx = 1;
 
@@ -331,7 +328,8 @@ remote_display_match_list(char **matches, int len, int max)
             isaac_free(matches[idx]);
             matches[idx] = NULL;
         }
-        if (numoutputline > 0) fprintf(stdout, "\n");
+        if (numoutputline > 0)
+            fprintf(stdout, "\n");
     }
 
     return numoutput;
@@ -348,8 +346,7 @@ remote_consolehandler(char *s)
         history(el_hist, &ev, H_ENTER, isaac_strip(strdup(s)));
     }
 
-    if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) && (s[4] == '\0'
-                                                                               || isspace(s[4]))) {
+    if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) && (s[4] == '\0' || isspace(s[4]))) {
         remote_quit_handler(0);
         ret = 1;
     }
@@ -384,15 +381,18 @@ remote_el_initialize(void)
         }
     }
 
-    if (el != NULL) el_end(el);
-    if (el_hist != NULL) history_end(el_hist);
+    if (el != NULL)
+        el_end(el);
+    if (el_hist != NULL)
+        history_end(el_hist);
 
     el = el_init("Isaac", stdin, stdout, stderr);
     el_set(el, EL_PROMPT, remote_prompt);
     el_set(el, EL_EDITMODE, 1);
     el_set(el, EL_EDITOR, editor);
     el_hist = history_init();
-    if (!el || !el_hist) return -1;
+    if (!el || !el_hist)
+        return -1;
 
     // Setup history with 100 entries
     history(el_hist, &ev, H_SETSIZE, 100);
@@ -415,7 +415,8 @@ remote_el_initialize(void)
     el_set(el, EL_BIND, "\\eOD", "vi-prev-word", NULL);
 
     // Check if there is a resource file for editline
-    if (editrc) el_source(el, editrc);
+    if (editrc)
+        el_source(el, editrc);
 
     return 0;
 }
@@ -440,10 +441,9 @@ remote_el_read_char(EditLine *editline, wchar_t *cp)
         fds[1].events = POLLIN;
         res = poll(fds, 2, -1);
 
-        pthread_mutex_lock(&remote_cli->lock);
-        pthread_mutex_unlock(&remote_cli->lock);
         if (res < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR)
+                continue;
             isaac_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
             break;
         }
@@ -457,7 +457,7 @@ remote_el_read_char(EditLine *editline, wchar_t *cp)
         }
         if (fds[0].revents) {
             char *tmp;
-            res = read(remote_cli->fd, buf, sizeof(buf) - 1);
+            res = cli_read(remote_cli, buf);
             // if the remote side disappears exit
             if (res < 1) {
                 remote_quit_handler(0);
@@ -511,13 +511,15 @@ remote_el_strtoarr(char *buf)
     match_list_len = 1;
     while ((retstr = strsep(&buf, " ")) != NULL) {
 
-        if (!strcmp(retstr, AST_CLI_COMPLETE_EOF)) break;
+        if (!strcmp(retstr, AST_CLI_COMPLETE_EOF))
+            break;
         if (matches + 1 >= match_list_len) {
             match_list_len <<= 1;
             if ((match_list_tmp = realloc(match_list, match_list_len * sizeof(char *)))) {
                 match_list = match_list_tmp;
             } else {
-                if (match_list) isaac_free(match_list);
+                if (match_list)
+                    isaac_free(match_list);
                 return (char **) NULL;
             }
         }
@@ -525,13 +527,15 @@ remote_el_strtoarr(char *buf)
         match_list[matches++] = strdup(retstr);
     }
 
-    if (!match_list) return (char **) NULL;
+    if (!match_list)
+        return (char **) NULL;
 
     if (matches >= match_list_len) {
         if ((match_list_tmp = realloc(match_list, (match_list_len + 1) * sizeof(char *)))) {
             match_list = match_list_tmp;
         } else {
-            if (match_list) isaac_free(match_list);
+            if (match_list)
+                isaac_free(match_list);
             return (char **) NULL;
         }
     }
@@ -567,8 +571,7 @@ remote_el_write_history(char *filename)
 int
 remote_el_read_history(char *filename)
 {
-    HistEvent ev = {
-        0 };
+    HistEvent ev = { 0 };
 
     if (el_hist == NULL || el == NULL) {
         remote_el_initialize();
