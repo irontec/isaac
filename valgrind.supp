@@ -174,3 +174,174 @@
    fun:load_modules
    fun:main
 }
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:UnknownInlinedFun
+   fun:UnknownInlinedFun
+   fun:mysql_client_plugin_init
+   fun:mysql_once_init
+   fun:__pthread_once_slow
+   obj:/usr/lib/libmaodbc.so
+   obj:/usr/lib/libmaodbc.so
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:SQLDriverConnect
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:lt__malloc
+   fun:lt__zalloc
+   fun:UnknownInlinedFun
+   fun:lt_dlpreload
+   fun:lt_dlinit
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:SQLDriverConnect
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:lt__slist_box
+   fun:lt_dlloader_add
+   fun:loader_init.constprop.0
+   fun:lt_dlpreload_open
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:SQLDriverConnect
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   calloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   obj:/usr/lib/libodbc.so.2.0.0
+   obj:/usr/lib/libodbc.so.2.0.0
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:SQLDriverConnect
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:lt__malloc
+   fun:lt__zalloc
+   fun:try_dlopen
+   fun:lt_dlopenadvise
+   obj:/usr/lib/libodbc.so.2.0.0
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:SQLDriverConnect
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   calloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   obj:/usr/lib/libodbcinst.so.2.0.0
+   fun:SQLGetPrivateProfileString
+   obj:/usr/lib/libmaodbc.so
+   obj:/usr/lib/libmaodbc.so
+   obj:/usr/lib/libmaodbc.so
+   fun:SQLDriverConnect
+   fun:SQLDriverConnect
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   calloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:UnknownInlinedFun
+   fun:mysql_once_init
+   fun:__pthread_once_slow
+   obj:/usr/lib/libmaodbc.so
+   obj:/usr/lib/libmaodbc.so
+   obj:/usr/lib/libodbc.so.2.0.0
+   fun:SQLDriverConnect
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
+
+{
+   calloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:g_malloc0
+   obj:/usr/lib/libglib-2.0.so.0.7600.0
+   fun:manager_create_message
+   fun:manager_read_thread
+   obj:/usr/lib/libglib-2.0.so.0.7600.0
+   fun:start_thread
+   fun:clone
+}
+
+{
+   calloc
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:calloc
+   fun:allocate_dtv
+   fun:_dl_allocate_tls
+   fun:allocate_stack
+   fun:pthread_create@@GLIBC_2.34
+   obj:/usr/lib/libglib-2.0.so.0.7600.0
+   fun:g_thread_new
+   fun:g_thread_pool_new_full
+   obj:/usr/lib/libgio-2.0.so.0.7600.0
+   fun:g_task_get_type
+   fun:g_task_new
+   fun:g_socket_listener_accept_socket_async
+   obj:/usr/lib/libgio-2.0.so.0.7600.0
+}
+
+{
+   malloc
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   obj:/usr/lib/libglib-2.0.so.0.7600.0
+   fun:g_rec_mutex_lock
+   fun:odbc_connect
+   fun:load_module
+   fun:load_modules
+   fun:main
+}
