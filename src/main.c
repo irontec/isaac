@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <glib.h>
+#include <glib-unix.h>
 #include "module.h"
 #include "manager.h"
 #include "log.h"
@@ -52,11 +53,12 @@ print_version()
     printf("Created by Ivan Alonso [aka Kaian] <kaian@irontec.com>\n");
 }
 
-void
-signal_handler(int exitcode)
+static gboolean
+signal_handler(G_GNUC_UNUSED gpointer user_data)
 {
-    printf("Signal %d received\n", exitcode);
+    g_print("Signal Received\n");
     g_main_loop_quit(main_loop);
+    return G_SOURCE_REMOVE;
 }
 
 /**
@@ -137,9 +139,8 @@ main(int argc, char *argv[])
     }
 
     // Setup signal handlers
-    (void) signal(SIGINT, signal_handler);
-    (void) signal(SIGTERM, signal_handler);
-    (void) signal(SIGPIPE, SIG_IGN);
+    g_unix_signal_add(SIGINT, signal_handler, NULL);
+    g_unix_signal_add(SIGTERM, signal_handler, NULL);
 
     // Create main loop for default context
     main_loop = g_main_loop_new(NULL, FALSE);
