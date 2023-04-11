@@ -203,15 +203,15 @@ acd_exec(Session *sess, Application *app, const char *argstr)
     // Check if uniqueid info is requested
     GSList *args = application_parse_args(argstr);
 
-    GStrvBuilder *args_builder = g_strv_builder_new();
-    g_strv_builder_add(args_builder, "/usr/bin/php");
-    g_strv_builder_add(args_builder, acd_config.php_file);
+    g_autoptr(GString) args_builder = g_string_new(NULL);
+    g_string_append_printf(args_builder, "%s ", "/usr/bin/php");
+    g_string_append_printf(args_builder, "%s ", acd_config.php_file);
 
     if (g_ascii_strcasecmp(app->name, "ACDSTATUS") == 0) {
-        g_strv_builder_add(args_builder, "STATUS");
-        g_strv_builder_add(args_builder, acd_config.api_url);
-        g_strv_builder_add(args_builder, acd_config.api_token);
-        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        g_string_append_printf(args_builder, "%s ", "STATUS");
+        g_string_append_printf(args_builder, "%s ", acd_config.api_url);
+        g_string_append_printf(args_builder, "%s ", acd_config.api_token);
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "AGENT"));
     }
 
     if (g_ascii_strcasecmp(app->name, "ACDLOGIN") == 0) {
@@ -219,39 +219,39 @@ acd_exec(Session *sess, Application *app, const char *argstr)
             application_free_args(args);
             return INVALID_ARGUMENTS;
         }
-        g_strv_builder_add(args_builder, "LOGIN");
-        g_strv_builder_add(args_builder, acd_config.api_url);
-        g_strv_builder_add(args_builder, acd_config.api_token);
-        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
-        g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
+        g_string_append_printf(args_builder, "%s ", "LOGIN");
+        g_string_append_printf(args_builder, "%s ", acd_config.api_url);
+        g_string_append_printf(args_builder, "%s ", acd_config.api_token);
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "AGENT"));
+        g_string_append_printf(args_builder, "%s ", application_get_nth_arg(args, 0));
     }
 
     if (g_ascii_strcasecmp(app->name, "ACDLOGOUT") == 0) {
-        g_strv_builder_add(args_builder, "LOGOUT");
-        g_strv_builder_add(args_builder, acd_config.api_url);
-        g_strv_builder_add(args_builder, acd_config.api_token);
-        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
-        g_strv_builder_add(args_builder, session_get_variable(sess, "INTERFACE_NAME"));
+        g_string_append_printf(args_builder, "%s ", "LOGOUT");
+        g_string_append_printf(args_builder, "%s ", acd_config.api_url);
+        g_string_append_printf(args_builder, "%s ", acd_config.api_token);
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "AGENT"));
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "INTERFACE_NAME"));
     }
 
     if (g_ascii_strcasecmp(app->name, "ACDPAUSE") == 0) {
-        g_strv_builder_add(args_builder, "PAUSE");
-        g_strv_builder_add(args_builder, acd_config.api_url);
-        g_strv_builder_add(args_builder, acd_config.api_token);
-        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
-        g_strv_builder_add(args_builder, session_get_variable(sess, "INTERFACE_NAME"));
+        g_string_append_printf(args_builder, "%s ", "PAUSE");
+        g_string_append_printf(args_builder, "%s ", acd_config.api_url);
+        g_string_append_printf(args_builder, "%s ", acd_config.api_token);
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "AGENT"));
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "INTERFACE_NAME"));
         // Add custom pause code if requested
         if (g_slist_length(args) == 1) {
-            g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
+            g_string_append_printf(args_builder, "%s ", application_get_nth_arg(args, 0));
         }
     }
 
     if (g_ascii_strcasecmp(app->name, "ACDUNPAUSE") == 0) {
-        g_strv_builder_add(args_builder, "UNPAUSE");
-        g_strv_builder_add(args_builder, acd_config.api_url);
-        g_strv_builder_add(args_builder, acd_config.api_token);
-        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
-        g_strv_builder_add(args_builder, session_get_variable(sess, "INTERFACE_NAME"));
+        g_string_append_printf(args_builder, "%s ", "UNPAUSE");
+        g_string_append_printf(args_builder, "%s ", acd_config.api_url);
+        g_string_append_printf(args_builder, "%s ", acd_config.api_token);
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "AGENT"));
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "INTERFACE_NAME"));
     }
 
     if (g_ascii_strcasecmp(app->name, "QUEUEJOIN") == 0) {
@@ -259,15 +259,15 @@ acd_exec(Session *sess, Application *app, const char *argstr)
             application_free_args(args);
             return INVALID_ARGUMENTS;
         }
-        g_strv_builder_add(args_builder, "JOIN");
-        g_strv_builder_add(args_builder, acd_config.api_url);
-        g_strv_builder_add(args_builder, acd_config.api_token);
-        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        g_string_append_printf(args_builder, "%s ", "JOIN");
+        g_string_append_printf(args_builder, "%s ", acd_config.api_url);
+        g_string_append_printf(args_builder, "%s ", acd_config.api_token);
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "AGENT"));
         // Queue name
-        g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
+        g_string_append_printf(args_builder, "%s ", application_get_nth_arg(args, 0));
         // Add custom priority if requested
         if (g_slist_length(args) == 2) {
-            g_strv_builder_add(args_builder, application_get_nth_arg(args, 1));
+            g_string_append_printf(args_builder, "%s ", application_get_nth_arg(args, 1));
         }
     }
 
@@ -276,18 +276,18 @@ acd_exec(Session *sess, Application *app, const char *argstr)
             application_free_args(args);
             return INVALID_ARGUMENTS;
         }
-        g_strv_builder_add(args_builder, "LEAVE");
-        g_strv_builder_add(args_builder, acd_config.api_url);
-        g_strv_builder_add(args_builder, acd_config.api_token);
-        g_strv_builder_add(args_builder, session_get_variable(sess, "AGENT"));
+        g_string_append_printf(args_builder, "%s ", "LEAVE");
+        g_string_append_printf(args_builder, "%s ", acd_config.api_url);
+        g_string_append_printf(args_builder, "%s ", acd_config.api_token);
+        g_string_append_printf(args_builder, "%s ", session_get_variable(sess, "AGENT"));
         // Queue name
-        g_strv_builder_add(args_builder, application_get_nth_arg(args, 0));
+        g_string_append_printf(args_builder, "%s ", application_get_nth_arg(args, 0));
     }
 
     GError *error = NULL;
     gint fd;
 
-    GStrv php_args = g_strv_builder_end(args_builder);
+    GStrv php_args = g_strsplit(args_builder->str, " ", -1);
     if (!g_spawn_async_with_pipes(NULL, php_args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, NULL, &fd, NULL, &error)) {
         isaac_log(LOG_ERROR, "Failed to spawn PHP ACD script: %s\n", error->message);
         return 1;
@@ -304,8 +304,6 @@ acd_exec(Session *sess, Application *app, const char *argstr)
 
     // Free args app arguments
     application_free_args(args);
-    // Free builder memory
-    g_strv_builder_unref(args_builder);
 
     return 0;
 }
