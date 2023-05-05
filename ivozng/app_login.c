@@ -232,7 +232,15 @@ peer_status_check(Filter *filter, AmiMessage *msg)
     if (response) {
         const gchar *agent = session_get_variable(sess, "AGENT");
 
-        if (!g_ascii_strcasecmp(response, "Success")) {
+        gboolean registered = FALSE;
+        if (g_ascii_strcasecmp(response, "Success") == 0) {
+            const gchar *reg_contact = message_get_header(msg, "Reg-Contact");
+            if (reg_contact && strlen(reg_contact)) {
+                registered = TRUE;
+            }
+        }
+
+        if (registered) {
             // Send a success message
             session_write(sess, "LOGINOK Welcome back %s %s\r\n", agent, interface);
         } else {
