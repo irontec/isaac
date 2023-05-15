@@ -462,7 +462,7 @@ session_set_variable(Session *sess, const gchar *varname, const gchar *varvalue)
         GSList *l = g_slist_nth(sess->vars, id);
         SessionVar *var = l->data;
         g_free(var->value);
-        var->value = g_strdup(var->value);
+        var->value = g_strdup(varvalue);
     }
 }
 

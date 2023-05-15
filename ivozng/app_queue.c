@@ -118,18 +118,21 @@ read_queue_config(const char *cfile)
 int
 queueinfo_print_queues(Filter *filter, AmiMessage *msg)
 {
-    char response[512];
+    g_autoptr(GString) response;
     Session *sess = filter->sess;
     const char *event = message_get_header(msg, "Event");
     const char *queuename = message_get_header(msg, "Queue");
 
-    if (!strcasecmp(event, "QueueMember")) {
+    response = g_string_new(session_get_variable(sess, "QUEUEINFO_RESPONSE"));
+
+    if (g_ascii_strcasecmp(event, "QueueMember") == 0) {
         const char *interface = session_get_variable(sess, "INTERFACE");
-        if (!strcasecmp(interface, message_get_header(msg, "StateInterface"))) {
-            sprintf(response, "%s %s", session_get_variable(sess, "QUEUEINFO_RESPONSE"), queuename);
-            session_set_variable(sess, "QUEUEINFO_RESPONSE", response);
+        const char *state_interface = message_get_header(msg, "StateInterface");
+        if (g_ascii_strcasecmp(interface, state_interface) == 0) {
+            g_string_append_printf(response, " %s", queuename);
+            session_set_variable(sess, "QUEUEINFO_RESPONSE", response->str);
         }
-    } else if (!strcasecmp(event, "QueueStatusComplete")) {
+    } else if (g_ascii_strcasecmp(event, "QueueStatusComplete") == 0) {
         session_write(sess, "%s\r\n", session_get_variable(sess, "QUEUEINFO_RESPONSE"));
         filter_inactivate(filter);
     }
