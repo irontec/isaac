@@ -248,7 +248,7 @@ call_status_send_response(Session *sess, AppCallInfo *info, gboolean agent_event
     // Add the rest of the event data
     g_string_append_printf(response, " %s", (agent_event) ? "AGENT" : "REMOTE");
     g_string_append_printf(response, " %s", state);
-    g_string_append(response, "\n");
+    g_string_append(response, "\r\n");
 
     // Send this message to other clients if requested
     if (info->broadcast) {
