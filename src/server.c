@@ -47,7 +47,7 @@ server_thread_manage_connection(GSocketConnection *connection, G_GNUC_UNUSED gpo
 {
     // Create a new session for this connection
     Session *sess = session_create(connection);
-    g_return_val_if_fail(sess != NULL, FALSE);
+    g_return_val_if_fail(sess != NULL, TRUE);
 
     if (!session_test_flag(sess, SESS_FLAG_LOCAL)) {
         isaac_log(LOG_DEBUG,
