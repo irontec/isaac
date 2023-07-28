@@ -283,10 +283,11 @@ call_state(Filter *filter, AmiMessage *msg)
     const gchar *event = message_get_header(msg, "Event");
 
     // Determine if event is for AGENT or REMOTE channel
-    gboolean agent_event = g_ascii_strcasecmp(
-        message_get_header(msg, "UniqueID"),
-        info->agent_uniqueid
-    ) == 0;
+    gboolean agent_event = info->agent_uniqueid == NULL
+        || g_ascii_strcasecmp(
+            message_get_header(msg, "UniqueID"),
+            info->agent_uniqueid
+        ) == 0;
 
     // Determine channel state
     gchar *state = NULL;
