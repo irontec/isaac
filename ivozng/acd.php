@@ -266,13 +266,13 @@ switch ($action) {
         acd_logout($url, $argv[3], $argv[4], $argv[5]);
         break;
     case "PAUSE":
-        acd_pause($url, $argv[3], $argv[4], $argv[5], (count($argv) == 7) ? $argv[6] : null);
+        acd_pause($url, $argv[3], $argv[4], $argv[5], (count($argv) > 7) ? $argv[6] : null);
         break;
     case "UNPAUSE":
         acd_unpause($url, $argv[3], $argv[4], $argv[5]);
         break;
     case "JOIN":
-        acd_join($url, $argv[3], $argv[4], $argv[5], (count($argv) == 7) ? $argv[6] : null);
+        acd_join($url, $argv[3], $argv[4], $argv[5], (count($argv) > 7) ? $argv[6] : null);
         break;
     case "LEAVE":
         acd_leave($url, $argv[3], $argv[4], $argv[5]);
