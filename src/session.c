@@ -74,6 +74,18 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
     char msg[1024];
     Session *sess = (Session *) user_data;
 
+    // Check if socket has been closed
+    if (condition & G_IO_HUP || condition & G_IO_NVAL || condition & G_IO_ERR) {
+        // Connection closed, Thanks all for the fish
+        if (!session_test_flag(sess, SESS_FLAG_LOCAL))
+            isaac_log(LOG_DEBUG, "[Session#%s] Closed connection from %s [%d]\n", sess->id, sess->addrstr, condition);
+
+        // Deallocate session memory
+        session_finish(sess);
+        session_destroy(sess);
+        return TRUE;
+    }
+
     // Initialize message data
     memset(&msg, 0, sizeof(msg));
 
@@ -105,14 +117,6 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
         }
 
         g_strfreev(command);
-    } else {
-        // Connection closed, Thanks all for the fish
-        if (!session_test_flag(sess, SESS_FLAG_LOCAL))
-            isaac_log(LOG_DEBUG, "[Session#%s] Closed connection from %s\n", sess->id, sess->addrstr);
-
-        // Deallocate session memory
-        session_finish(sess);
-        session_destroy(sess);
     }
 
     return TRUE;
@@ -385,6 +389,7 @@ session_read(Session *sess, char *msg)
     // Read character by character until the next CR
     for (n = 0; n < sizeof(buffer); n++) {
         if (recv(sess->fd, &c, 1, 0) == 1) {
+            if (!g_ascii_isprint(c)) continue;
             // Add this character to the buffer
             buffer[n] = c;
             // Increase the readed bytes counter
@@ -394,8 +399,7 @@ session_read(Session *sess, char *msg)
         } else {
             // Interruption is not an error
             if (errno == EINTR) continue;
-            isaac_log(LOG_DEBUG, "[Session#%s] Error reading connection: %s\n", sess->id, strerror(errno));
-            return -1;
+            break;
         }
     }
 
