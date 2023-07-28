@@ -394,6 +394,7 @@ session_read(Session *sess, char *msg)
         } else {
             // Interruption is not an error
             if (errno == EINTR) continue;
+            isaac_log(LOG_DEBUG, "[Session#%s] Error reading connection: %s\n", sess->id, strerror(errno));
             return -1;
         }
     }
