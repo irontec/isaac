@@ -228,6 +228,7 @@ session_create(GSocketConnection *connection)
     sess->last_cmd_time = g_get_monotonic_time();
     sess->vars = NULL;
     sess->filters = NULL;
+    sess->command = g_string_new(NULL);
 
     // Initialize session fields
     if (g_inet_address_get_is_loopback(inet)) {
@@ -369,9 +370,8 @@ int
 session_read(Session *sess, char *msg)
 {
     int rbytes = 0;
-    char buffer[1024]; // XXX This should be enough in most cases...
     ssize_t n;
-    char c;
+    guchar c;
 
     // Sanity check.
     if (!sess) {
@@ -383,19 +383,21 @@ session_read(Session *sess, char *msg)
     if (session_test_flag(sess, SESS_FLAG_LEAVING))
         return -1;
 
-    // Initialize the buffer
-    memset(buffer, 0, sizeof(buffer));
-
     // Read character by character until the next CR
-    for (n = 0; n < sizeof(buffer); n++) {
+    for (n = 0; n < 1024; n++) {
         if (recv(sess->fd, &c, 1, 0) == 1) {
-            if (!g_ascii_isprint(c)) continue;
             // Add this character to the buffer
-            buffer[n] = c;
-            // Increase the readed bytes counter
-            rbytes++;
+            g_string_append_c(sess->command, c);
             // If end of line, stop reading
-            if (c == '\n') break;
+            if (c == '\n') {
+                // Copy the read buffer to the output var
+                strncpy(msg, sess->command->str, sess->command->len);
+                rbytes = (int) sess->command->len;
+                // Clear the command for next read
+                g_string_truncate(sess->command, 0);
+                // Stop processing
+                break;
+            }
         } else {
             // Interruption is not an error
             if (errno == EINTR) continue;
@@ -403,13 +405,10 @@ session_read(Session *sess, char *msg)
         }
     }
 
-    // Copy the readed buffer to the output var
-    strncpy(msg, buffer, rbytes);
-
     // If the debug is enabled in this session, print a message to
     // connected CLIs. LOG_NONE will not reach any file or syslog.
     if (session_test_flag(sess, SESS_FLAG_DEBUG)) {
-        isaac_log(LOG_VERBOSE_3, "\033[1;32mSession#%s << \033[0m%s", sess->id, buffer);
+        isaac_log(LOG_VERBOSE_3, "\033[1;32mSession#%s << \033[0m%s", sess->id, msg);
     }
 
     return rbytes;

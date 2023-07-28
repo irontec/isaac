@@ -85,6 +85,8 @@ struct _Session
     GSList *filters;
     //! Async queue for received AMI messages
     GAsyncQueue *queue;
+    //! Command read buffer
+    GString *command;
 
     //! Session running thread
     pthread_t thread;
