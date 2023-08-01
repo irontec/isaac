@@ -27,6 +27,7 @@
  */
 #include "config.h"
 #include "filter.h"
+#include "manager.h"
 #include "session.h"
 #include "log.h"
 #include "util.h"
@@ -241,6 +242,12 @@ filter_inject_message(Filter *filter, AmiMessage *msg)
     }
     sessions_release_lock();
 
+    // FIXME Create a ref counted AMI message
+    AmiMessage *message = manager_create_message();
+    message->hdrcount = msg->hdrcount;
+    message->in_command = msg->in_command;
+    memcpy(message->headers, msg->headers, sizeof(msg->headers));
+
     // Show some log
     isaac_log(LOG_NOTICE, "[Session#%s] Injecting fake %s message\n", filter->sess->id,
               message_get_header(msg, "Event"));
@@ -248,7 +255,10 @@ filter_inject_message(Filter *filter, AmiMessage *msg)
               message_get_header(msg, "Event"), message_to_text(msg));
 
     // Add this message to all session queues
-    sessions_enqueue_message(msg);
+    sessions_enqueue_message(message);
+
+    // Remove initial reference
+    g_atomic_rc_box_release_full(message, (GDestroyNotify) mamanger_unref_message);
 }
 
 gboolean

@@ -229,6 +229,9 @@ manager_connect(manager_t *man);
 extern void *
 manager_read_thread(void *man);
 
+gpointer
+manager_create_message();
+
 void
 mamanger_unref_message(AmiMessage *msg);
 
