@@ -54,7 +54,9 @@ remote_tryconnect()
     // Create Unix Socket client
     GSocketClient *client = g_socket_client_new();
     GSocketConnection *connection = g_socket_client_connect(client, G_SOCKET_CONNECTABLE(socket_address), NULL, NULL);
-    g_return_val_if_fail(connection != NULL, 1);
+    if (connection == NULL) {
+        return 1;
+    }
 
     // Create a cli structure for this connection
     remote_cli = cli_create(connection);
