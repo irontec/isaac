@@ -160,6 +160,7 @@ application_parse_args(const gchar *argstr)
         // Argument without value
         if (g_strv_length(var) == 1) {
             arg->name = g_strdup(var[0]);
+            arg->value = g_strdup("1");
         }
 
         // Argument with value
