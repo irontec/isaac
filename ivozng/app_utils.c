@@ -152,11 +152,11 @@ debug_exec(Session *sess, Application *app, const char *args)
     gboolean debug = session_test_flag(sess, SESS_FLAG_DEBUG);
     if (debug) {
         session_clear_flag(sess, SESS_FLAG_DEBUG);
-        session_write(sess, "DEBUGOK DISABLED");
+        session_write(sess, "DEBUGOK DISABLED\n");
         isaac_log(LOG_NOTICE, "Debug on session %s \033[1;31mdisabled\033[0m.\n", sess->id);
     } else {
         session_set_flag(sess, SESS_FLAG_DEBUG);
-        session_write(sess, "DEBUGOK ENABLED");
+        session_write(sess, "DEBUGOK ENABLED\n");
         isaac_log(LOG_NOTICE, "Debug on session %s \033[1;32menabled\033[0m.\n", sess->id);
     }
     return 0;
