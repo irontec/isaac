@@ -149,6 +149,11 @@ application_parse_args(const gchar *argstr)
         ApplicationArg *arg = g_malloc0(sizeof(ApplicationArg));
         g_return_val_if_fail(arg != NULL, NULL);
 
+        g_autofree gchar *args_stripped = g_strstrip(g_strdup(args[i]));
+        if (strlen(args_stripped) == 0) {
+            continue;
+        }
+
         // Check if argument is in VAR=VALUE format
         GStrv var = g_strsplit(args[i], "=", 2);
 
