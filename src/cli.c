@@ -233,9 +233,23 @@ cli_write(CLIClient *cli, const char *fmt, ...)
     vsprintf(message, fmt, ap);
     va_end(ap);
     g_rec_mutex_lock(&cli->lock);
-    ret = write(cli->fd, message, isaac_strlen(message) + 1);
+    gsize bytes_sent_total = 0;
+    gsize length = isaac_strlen(message) + 1;
+    while (bytes_sent_total < length) {
+        gsize bytes_sent = send(cli->fd, message + bytes_sent_total, length - bytes_sent_total, 0);
+        if (bytes_sent < 0) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR) {
+                // The socket is not ready for sending at this moment,
+                // wait a bit and then try again.
+                continue;
+            }
+            // Error sending bytes, bailout
+            break;
+        }
+        bytes_sent_total += bytes_sent;
+    }
     g_rec_mutex_unlock(&cli->lock);
-    return ret;
+    return bytes_sent_total;
 }
 
 void
