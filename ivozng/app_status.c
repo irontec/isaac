@@ -246,7 +246,7 @@ status_inject_queue_call(Filter *filter)
     message_add_header(&user_msg, "Variable: __ISAAC_MONITOR");
     message_add_header(&user_msg, "Value: %s!%s!%s!%s!%s", info->plat, info->clidnum, info->channel, info->uniqueid,
                        info->queue);
-    message_add_header(&user_msg, "Channel: Local/%s@agentes", info->xfer_agent);
+    message_add_header(&user_msg, "Channel: Local/%s@agentes-00000000;2", info->xfer_agent);
     filter_inject_message(filter, &user_msg);
 
     /* Construct a Request message (fake Dial).
@@ -256,7 +256,7 @@ status_inject_queue_call(Filter *filter)
     memset(&user_msg, 0, sizeof(AmiMessage));
     message_add_header(&user_msg, "Event: Dial");
     message_add_header(&user_msg, "SubEvent: Begin");
-    message_add_header(&user_msg, "Channel: Local/%s@agentes", info->xfer_agent);
+    message_add_header(&user_msg, "Channel: Local/%s@agentes-00000000;2", info->xfer_agent);
     message_add_header(&user_msg, "Destination: %s", info->xfer_channel);
     message_add_header(&user_msg, "CallerIDName: %s", info->plat);
     message_add_header(&user_msg, "CallerIDNum: %s", info->clidnum);
