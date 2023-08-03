@@ -83,14 +83,28 @@ session_handle_command(gint fd, GIOCondition condition, gpointer user_data)
         // Deallocate session memory
         session_finish(sess);
         session_destroy(sess);
-        return TRUE;
+        return FALSE;
     }
 
     // Initialize message data
     memset(&msg, 0, sizeof(msg));
 
-    // While connection is up
-    if (session_read(sess, msg) > 0) {
+    // Read command from session
+    gint rbytes = session_read(sess, msg);
+
+    if (rbytes < 0) {
+        // Connection closed, Thanks all for the fish
+        if (!session_test_flag(sess, SESS_FLAG_LOCAL))
+            isaac_log(LOG_DEBUG, "[Session#%s] Closed connection from %s\n", sess->id, sess->addrstr);
+
+        // Deallocate session memory
+        session_finish(sess);
+        session_destroy(sess);
+        return FALSE;
+    }
+
+    // Check entered command
+    if (rbytes > 0) {
         // Store the last action time
         sess->last_cmd_time = g_get_monotonic_time();
 
@@ -370,6 +384,7 @@ int
 session_read(Session *sess, char *msg)
 {
     int rbytes = 0;
+    int received = 0;
     ssize_t n;
     guchar c;
 
@@ -384,25 +399,24 @@ session_read(Session *sess, char *msg)
         return -1;
 
     // Read character by character until the next CR
-    for (n = 0; n < 1024; n++) {
-        if (recv(sess->fd, &c, 1, 0) == 1) {
-            // Add this character to the buffer
-            g_string_append_c(sess->command, c);
-            // If end of line, stop reading
-            if (c == '\n') {
-                // Copy the read buffer to the output var
-                strncpy(msg, sess->command->str, sess->command->len);
-                rbytes = (int) sess->command->len;
-                // Clear the command for next read
-                g_string_truncate(sess->command, 0);
-                // Stop processing
-                break;
-            }
-        } else {
-            // Interruption is not an error
-            if (errno == EINTR) continue;
+    while ((received = recv(sess->fd, &c, 1, 0)) == 1) {
+        // Add this character to the buffer
+        g_string_append_c(sess->command, c);
+        // If end of line, stop reading
+        if (c == '\n') {
+            // Copy the read buffer to the output var
+            strncpy(msg, sess->command->str, sess->command->len);
+            rbytes = (int) sess->command->len;
+            // Clear the command for next read
+            g_string_truncate(sess->command, 0);
+            // Stop processing
             break;
         }
+    }
+
+    // No data received, socket is closed
+    if (received == 0) {
+        return -1;
     }
 
     // If the debug is enabled in this session, print a message to
