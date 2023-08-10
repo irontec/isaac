@@ -303,8 +303,6 @@ call_state(Filter *filter, AmiMessage *msg)
             state = "HANGUP";
         } else if (!strcasecmp(cause, "17")) {
             state = "BUSY";
-        } else if (!strcasecmp(cause, "19")) {
-            state = "REJECTED";
         } else {
             g_string_append_printf(unknown_hangup, "UNKNOWNHANGUP %s", cause);
             state = unknown_hangup->str;
