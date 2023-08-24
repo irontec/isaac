@@ -177,6 +177,7 @@ static gboolean
 acd_exec_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, AppAcdData *data)
 {
     g_return_val_if_fail(data->session != NULL, G_SOURCE_REMOVE);
+    g_return_val_if_fail(g_io_channel_get_flags(channel) & G_IO_FLAG_IS_READABLE, G_SOURCE_REMOVE);
 
     GError *error = NULL;
     g_autoptr(GString) buffer = g_string_new(NULL);
