@@ -254,6 +254,38 @@ peer_status_check(Filter *filter, AmiMessage *msg)
 }
 
 /**
+ * @brief Callback for broadcast messages
+ *
+ * Broadcast message sent from another session.
+ * It can contain a Variable header to determine the target session
+ *
+ * @param filter Triggering filter structure
+ * @param msg Matching message from Manager
+ * @return 0 in all cases
+ */
+static gint
+broadcast_message_check(Filter *filter, AmiMessage *msg)
+{
+    const gchar *variable = message_get_header(msg, "Variable");
+    if (strlen(variable) > 0) {
+        const gchar *value = message_get_header(msg, "Value");
+        const gchar *sess_value = session_get_variable(filter->sess, variable);
+        // Session doesn't have that variable
+        if (!sess_value) {
+            return 0;
+        }
+        // Session variable has not that value
+        if (g_ascii_strcasecmp(value, sess_value) != 0) {
+            return 0;
+        }
+    }
+
+    // Write the message to the session
+    const gchar *message = message_get_header(msg, "Message");
+    session_write(filter->sess, "%s\n", message);
+}
+
+/**
  * @brief Check Login attempt against asterisk database
  *
  * ivoz-ng callcenter agents are stored in karma_used using a custom salted
@@ -361,6 +393,10 @@ login_exec(Session *sess, Application *app, const gchar *argstr)
         filter_new_condition(acd_status_filter, MATCH_EXACT, "Exten", "access_%s", interface + 4);
         filter_new_condition(acd_status_filter, MATCH_EXACT, "Status", "1");
         filter_register(acd_status_filter);
+
+        Filter *broadcast_filter = filter_create_async(sess, app, "Broadcast message received", broadcast_message_check);
+        filter_new_condition(broadcast_filter, MATCH_EXACT, "Event", "Broadcast");
+        filter_register(broadcast_filter);
 
         if (login_config.validate_registered) {
             // Check if device is registered

@@ -119,29 +119,24 @@ int get_exec(Session *sess, Application *app, const char *args)
  */
 int broadcast_exec(Session *sess, Application *app, const char *args)
 {
-    char variable[80], value[80], message[1024];
+    char variable[256], value[256], message[2048];
 
     // Check if message has a condition
     if (sscanf(args, "%[^=]=%s %[^\n]", variable, value, message) < 3) {
         isaac_strcpy(message, args);
-        memset(variable, 0, 80);
-        memset(value, 0, 80);
+        memset(variable, 0, sizeof(value));
+        memset(value, 0, sizeof(value));
     }
 
-    GSList *sessions = sessions_adquire_lock();
-    for (GSList *l = sessions; l; l = l->next) {
-        Session *cur = l->data;
-        // If there is a variable, check current session has the same value
-        if (strlen(variable)) {
-            const char *cur_value = session_get_variable(cur, variable);
-            if (!cur_value || strcasecmp(cur_value, value))
-                continue;
-        }
-
-        // Otherwise send the message to that session
-        session_write(cur, "%s\r\n", message);
+    // Construct a Request message
+    AmiMessage *msg = manager_create_message();
+    message_add_header(msg, "Event: Broadcast");
+    message_add_header(msg, "Message: %s", message);
+    if (strlen(variable)) {
+        message_add_header(msg, "Variable: %s", variable);
+        message_add_header(msg, "Value: %s", value);
     }
-    sessions_release_lock();
+    sessions_enqueue_message(msg);
     return 0;
 }
 
