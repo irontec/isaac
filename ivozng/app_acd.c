@@ -176,22 +176,23 @@ acd_refresh_api_token(G_GNUC_UNUSED gpointer user_data)
 static gboolean
 acd_exec_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, AppAcdData *data)
 {
+    g_return_val_if_fail(data != NULL, G_SOURCE_REMOVE);
     g_return_val_if_fail(data->session != NULL, G_SOURCE_REMOVE);
     g_return_val_if_fail(g_io_channel_get_flags(channel) & G_IO_FLAG_IS_READABLE, G_SOURCE_REMOVE);
 
-    GError *error = NULL;
-    g_autoptr(GString) buffer = g_string_new(NULL);
-    if (g_io_channel_read_line_string(channel, buffer, NULL, &error) != G_IO_STATUS_NORMAL) {
-        isaac_log(LOG_ERROR, "Failed to parse ACD process response: %s\n", error->message);
-    } else {
-        session_write(data->session, buffer->str);
-    }
+    if (condition & G_IO_IN) {
+        GError *error = NULL;
+        g_autoptr(GString) buffer = g_string_new(NULL);
+        if (g_io_channel_read_line_string(channel, buffer, NULL, &error) != G_IO_STATUS_NORMAL) {
+            isaac_log(LOG_ERROR, "Failed to parse ACD process response: %s\n", error->message);
+        } else {
+            session_write(data->session, buffer->str);
+        }
 
-    // We're done with this ACD process
-    g_source_destroy(data->source);
-    g_source_unref(data->source);
-    g_io_channel_unref(data->channel);
-    g_free(data);
+        // We're done with this ACD process
+        g_io_channel_unref(data->channel);
+        g_free(data);
+    }
 
     return G_SOURCE_REMOVE;
 }
