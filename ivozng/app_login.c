@@ -282,7 +282,7 @@ broadcast_message_check(Filter *filter, AmiMessage *msg)
 
     // Write the message to the session
     const gchar *message = message_get_header(msg, "Message");
-    session_write(filter->sess, "%s\n", message);
+    session_write(filter->sess, "%s\r\n", message);
 }
 
 /**
