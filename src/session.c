@@ -317,7 +317,7 @@ session_write(Session *sess, const char *fmt, ...)
 {
     int wbytes = 0;
     va_list ap;
-    char msgva[512];
+    char msgva[5120];
 
     // Sanity Check.
     if (!sess) {
@@ -357,7 +357,7 @@ session_write_broadcast(Session *sender, const char *fmt, ...)
 {
     // Write to the original session
     va_list ap;
-    char msgva[512];
+    char msgva[5120];
     const char *orig_agent = session_get_variable(sender, "AGENT");
 
     // Built the message with the given variables
