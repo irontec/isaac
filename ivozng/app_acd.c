@@ -184,7 +184,10 @@ acd_exec_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, App
         GError *error = NULL;
         g_autoptr(GString) buffer = g_string_new(NULL);
         if (g_io_channel_read_line_string(channel, buffer, NULL, &error) != G_IO_STATUS_NORMAL) {
-            isaac_log(LOG_ERROR, "Failed to parse ACD process response: %s\n", error->message);
+            if (error != NULL) {
+                isaac_log(LOG_ERROR, "Failed to parse ACD process response: %s\n", error->message);
+            }
+            session_write(data->session, "ACDERROR\r\n");
         } else {
             session_write(data->session, buffer->str);
         }
