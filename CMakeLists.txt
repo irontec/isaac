@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.0)
 project(isaac VERSION 2.1 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_C_FLAGS_DEBUG "-O0 -ggdb -Werror -Wall -Wextra -pedantic")
+set(CMAKE_C_FLAGS_DEBUG "-O0 -ggdb")
 
 include_directories(ivozng)
 include_directories(modules)
