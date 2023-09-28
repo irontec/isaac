@@ -29,6 +29,10 @@ fi
 
 case "$1" in
   start)
+        ulimit -c unlimited
+        ulimit -u unlimited
+        ulimit -n 65536
+
 	log_begin_msg "Starting $DESC: $NAME"
 	start-stop-daemon --start --oknodo --quiet --name $NAME --exec $DAEMON
 	log_end_msg $?
