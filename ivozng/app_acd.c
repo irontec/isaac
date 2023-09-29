@@ -164,6 +164,7 @@ acd_refresh_api_token(G_GNUC_UNUSED gpointer user_data)
 
     AppAcdData *data = g_new(AppAcdData, 1);
     data->channel = g_io_channel_unix_new(fd);
+    g_io_channel_set_close_on_unref(data->channel, TRUE);
     data->source = g_io_create_watch(data->channel, G_IO_IN);
 
     // Read script response asynchronously
@@ -193,6 +194,7 @@ acd_exec_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, App
         }
 
         // We're done with this ACD process
+        g_io_channel_shutdown(data->channel, FALSE, &error);
         g_io_channel_unref(data->channel);
         g_free(data);
     }
@@ -302,6 +304,7 @@ acd_exec(Session *sess, Application *app, const char *argstr)
 
     AppAcdData *data = g_new(AppAcdData, 1);
     data->channel = g_io_channel_unix_new(fd);
+    g_io_channel_set_close_on_unref(data->channel, TRUE);
     data->source = g_io_create_watch(data->channel, G_IO_IN);
     data->session = sess;
 
