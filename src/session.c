@@ -577,5 +577,7 @@ sessions_enqueue_message(AmiMessage *msg)
         Session *sess = l->data;
         g_async_queue_push(sess->queue, (gpointer) g_atomic_rc_box_acquire(msg));
     }
+    // Remove initial reference
+    g_atomic_rc_box_release_full(msg, (GDestroyNotify) mamanger_unref_message);
     g_rec_mutex_unlock(&session_mutex);
 }

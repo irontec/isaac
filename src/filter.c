@@ -242,7 +242,6 @@ filter_inject_message(Filter *filter, AmiMessage *msg)
     }
     sessions_release_lock();
 
-    // FIXME Create a ref counted AMI message
     AmiMessage *message = manager_create_message();
     message->hdrcount = msg->hdrcount;
     message->in_command = msg->in_command;
@@ -256,9 +255,6 @@ filter_inject_message(Filter *filter, AmiMessage *msg)
 
     // Add this message to all session queues
     sessions_enqueue_message(message);
-
-    // Remove initial reference
-    g_atomic_rc_box_release_full(message, (GDestroyNotify) mamanger_unref_message);
 }
 
 gboolean

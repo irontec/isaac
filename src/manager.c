@@ -308,8 +308,6 @@ manager_read_thread(void *man)
         if ((res = manager_read_message(manager, msg)) > 0) {
             // Add received message to all queues
             sessions_enqueue_message(msg);
-            // Remove initial reference
-            g_atomic_rc_box_release_full(msg, (GDestroyNotify) mamanger_unref_message);
         } else if (res < 0) {
             // If no error, maybe we are shutting down?
             if (!running) break;
