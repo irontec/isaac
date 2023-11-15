@@ -538,7 +538,7 @@ call_exec(Session *sess, Application *app, const char *argstr)
     Filter *local_chans_filter = filter_create_async(sess, app, "Originated call status", call_state);
     filter_new_condition(local_chans_filter, MATCH_EXACT, "Event", "VarSet");
     filter_new_condition(local_chans_filter, MATCH_EXACT, "Variable", "ACTIONID");
-    filter_new_condition(local_chans_filter, MATCH_EXACT, "Value", actionid);
+    filter_new_condition(local_chans_filter, MATCH_EXACT, "Value", "%s#%s", actionid, sess->id);
     filter_set_userdata_full(local_chans_filter, (gpointer) info, (GDestroyNotify) call_info_free);
     filter_register(local_chans_filter);
 
@@ -554,10 +554,10 @@ call_exec(Session *sess, Application *app, const char *argstr)
     message_add_header(&msg, "Channel: Local/%s@%s", agent, call_config.incontext);
     message_add_header(&msg, "Context: %s", call_config.outcontext);
     message_add_header(&msg, "Priority: 1");
-    message_add_header(&msg, "ActionID: %s", actionid);
+    message_add_header(&msg, "ActionID: %s#%s", actionid, sess->id);
     message_add_header(&msg, "Exten: %s", exten);
     message_add_header(&msg, "Async: 1");
-    message_add_header(&msg, "Variable: ACTIONID=%s", actionid);
+    message_add_header(&msg, "Variable: ACTIONID=%s#%s", actionid, sess->id);
     message_add_header(&msg, "Variable: ROL=%s", rol);
     message_add_header(&msg, "Variable: CALLERID=%s", agent);
     message_add_header(&msg, "Variable: DESTINO=%s", exten);
@@ -666,7 +666,7 @@ hangup_exec(Session *sess, Application *app, const char *args)
         return NOT_AUTHENTICATED;
     }
 
-    // Get Hangup parameteres
+    // Get Hangup parameters
     if (sscanf(args, "%s", actionid) != 1) {
         return INVALID_ARGUMENTS;
     }
@@ -812,7 +812,7 @@ record_exec(Session *sess, Application *app, const char *args)
         }
 
         Filter *record_status = filter_create_async(sess, app, "Recording status", record_state);
-        filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s", actionid);
+        filter_new_condition(record_status, MATCH_EXACT, "ActionID", "RECORD_%s#%s", actionid, sess->id);
         filter_set_userdata_full(record_status, (gpointer) info, (GDestroyNotify) call_info_free);
         filter_register_oneshot(record_status);
 
@@ -821,7 +821,7 @@ record_exec(Session *sess, Application *app, const char *args)
         message_add_header(&msg, "Action: MixMonitor");
         message_add_header(&msg, "Channel: %s", info->agent_channel);
         message_add_header(&msg, "File: %s/%s.wav", call_config.record_path, filename);
-        message_add_header(&msg, "ActionID: RECORD_%s", actionid);
+        message_add_header(&msg, "ActionID: RECORD_%s#%s", actionid, sess->id);
         message_add_header(&msg, "Options: i(ISAAC_RECORDING)");
         manager_write_message(manager, &msg);
 
