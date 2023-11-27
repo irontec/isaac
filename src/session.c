@@ -203,6 +203,7 @@ session_destroy(Session *session)
 
     // Free session memory
     g_object_unref(session->connection);
+    g_string_free(session->command, TRUE);
     g_free(session->addrstr);
     g_free(session);
 }
