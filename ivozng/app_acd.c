@@ -196,6 +196,7 @@ acd_exec_response(GIOChannel *channel, G_GNUC_UNUSED GIOCondition condition, App
         // We're done with this ACD process
         g_io_channel_shutdown(data->channel, FALSE, &error);
         g_io_channel_unref(data->channel);
+        g_source_unref(data->source);
         g_free(data);
     }
 
@@ -296,7 +297,7 @@ acd_exec(Session *sess, Application *app, const char *argstr)
     GError *error = NULL;
     gint fd;
 
-    GStrv php_args = g_strsplit(args_builder->str, " ", -1);
+    g_auto(GStrv) php_args = g_strsplit(args_builder->str, " ", -1);
     if (!g_spawn_async_with_pipes(NULL, php_args, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, NULL, &fd, NULL, &error)) {
         isaac_log(LOG_ERROR, "Failed to spawn PHP ACD script: %s\n", error->message);
         return 1;
