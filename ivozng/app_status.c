@@ -770,31 +770,33 @@ status_exec(Session *sess, Application *app, const gchar *argstr)
     // Parse rest of status arguments
     GSList *args = application_parse_args(argstr);
 
-    // Check if debug is enabled
-    if (application_arg_exists(args, "DEBUG")) {
-        session_set_variable(sess, "STATUSDEBUG", "1");
-    }
+    if (args) {
+        // Check if debug is enabled
+        if (application_arg_exists(args, "DEBUG")) {
+            session_set_variable(sess, "STATUSDEBUG", "1");
+        }
 
-    // Check with uniqueid mode
-    if (application_arg_exists(args, "WUID")) {
-        session_set_variable(sess, "STATUSWUID", "1");
-    }
+        // Check with uniqueid mode
+        if (application_arg_exists(args, "WUID")) {
+            session_set_variable(sess, "STATUSWUID", "1");
+        }
 
-    // Check with queuename mode
-    if (application_arg_exists(args, "WQUEUE")) {
-        session_set_variable(sess, "STATUSWQUEUE", "1");
-    }
+        // Check with queuename mode
+        if (application_arg_exists(args, "WQUEUE")) {
+            session_set_variable(sess, "STATUSWQUEUE", "1");
+        }
 
-    // Check with agent mode
-    if (application_arg_exists(args, "WAGENT")) {
-        session_set_variable(sess, "STATUSWAGENT", "1");
+        // Check with agent mode
+        if (application_arg_exists(args, "WAGENT")) {
+            session_set_variable(sess, "STATUSWAGENT", "1");
 
-        // Listen to ISAAC_MONITOR in Agent channels
-        Filter *agent_filter = filter_create_async(sess, app, "Get agent from incoming call", status_incoming_uniqueid);
-        filter_new_condition(agent_filter, MATCH_EXACT, "Event", "VarSet");
-        filter_new_condition(agent_filter, MATCH_EXACT, "Variable", "ISAAC_AGENT_MONITOR");
-        filter_new_condition(agent_filter, MATCH_REGEX, "Channel", "%s", interface);
-        filter_register(agent_filter);
+            // Listen to ISAAC_MONITOR in Agent channels
+            Filter *agent_filter = filter_create_async(sess, app, "Get agent from incoming call", status_incoming_uniqueid);
+            filter_new_condition(agent_filter, MATCH_EXACT, "Event", "VarSet");
+            filter_new_condition(agent_filter, MATCH_EXACT, "Variable", "ISAAC_AGENT_MONITOR");
+            filter_new_condition(agent_filter, MATCH_REGEX, "Channel", "%s", interface);
+            filter_register(agent_filter);
+        }
     }
 
     if (session_get_variable(sess, "STATUSWUID") && session_get_variable(sess, "STATUSWQUEUE")) {
