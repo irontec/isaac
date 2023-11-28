@@ -248,6 +248,7 @@ queueinfo_exec(Session *sess, Application *app, const char *argstr)
         memset(&msg, 0, sizeof(AmiMessage));
         message_add_header(&msg, "Action: QueueStatus");
         message_add_header(&msg, "ActionID: %s", actionid);
+        message_add_header(&msg, "Member: Local/%s_1@agentes", session_get_variable(sess, "AGENT"));
         manager_write_message(manager, &msg);
 
         // Free args app arguments
@@ -544,6 +545,7 @@ queueshow_exec(Session *sess, Application *app, const char *args)
     memset(&msg, 0, sizeof(AmiMessage));
     message_add_header(&msg, "Action: QueueStatus");
     message_add_header(&msg, "ActionID: QueueStatusID%s", sess->id);
+    message_add_header(&msg, "Member: Local/%s_1@agentes", session_get_variable(sess, "AGENT"));
     manager_write_message(manager, &msg);
 
     return 0;
