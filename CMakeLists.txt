@@ -75,6 +75,7 @@ add_library(app_call MODULE ivozng/app_call.c)
 add_library(app_queue MODULE ivozng/app_queue.c)
 add_library(app_classic MODULE ivozng/app_classic.c)
 add_library(app_meetme MODULE ivozng/app_meetme.c)
+add_library(app_confbridge MODULE ivozng/app_confbridge.c)
 
 
 SET(ISAAC_MODULES
@@ -87,6 +88,7 @@ SET(ISAAC_MODULES
         app_queue
         app_classic
         app_meetme
+        app_confbridge
         )
 
 set_target_properties(${ISAAC_MODULES} PROPERTIES PREFIX "")
