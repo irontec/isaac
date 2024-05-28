@@ -234,8 +234,8 @@ peer_status_check(Filter *filter, AmiMessage *msg)
 
         gboolean registered = FALSE;
         if (g_ascii_strcasecmp(response, "Success") == 0) {
-            const gchar *reg_contact = message_get_header(msg, "Reg-Contact");
-            if (reg_contact && strlen(reg_contact)) {
+            const gchar *address_ip = message_get_header(msg, "Address-IP");
+            if (address_ip && strlen(address_ip) && g_ascii_strcasecmp(address_ip, "(null)") != 0) {
                 registered = TRUE;
             }
         }
