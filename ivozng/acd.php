@@ -222,7 +222,7 @@ function acd_join($url, $token, $agent, $queue, $priority = null)
     if (array_key_exists("status", $response) && $response['status'] == "Agent $agent added to queue $queue") {
         echo "QUEUEJOINOK Successfully JOIN queue $queue\r\n";
     } else {
-        echo "QUEUEJOIFAIL Unable to JOIN queue $queue\r\n";
+        echo "QUEUEJOINFAIL Unable to JOIN queue $queue\r\n";
     }
 }
 
