@@ -21,4 +21,4 @@ src/isaac
 .cproject
 .autotools
 .settings
-debian
+./debian
