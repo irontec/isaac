@@ -190,7 +190,7 @@ queueinfo_validate_queue(Filter *filter, AmiMessage *msg)
 
         // Register a Filter to get All generated channels for
         Filter *queuefilter = filter_create_async(sess, filter->app, "Queue agent changes filter", queueinfo_print);
-        filter_new_condition(queuefilter, MATCH_REGEX, "Event", "Join|Leave");
+        filter_new_condition(queuefilter, MATCH_REGEX, "Event", "(QueueCaller)?Join|(QueueCaller)?Leave");
         filter_new_condition(queuefilter, MATCH_EXACT, "Queue", queuename);
         filter_register(queuefilter);
 
@@ -303,7 +303,7 @@ queueinfo_exec(Session *sess, Application *app, const char *argstr)
 
         // Register a Filter to get All generated channels for
         Filter *queuefilter = filter_create_async(sess, app, "Queue agent changes filter", queueinfo_print);
-        filter_new_condition(queuefilter, MATCH_REGEX, "Event", "Join|Leave");
+        filter_new_condition(queuefilter, MATCH_REGEX, "Event", "(QueueCaller)?Join|(QueueCaller)?Leave");
         filter_new_condition(queuefilter, MATCH_EXACT, "Queue", queue_name);
         filter_register(queuefilter);
     }
