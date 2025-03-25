@@ -12,7 +12,7 @@ Depends: ${misc:Depends},
     php,
     php-curl,
     unixodbc,
-    libmariadb-odbc
+    libmariadb-odbc | odbc-mariadb
 Priority: optional
 Homepage: http://www.irontec.com
 Description: Ivozng simplified Asterisk AMI Connector
